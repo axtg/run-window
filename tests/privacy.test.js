@@ -1,12 +1,14 @@
 const request = require('supertest');
 
-const { parseForecast } = require('../lib/forecast');
+const util = require('util');
 const amsterdamFixture = require('./fixtures/open-meteo/amsterdam-forecast.json');
 
 const LAT = '52.373187';
 const LON = '4.892241';
 const COORDS = `lat=${LAT}&lon=${LON}`;
-const LEAK = /373187|892241|lat=|secret/;
+// Responses legitimately hold the rounded location (52.37, 4.89). Logs may hold only lat/lon rounded to 1 decimal.
+const RESPONSE_LEAK = /373187|892241|lat=|secret/;
+const LOG_LEAK = /52\.37|4\.89|373187|892241|latitude|longitude|lat=|secret/;
 const NOW = Date.UTC(2026, 10, 2, 9, 0, 0);
 const LOG_ENDPOINT = 'https://logs.example.test';
 const UPSTREAM = /^https:\/\/api\.open-meteo\.com\//;
@@ -71,19 +73,20 @@ const realCache = overrides => {
 
 const appWith = weather => modules.createApp({ weather, now: () => NOW });
 
-// Everything that left the process or reached the client for a request.
+// Console arguments are inspected, so objects (`console.log('query', req.query)`) are searched too.
 const consoleOutput = () =>
-  JSON.stringify(
-    [console.log, console.warn, console.error, console.info].map(mock => mock.mock.calls.map(call => String(call)))
+  [console.log, console.warn, console.error, console.info]
+    .flatMap(mock => mock.mock.calls)
+    .map(args => args.map(arg => util.inspect(arg, { depth: null })).join(' '))
+    .join('\n');
+const logOutput = () => `${JSON.stringify(logged)}\n${consoleOutput()}`;
+
+function expectNoLeak(response) {
+  expect(logOutput()).not.toMatch(LOG_LEAK);
+  expect(JSON.stringify({ status: response.status, headers: response.headers, body: response.text })).not.toMatch(
+    RESPONSE_LEAK
   );
-const everything = response =>
-  JSON.stringify({
-    logged,
-    console: consoleOutput(),
-    status: response.status,
-    headers: response.headers,
-    body: response.text
-  });
+}
 
 // Authorization and the coordinates go on every request, as TRMNL would send them.
 const send = (app, url, extra = {}) => {
@@ -115,7 +118,7 @@ describe('Authorization and Cookie', () => {
 
     expect(response.status).toBe(status);
     expect(logged.length).toBeGreaterThan(0);
-    expect(everything(response)).not.toMatch(LEAK);
+    expectNoLeak(response);
   });
 
   test('stripAuth runs before the logger, so nothing logs the headers', () => {
@@ -140,7 +143,7 @@ describe('coordinates', () => {
 
     expect(response.status).toBe(404);
     expect(logged.find(entry => 'statusCode' in entry)).toMatchObject({ path: 'other', message: 'GET other - 404' });
-    expect(everything(response)).not.toMatch(LEAK);
+    expectNoLeak(response);
   });
 
   test('a 200 logs the path and the location rounded to one decimal, nothing finer', async () => {
@@ -148,7 +151,7 @@ describe('coordinates', () => {
 
     expect(logged.find(entry => 'statusCode' in entry)).toMatchObject({ path: '/api/window', lat: 52.4, lon: 4.9 });
     expect(JSON.parse(response.text).location).toEqual({ lat: 52.37, lon: 4.89, timezone: 'Europe/Amsterdam' });
-    expect(everything(response)).not.toMatch(LEAK);
+    expectNoLeak(response);
   });
 
   test('a referrer carrying coordinates is not logged', async () => {
@@ -157,8 +160,8 @@ describe('coordinates', () => {
     });
 
     expect(response.status).toBe(200);
-    expect(everything(response)).not.toMatch(LEAK);
-    expect(everything(response)).not.toMatch(/example\.com/);
+    expectNoLeak(response);
+    expect(logOutput()).not.toMatch(/example\.com/);
   });
 
   test('a validation error names the parameter, not its value', async () => {
@@ -166,7 +169,7 @@ describe('coordinates', () => {
 
     expect(response.status).toBe(400);
     expect(response.body.message).toMatch(/rain/);
-    expect(everything(response)).not.toMatch(LEAK);
+    expectNoLeak(response);
   });
 
   test.each([
@@ -189,7 +192,7 @@ describe('coordinates', () => {
     expect(response.status).toBe(503);
     expect(response.body.message).toBe('Weather data is temporarily unavailable.');
     expect(logged.map(entry => entry.error)).toContain('upstream_failed_no_usable_entry'); // the failure was reported
-    expect(everything(response)).not.toMatch(LEAK);
+    expectNoLeak(response);
   });
 
   test('/health/cache after a fetch for those coordinates returns counts and ages only', async () => {
@@ -201,10 +204,38 @@ describe('coordinates', () => {
     expect(response.body.cache).toMatchObject({ entries: 1, keysToday: 1, callsToday: 1 });
     Object.values(response.body.cache).forEach(value => expect(typeof value).toBe('number'));
     expect(response.text).not.toMatch(/52\.37|4\.89/);
-    expect(everything(response)).not.toMatch(LEAK);
+    expectNoLeak(response);
+  });
+});
+
+describe('error reporting', () => {
+  const errorPayloads = () => logged.filter(entry => entry.level === 'error' && !('statusCode' in entry));
+
+  test('a 500 is reported with its message and the allowlisted path', async () => {
+    const weather = { getForecast: jest.fn().mockRejectedValue(new Error('database unavailable')), stats: () => ({}) };
+    const response = await send(appWith(weather), `/api/window?${COORDS}`);
+
+    expect(response.status).toBe(500);
+    expect(errorPayloads()).toEqual([
+      expect.objectContaining({ error: 'database unavailable', path: '/api/window', method: 'GET' })
+    ]);
+    expectNoLeak(response);
   });
 
-  test('the forecast served from the cache is built from the real fixture', () => {
-    expect(() => parseForecast(amsterdamFixture)).not.toThrow();
+  test('an exposed 503 for capacity is not reported as an application error', async () => {
+    const weather = realCache({ budget: { keysPerDay: 0, callsPerMinute: 10, callsPerDay: 10 } });
+    const response = await send(appWith(weather), `/api/window?${COORDS}`);
+
+    expect(response.status).toBe(503);
+    expect(errorPayloads()).toEqual([]);
+  });
+
+  test('the default cache reports an upstream failure with a fixed reason and no coordinates', async () => {
+    upstream.mockRejectedValue(new TypeError(`fetch failed ${COORDS}`));
+    const response = await send(modules.createApp({ now: () => NOW }), `/api/window?${COORDS}`);
+
+    expect(response.status).toBe(503);
+    expect(errorPayloads()).toEqual([expect.objectContaining({ error: 'upstream_failed_no_usable_entry' })]);
+    expectNoLeak(response);
   });
 });

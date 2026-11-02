@@ -1,3 +1,4 @@
+const { STATUS_CODES } = require('http');
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
@@ -9,6 +10,8 @@ const { securityHeaders } = require('./middleware/securityHeaders');
 const { createWeatherCache } = require('./lib/weatherCache');
 const { fetchForecast } = require('./lib/openMeteo');
 const { createWindowRouter } = require('./routes/window');
+
+const OPENAPI_FILE = path.join(__dirname, 'docs', 'openapi.yaml');
 
 // `rateLimit` is the allowed requests per second per client; it defaults to RATE_LIMIT_RPS.
 function createApp({ weather, now = Date.now, rateLimit } = {}) {
@@ -43,8 +46,10 @@ function createApp({ weather, now = Date.now, rateLimit } = {}) {
   });
 
   app.get('/openapi.yaml', (req, res, next) => {
-    res.sendFile(path.join(__dirname, 'docs', 'openapi.yaml'), error => {
-      if (error) next(error);
+    res.sendFile(OPENAPI_FILE, error => {
+      if (!error || res.headersSent) return undefined; // sent, or the client went away
+      if (error.code === 'ENOENT' || error.status === 404) return next(); // the fixed 404 answers
+      return next(new Error('Could not send openapi.yaml')); // never forward fs errors: they carry paths
     });
   });
 
@@ -59,13 +64,17 @@ function createApp({ weather, now = Date.now, rateLimit } = {}) {
     if (res.headersSent) return next(error);
 
     const status = error.statusCode || error.status || 500;
-    const expose = status < 500 || error.expose === true;
+    // Only errors this app created (a plain Error with statusCode, or expose: true) explain themselves. Errors from
+    // fs, send or http-errors carry paths and URLs, so they get the standard text for their status.
+    const own = error.status === undefined && error.syscall === undefined;
+    const expose = own && (error.expose === true || (status < 500 && error.statusCode !== undefined));
+    const fallback = status < 500 ? STATUS_CODES[status] || 'Bad request' : 'Internal server error';
 
     // Exposed errors (validation, upstream unavailable, capacity) are already known and reported elsewhere.
     if (status >= 500 && !error.expose) logError(error, req);
     if (error.retryAfter !== undefined) res.set('Retry-After', String(error.retryAfter));
 
-    return res.status(status).json({ status: 'error', message: expose ? error.message : 'Internal server error' });
+    return res.status(status).json({ status: 'error', message: expose ? error.message : fallback });
   });
 
   return app;

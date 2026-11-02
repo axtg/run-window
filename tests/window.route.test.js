@@ -1,3 +1,4 @@
+const express = require('express');
 const request = require('supertest');
 
 const { createApp } = require('../app');
@@ -191,6 +192,73 @@ describe('other routes', () => {
 
     expect(status).toBe(404);
     expect(body).toEqual({ status: 'error', message: 'Endpoint not found.' });
+  });
+});
+
+describe('fallback', () => {
+  test('is absent when a 60 minute window exists', async () => {
+    const { body } = await request(build()).get(URL).expect(200);
+    const day = body.days.find(candidate => candidate.windows['60']);
+
+    expect(day).toBeDefined();
+    expect(day).not.toHaveProperty('fallback');
+  });
+
+  test('passes through as null, without a label error', async () => {
+    // Daylight is 07:38-17:09 local, so an availability range at night leaves no slot to fall back to.
+    const weather = fakeWeather({ forecast: wetForecast, stale: false });
+    const { status, body } = await request(build(weather)).get('/api/window?lat=52.37&lon=4.89&avail=22-23&rain=0');
+
+    expect(status).toBe(200);
+    body.days.forEach(day => {
+      expect(day.windows['60']).toBeNull();
+      expect(day.fallback).toBeNull();
+    });
+  });
+});
+
+describe('/openapi.yaml errors', () => {
+  const missing = Object.assign(new Error("ENOENT: no such file or directory, stat '/srv/secret/docs/openapi.yaml'"), {
+    code: 'ENOENT',
+    syscall: 'stat',
+    path: '/srv/secret/docs/openapi.yaml',
+    status: 404,
+    statusCode: 404
+  });
+
+  afterEach(() => jest.restoreAllMocks());
+
+  test('a missing file is the fixed 404 with no path', async () => {
+    jest.spyOn(express.response, 'sendFile').mockImplementation((file, callback) => callback(missing));
+    const { status, body } = await request(build()).get('/openapi.yaml');
+
+    expect(status).toBe(404);
+    expect(body).toEqual({ status: 'error', message: 'Endpoint not found.' });
+  });
+
+  test('any other failure is a generic 500', async () => {
+    const error = Object.assign(new Error('EACCES: permission denied, open /srv/secret/x'), { code: 'EACCES' });
+    jest.spyOn(express.response, 'sendFile').mockImplementation((file, callback) => callback(error));
+    const { status, body } = await request(build()).get('/openapi.yaml');
+
+    expect(status).toBe(500);
+    expect(body).toEqual({ status: 'error', message: 'Internal server error' });
+  });
+
+  test('a client abort after the response started is ignored', async () => {
+    jest.spyOn(express.response, 'sendFile').mockImplementation(function (file, callback) {
+      this.status(200).end('partial');
+      callback(Object.assign(new Error('Request aborted'), { code: 'ECONNABORTED', status: 400 }));
+    });
+
+    await request(build()).get('/openapi.yaml').expect(200);
+  });
+
+  test('Express own 4xx errors, such as a malformed URL, carry no file path', async () => {
+    const { status, body } = await request(build()).get('/%E0%A4%A');
+
+    expect(status).toBe(404);
+    expect(JSON.stringify(body)).not.toMatch(/\/home|\/srv|ENOENT|%E0/);
   });
 });
 
