@@ -80,7 +80,9 @@ const consoleOutput = () =>
     .map(args => args.map(arg => util.inspect(arg, { depth: null })).join(' '))
     .join('\n');
 // Timestamp, client ID and timing come from the clock and a random hash, so they can match by chance (04.891Z).
-const withoutRandomFields = payloads => payloads.map(({ dt, clientId, responseTime, ...rest }) => rest);
+const RANDOM_FIELDS = ['dt', 'clientId', 'responseTime'];
+const withoutRandomFields = payloads =>
+  payloads.map(payload => Object.fromEntries(Object.entries(payload).filter(([key]) => !RANDOM_FIELDS.includes(key))));
 const logOutput = () => `${JSON.stringify(withoutRandomFields(logged))}\n${consoleOutput()}`;
 
 function expectNoLeak(response) {

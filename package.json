@@ -13,7 +13,7 @@
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "validate-api": "node -e \"const parser = require('@apidevtools/swagger-parser'); parser.validate('docs/openapi.yaml').then(() => console.log('OpenAPI spec is valid')).catch(err => { console.error('OpenAPI validation failed:', err.message); process.exit(1); })\"",
+    "validate-api": "node -e \"const parser = require('@apidevtools/swagger-parser'); parser.validate('docs/openapi.yaml').then(() => console.log('✅ OpenAPI spec is valid')).catch(err => { console.error('OpenAPI validation failed:', err.message); process.exit(1); })\"",
     "docker:build": "docker build -f docker/Dockerfile -t run-window ."
   },
   "license": "MIT",
