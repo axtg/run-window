@@ -62,10 +62,10 @@ test('an admitted key can still refresh after the cap is reached', async () => {
   expect(fetchForecast).toHaveBeenCalledTimes(3);
 });
 
-test('the cap is checked before the cache, and resets at UTC midnight', async () => {
+test('the cap resets at UTC midnight, and a key whose entry is gone by then is new again', async () => {
   const { get, fetchForecast, clock, onFailure } = setup({ ...roomy, keysPerDay: 2 });
-  clock.t = at('23:58:00');
-  await get(3); // cached until 00:05
+  clock.t = at('20:30:00');
+  await get(3); // over 3 hours old at midnight
   clock.t = at('00:01:00', '2026-11-03');
   await get(1);
   await get(2);
@@ -80,6 +80,90 @@ test('the cap is checked before the cache, and resets at UTC midnight', async ()
   clock.t = at('00:00:30', '2026-11-04');
   expect(await get(3)).toEqual({ forecast: { marker: 1 }, stale: false });
   expect(fetchForecast).toHaveBeenCalledTimes(4);
+});
+
+describe('keys with a cache entry at UTC midnight', () => {
+  const HOME = [52.37, 4.89];
+  const full = { keysPerDay: 300, callsPerMinute: 1000, callsPerDay: 1000 };
+
+  test('300 new keys at 00:00:01 do not lock out a location admitted before midnight', async () => {
+    const { get, cache, clock, fetchForecast } = setup(full);
+    clock.t = at('23:30:00');
+    await cache.getForecast(...HOME);
+
+    clock.t = at('00:00:01', '2026-11-03');
+    const results = [];
+    for (let n = 1; n <= 300; n++) results.push(await failure(get(n)));
+    // Home counts towards the cap, so one of the 300 is refused.
+    expect(results.filter(Boolean)).toHaveLength(1);
+    expect(results[299]).toMatchObject({ statusCode: 503, message: CAPACITY });
+    expect(cache.stats().keysToday).toBe(300);
+
+    fetchForecast.mockClear();
+    expect(await cache.getForecast(...HOME)).toEqual({ forecast: { marker: 1 }, stale: false });
+    expect(fetchForecast).not.toHaveBeenCalled();
+
+    // It stays admitted after its entry expires, so it can refresh with the cap full.
+    clock.t = at('01:05:00', '2026-11-03');
+    fetchForecast.mockResolvedValue({ marker: 2 });
+    expect(await cache.getForecast(...HOME)).toEqual({ forecast: { marker: 2 }, stale: false });
+    expect(await failure(get(301))).toMatchObject({ message: CAPACITY });
+  });
+
+  test('a stale but usable entry is never refused for capacity', async () => {
+    const { get, clock, fetchForecast } = setup({ ...roomy, keysPerDay: 1 });
+    clock.t = at('23:50:00');
+    await get(1);
+
+    clock.t = at('00:10:00', '2026-11-03');
+    expect(await failure(get(2))).toMatchObject({ message: CAPACITY });
+    fetchForecast.mockRejectedValue(new Error('boom'));
+    expect(await get(1)).toEqual({ forecast: { marker: 1 }, stale: true });
+  });
+
+  test('a call in flight at midnight is treated like an entry', async () => {
+    const { get, clock, fetchForecast } = setup({ ...roomy, keysPerDay: 1 });
+    let resolve;
+    fetchForecast.mockReturnValue(new Promise(r => (resolve = r)));
+    clock.t = at('23:59:59');
+    const pending = get(1);
+
+    clock.t = at('00:00:01', '2026-11-03');
+    expect(await failure(get(2))).toMatchObject({ message: CAPACITY });
+    resolve({ marker: 1 });
+    await pending;
+    expect(await get(1)).toEqual({ forecast: { marker: 1 }, stale: false });
+  });
+
+  test('an entry over 3 hours old is not carried over', async () => {
+    const { get, clock, cache } = setup({ ...roomy, keysPerDay: 1 });
+    clock.t = at('20:30:00');
+    await get(1);
+
+    clock.t = at('00:00:01', '2026-11-03');
+    expect(cache.stats().keysToday).toBe(0);
+    await get(2);
+    expect(await failure(get(1))).toMatchObject({ message: CAPACITY });
+  });
+
+  test('carried-over keys are hashed with the new salt, which keeps rotating', async () => {
+    const seen = [];
+    const hashKey = jest.fn((salt, key) => {
+      seen.push({ salt: Buffer.from(salt).toString('hex'), key });
+      return key;
+    });
+    const { get, clock } = setup(roomy, { hashKey });
+    clock.t = at('23:50:00');
+    await get(1);
+
+    clock.t = at('00:10:00', '2026-11-03');
+    await get(1);
+
+    const [before, carried] = seen;
+    expect(carried.key).toBe(before.key);
+    expect(carried.salt).not.toBe(before.salt);
+    expect(seen[2].salt).toBe(carried.salt);
+  });
 });
 
 test('retries count towards the call limits', async () => {
