@@ -758,8 +758,8 @@ Needs host access and approval, so no agent does this unprompted. The API stays 
 Run: `curl -s -H 'Authorization: Bearer canary-123' 'https://run.xadi.eu/api/window?lat=52.3731&lon=4.8922' | head -c 300`
 Expected, each checked separately:
   - Better Stack shows the path, `lat: 52.4`, `lon: 4.9`, and no `canary-123`, `3731` or `8922`.
-  - `grep -E 'canary|3731|lat=' <this site's nginx logs>` finds nothing.
-  - `/health/cache` shows no coordinates.
+  - Send the same request once more to the plain `http://` address, then `grep -E 'canary|3731|lat=' <this site's nginx logs> /var/log/nginx/access.log` finds nothing.
+  - `curl http://127.0.0.1:3001/health/cache` on the host shows no coordinates (going through the public address gets a 403).
 - [ ] **Step 4: Check the rate limiter sees real clients.** Requests from two different networks produce different `clientId`s in Better Stack. If they match, `trust proxy` and the network mode are wrong.
 - [ ] **Step 5: Check a real TRMNL request**, from a private plugin that sends a throwaway header, with the same checks as Step 3.
 - [ ] **Step 6: Run the week-long sanity check** from the spec: compare the answers with how the runs felt, and check the nl labels.

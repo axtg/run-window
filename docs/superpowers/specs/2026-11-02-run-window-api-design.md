@@ -114,7 +114,8 @@ A window object:
 - `windFrom` is the direction the wind comes from, in degrees, as Open-Meteo reports it. "Start into the wind" means
   heading towards `windFromCardinal`. 8-point cardinals.
 - `label` is preformatted local time in the location's timezone, using `lang`. Clients may ignore it and build their
-  own from the fields.
+  own from the fields. It says "dry"/"droog" only when `precipProbMax` <= 20; above that `rain 40%`/`regen 40%`, whether
+  or not the window qualifies.
 - `score`: lower is better. Exposed for debugging and tuning, not as a promise.
 
 ## Weather source
@@ -212,8 +213,10 @@ everyone. Keep these constants in one place (design calls):
 - Counters live in memory and reset on restart, like the rate limiter.
 
 Accepted trade-off: someone can fill the day's new-key slots and lock out new locations until UTC midnight. Locations
-already admitted that day keep working, and the quota stays safe. No per-IP limit on new keys in v1, because all TRMNL
-users share a few IPs.
+already admitted that day keep working, and so do locations with a cache entry at UTC midnight, which are admitted again
+for the new day and count towards its cap. A location polled less often than every 3 hours has no entry by then, so it
+can be locked out until the next midnight. The call limits remain the quota guarantee. No per-IP limit on new keys in
+v1, because all TRMNL users share a few IPs.
 
 ## Privacy
 
@@ -241,8 +244,10 @@ users share a few IPs.
   - Responses return the rounded coordinates, not the ones sent in.
   - `/health/cache` returns counts and ages only, never cache keys. nginx also denies it publicly (reachable from the
     host only), because live counters could reveal whether a location was already requested today.
-- **What is kept:** cache entries hold 2-decimal coordinates for at most 3 hours. The distinct-key counter stores salted
-  hashes, with the salt held in memory and replaced each UTC day, so it can't be read back as locations.
+- **What is kept:** cache entries hold 2-decimal coordinates for about 3 hours (the sweep can hold an entry for about
+  3h10; data older than 3 hours is never served). The distinct-key counter is stored as salted hashes, with the key kept
+  only in memory and replaced daily, not written to disk or logs. Logs also hold the User-Agent, and logs go to Better
+  Stack.
 - Document all of this on the landing page: what the service receives, what it keeps, and that it never stores tokens.
 
 ## Other routes
@@ -291,8 +296,10 @@ tests/
 2. Check a real TRMNL request end to end:
    - the app doesn't receive `Authorization`;
    - Better Stack shows the path and rounded coordinates only;
-   - the nginx access log has no query string;
-   - `/health/cache` shows no coordinates (run it from the host: nginx denies it publicly).
+   - the nginx access log has no query string, also after a plain `http://` request, and neither that site's logs nor
+     the host's global access log hold the coordinates;
+   - `curl http://127.0.0.1:3001/health/cache` on the host shows no coordinates (going through the public address gets
+     a 403).
 3. Only then publish the plugin that points at it.
 
 ## Left to the builder
