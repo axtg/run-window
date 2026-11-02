@@ -13,12 +13,13 @@ Two things in one repo:
    (Tredict), a form graph (Tredict efforts) and today's run window (the API above).
    Spec: `docs/superpowers/specs/2026-11-02-trmnl-running-board-design.md`.
 
-Build the API first: the plugin depends on it.
+The API comes first: the plugin depends on it.
 
 ## Status
 
-Nothing is built yet. Both specs are **awaiting approval**. Write an implementation plan per spec in
-`docs/superpowers/plans/` before writing code, and list anything in the specs marked "verify" as the first tasks.
+The API is built and tested but not deployed. The TRMNL plugin is not started: its spec is awaiting approval, and an
+implementation plan goes in `docs/superpowers/plans/` before any code. List anything in the plugin spec marked "verify"
+as the first tasks.
 
 ## Sister project
 
@@ -50,5 +51,11 @@ test approach. Read its `CLAUDE.md` first. Reuse rather than reinvent:
 
 ## Commands
 
-To be added once `package.json` exists. Mirror eu-dayahead: `dev`, `start`, `test`, `test:coverage`, `lint`,
-`lint:fix`, `format`, `validate-api`, `docker:build`.
+- `npm run dev` / `npm start`: run the API (`PORT` 3001, `HOST` 127.0.0.1 by default).
+- `npm test`, `npm run test:coverage`: Jest. `tests/fixtures/private/` is optional and git-ignored.
+- `npm run lint`, `npm run lint:fix`, `npm run format`, `npm run format:check`.
+- `npm run validate-api`: validates `docs/openapi.yaml`.
+- `npm run build:css`: rebuilds `public/tailwind.css`; CI fails if the committed file is out of date.
+- `npm run docker:build`: builds the image. `docker-compose.yml` uses host networking bound to 127.0.0.1:3001, so
+  nginx reaches it over loopback (`trust proxy` is `loopback`). `docker/nginx-run.xadi.eu.conf` is the nginx site: it
+  logs a fixed list of paths only, strips `Authorization` and `Cookie`, and allows `/health/cache` from the host only.

@@ -1,0 +1,6 @@
+tests/fixtures
+docs/superpowers
+coverage
+package-lock.json
+public/tailwind.css
+.superpowers

@@ -1,0 +1,16 @@
+services:
+  run-window:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    # Host networking keeps nginx's connection on loopback, which `trust proxy: loopback` relies on.
+    # On a bridge network every client would arrive from the Docker gateway and share one rate-limit bucket.
+    network_mode: host
+    environment:
+      - NODE_ENV=production
+      - PORT=3001
+      - HOST=127.0.0.1
+    env_file:
+      - path: .env
+        required: false # LOGTAIL_TOKEN, LOGTAIL_ENDPOINT, RATE_LIMIT_RPS, CORS_ORIGIN
+    restart: unless-stopped

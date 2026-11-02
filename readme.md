@@ -7,7 +7,8 @@ Best time to run today, from the weather, sized to the session you planned.
 - `integrations/trmnl-running-board`: TRMNL plugin combining this week's Tredict training, a form graph and today's
   run window on one screen.
 
-Status: specs only. See `docs/superpowers/specs/`.
+Status: the API is built and tested, not yet deployed. The TRMNL plugin is not started. See
+`docs/superpowers/specs/`.
 
 ## License
 

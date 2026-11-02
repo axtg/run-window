@@ -232,20 +232,23 @@ users share a few IPs.
   (`/api/window%3Flat%3D...`, `;lat=...`, `/52.37/4.89`). The only location logged is lat/lon rounded
   to 1 decimal, as separate fields, on `/api/window`.
 - **Coordinates in nginx logs:** the default log format records the full query string. This site's `access_log` uses a
-  format with `$uri` instead of `$request`, so no query string is logged. Check that `error_log` output doesn't contain
+  format built on a fixed list of paths (`$run_window_path`, from a `map` matching the app's loggable paths, `other`
+  otherwise) instead of `$request` or `$uri`, so no query string is logged: a `%3F`-encoded URL decodes into `$uri`. Check that `error_log` output doesn't contain
   them in normal operation either.
 - **Coordinates elsewhere:**
   - Validation messages name the parameter, never its value.
   - Errors from Open-Meteo calls are logged without the upstream URL or the coordinates in it.
   - Responses return the rounded coordinates, not the ones sent in.
-  - `/health/cache` returns counts and ages only, never cache keys.
+  - `/health/cache` returns counts and ages only, never cache keys. nginx also denies it publicly (reachable from the
+    host only), because live counters could reveal whether a location was already requested today.
 - **What is kept:** cache entries hold 2-decimal coordinates for at most 3 hours. The distinct-key counter stores salted
   hashes, with the salt held in memory and replaced each UTC day, so it can't be read back as locations.
 - Document all of this on the landing page: what the service receives, what it keeps, and that it never stores tokens.
 
 ## Other routes
 
-- `/health` like eu-dayahead. `/health/cache` with counts and ages only (see "Privacy").
+- `/health` like eu-dayahead. `/health/cache` with counts and ages only (see "Privacy"),
+  reachable from the host only; `/health` stays public.
 - `/openapi.yaml` and a minimal landing page with an example request and the Open-Meteo attribution. Design call: no
   interactive map or front-end in v1.
 
@@ -289,7 +292,7 @@ tests/
    - the app doesn't receive `Authorization`;
    - Better Stack shows the path and rounded coordinates only;
    - the nginx access log has no query string;
-   - `/health/cache` shows no coordinates.
+   - `/health/cache` shows no coordinates (run it from the host: nginx denies it publicly).
 3. Only then publish the plugin that points at it.
 
 ## Left to the builder
