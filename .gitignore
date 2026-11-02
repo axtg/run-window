@@ -1,0 +1,15 @@
+node_modules/
+.env
+.env.local
+.env.*.local
+coverage/
+*.log
+.eslintcache
+.vscode/
+.idea/
+.DS_Store
+*:Zone.Identifier
+test-results/
+junit.xml
+# Real personal data (Tredict responses, home coordinates). Never commit.
+tests/fixtures/private/
