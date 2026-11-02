@@ -49,11 +49,15 @@
             again. The service never reads, logs or stores it. It never stores tokens.
           </li>
           <li>Weather is requested from Open-Meteo with coordinates rounded to 2 decimals.</li>
-          <li>The cache holds coordinates rounded to 2 decimals for at most 3 hours.</li>
           <li>
-            The count of distinct locations holds salted hashes for one day. They cannot be read back as locations.
+            The cache holds coordinates rounded to 2 decimals for about 3 hours. Data older than 3 hours is never
+            served.
           </li>
-          <li>Logs hold known paths and coordinates rounded to 1 decimal.</li>
+          <li>
+            The count of distinct locations is stored as salted hashes, with the key kept only in memory and replaced
+            daily, not written to disk or logs.
+          </li>
+          <li>Logs hold known paths, coordinates rounded to 1 decimal and the User-Agent. Logs go to Better Stack.</li>
           <li>Logs hold a client ID that is salted and changes every day, instead of an IP address.</li>
         </ul>
       </section>

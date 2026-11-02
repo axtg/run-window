@@ -88,6 +88,48 @@ test('documents the other routes', () => {
   expect(Object.keys(spec.paths).sort()).toEqual(['/api/window', '/health', '/health/cache', '/openapi.yaml'].sort());
 });
 
+test('the development server is on the port the app defaults to', () => {
+  expect(spec.servers[0].url).toBe('http://localhost:3001');
+  expect(fs.readFileSync(path.join(__dirname, '..', 'index.js'), 'utf8')).toContain('process.env.PORT || 3001');
+});
+
+test('the 400 example is the message the app really sends', async () => {
+  const { body } = await request(build(parseForecast(amsterdamFixture)))
+    .get('/api/window')
+    .expect(400);
+
+  expect(spec.paths['/api/window'].get.responses['400'].content['application/json'].example).toEqual(body);
+});
+
+test('/health/cache says it is for the host only', () => {
+  expect(spec.paths['/health/cache'].get.description).toMatch(/from the host only/);
+});
+
+test('the fallback promises never the past and never darkness with dark=avoid', () => {
+  const { description } = schemas.WindowDay.properties.fallback;
+
+  expect(description).toMatch(/past/);
+  expect(description).toMatch(/`dark=avoid`/);
+  expect(description).toMatch(/available hours/);
+});
+
+test('the privacy section says no more than the code does', () => {
+  const description = spec.info.description.replace(/\s+/g, ' ');
+
+  expect(description).toContain('for about 3 hours');
+  expect(description).toContain('Data older than 3 hours is never served');
+  expect(description).toContain('with the key kept only in memory and replaced daily, not written to disk or logs');
+  expect(description).toContain('User-Agent');
+  expect(description).toContain('Better Stack');
+  expect(description).not.toMatch(/at most 3 hours/);
+});
+
+test('no line is over 120 columns', () => {
+  const lines = fs.readFileSync(SPEC_FILE, 'utf8').split('\n');
+
+  expect(lines.filter(line => line.length > 120)).toEqual([]);
+});
+
 test('windows are keyed by the 15..180 durations with nullable values', () => {
   const windows = schemas.WindowDay.properties.windows;
 

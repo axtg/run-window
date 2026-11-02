@@ -31,6 +31,15 @@ test('landing page states what is received, kept and sent, and the capacity limi
   expect(text).toMatch(/Open-Meteo/);
 });
 
+test('landing page privacy text says no more than the code does', () => {
+  expect(text).toContain('about 3 hours');
+  expect(text).toContain('Data older than 3 hours is never served');
+  expect(text).toContain('with the key kept only in memory and replaced daily, not written to disk or logs');
+  expect(text).toContain('User-Agent');
+  expect(text).toContain('Better Stack');
+  expect(text).not.toMatch(/at most 3 hours|cannot be read back/);
+});
+
 test('landing page has no scripts and makes no external requests', () => {
   expect(html).not.toMatch(/<script/i);
   expect(html).not.toMatch(/\s(src|srcset|data)=["']?(https?:)?\/\//i);

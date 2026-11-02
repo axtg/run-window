@@ -15,16 +15,18 @@ info:
     ## Privacy
     - The service receives the coordinates you send. Requests to Open-Meteo carry them rounded to 2 decimals.
     - An `Authorization` or `Cookie` header is removed before the app sees it, and is never read, logged or stored.
-    - Logs hold known paths and coordinates rounded to 1 decimal, and a per-day salted client ID instead of an IP.
-    - The cache holds coordinates rounded to 2 decimals for at most 3 hours.
-    - The distinct-location counter holds salted hashes for one day.
+    - Logs hold known paths, coordinates rounded to 1 decimal, the User-Agent, and a per-day salted client ID instead
+      of an IP. Logs go to Better Stack.
+    - The cache holds coordinates rounded to 2 decimals for about 3 hours. Data older than 3 hours is never served.
+    - The distinct-location counter is stored as salted hashes, with the key kept only in memory and replaced daily,
+      not written to disk or logs.
   version: 1.0.0
   license:
     name: MIT
     url: https://opensource.org/licenses/MIT
 
 servers:
-  - url: http://localhost:3000
+  - url: http://localhost:3001
     description: Development server
   - url: https://run.xadi.eu
     description: Production server
@@ -118,7 +120,7 @@ paths:
                 $ref: '#/components/schemas/Error'
               example:
                 status: error
-                message: 'lat is required'
+                message: 'Invalid lat: required, a number from -90 to 90'
         '429':
           description: Too many requests from this client (per-second limit).
           headers:
@@ -191,7 +193,9 @@ paths:
       tags:
         - System
       summary: Cache and upstream counters
-      description: Counts and ages only. Never cache keys or locations.
+      description: |
+        Counts and ages only. Never cache keys or locations. Reachable from the host only: public requests are refused
+        by nginx and, if they reach the app, get a 404.
       responses:
         '200':
           description: Counters
@@ -248,7 +252,9 @@ components:
             $ref: '#/components/schemas/WindowDay'
         warnings:
           type: array
-          description: Present only when something is off. `stale_data` means Open-Meteo failed and cached data up to 3 hours old was used.
+          description: |
+            Present only when something is off. `stale_data` means Open-Meteo failed and cached data up to 3 hours old
+            was used.
           items:
             type: string
             enum: [stale_data]
@@ -315,7 +321,8 @@ components:
           nullable: true
           description: |
             Present only when `windows["60"]` is null. The least-bad 60 minute window, with `qualifies` false. It may
-            break the rain limit but never the available hours. Null if even that is impossible.
+            break the rain limit but never the available hours, it never starts in the past, and with `dark=avoid` it
+            never falls in darkness. Null if even that is impossible.
     Window:
       type: object
       required:
