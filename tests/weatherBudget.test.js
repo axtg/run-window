@@ -221,3 +221,51 @@ test('real limits stay under Open-Meteo terms', () => {
   expect(BUDGET.callsPerMinute).toBeLessThan(600);
   expect(BUDGET.callsPerDay * 31).toBeLessThan(300000);
 });
+
+describe('retention without traffic', () => {
+  test('stats() never reports an entry older than 3 hours', async () => {
+    const { get, clock, cache } = setup();
+    await get(1);
+    clock.t = T0 + 10 * 3600 * 1000;
+    expect(cache.stats()).toEqual({ entries: 0, oldestAgeSeconds: 0, keysToday: 1, callsToday: 1, callsThisMinute: 0 });
+  });
+
+  describe('timer', () => {
+    const crypto = require('crypto');
+    afterEach(() => {
+      jest.useRealTimers();
+      jest.restoreAllMocks();
+    });
+
+    test('an unref-ed sweep removes old entries and replaces the salt with no calls at all', async () => {
+      const unref = jest.fn();
+      jest.useFakeTimers({
+        doNotFake: ['Date', 'setTimeout', 'clearTimeout', 'setImmediate', 'nextTick', 'queueMicrotask']
+      });
+      const realSetInterval = global.setInterval;
+      const intervalSpy = jest.spyOn(global, 'setInterval').mockImplementation((fn, ms) => {
+        const handle = realSetInterval(fn, ms);
+        handle.unref = unref;
+        return handle;
+      });
+      const randomBytes = jest.spyOn(crypto, 'randomBytes');
+      const mapDelete = jest.spyOn(Map.prototype, 'delete');
+
+      const { get, clock } = setup(roomy, { sweepIntervalMs: 60000 });
+      expect(intervalSpy).toHaveBeenCalledWith(expect.any(Function), 60000);
+      expect(unref).toHaveBeenCalledTimes(1);
+      await get(1);
+      expect(randomBytes).toHaveBeenCalledTimes(1);
+      const deletes = mapDelete.mock.calls.length;
+
+      clock.t = at('13:10:00'); // entry is 3h10m old, same UTC day
+      jest.advanceTimersByTime(60000);
+      expect(mapDelete.mock.calls.length).toBe(deletes + 1);
+      expect(randomBytes).toHaveBeenCalledTimes(1);
+
+      clock.t = at('00:00:30', '2026-11-03');
+      jest.advanceTimersByTime(60000);
+      expect(randomBytes).toHaveBeenCalledTimes(2);
+    });
+  });
+});
