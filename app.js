@@ -12,6 +12,7 @@ const { fetchForecast } = require('./lib/openMeteo');
 const { createWindowRouter } = require('./routes/window');
 
 const OPENAPI_FILE = path.join(__dirname, 'docs', 'openapi.yaml');
+const LOOPBACK = new Set(['127.0.0.1', '::1', '::ffff:127.0.0.1']);
 
 // `rateLimit` is the allowed requests per second per client; it defaults to RATE_LIMIT_RPS.
 function createApp({ weather, now = Date.now, rateLimit } = {}) {
@@ -41,8 +42,10 @@ function createApp({ weather, now = Date.now, rateLimit } = {}) {
     res.json({ status: 'healthy', timestamp: new Date().toISOString() });
   });
 
-  app.get('/health/cache', (req, res) => {
-    res.json({ status: 'success', cache: forecasts.stats(), timestamp: new Date().toISOString() });
+  // nginx denies this publicly too. req.ip is the forwarded client, so this fails closed if that config drifts.
+  app.get('/health/cache', (req, res, next) => {
+    if (!LOOPBACK.has(req.ip)) return next();
+    return res.json({ status: 'success', cache: forecasts.stats(), timestamp: new Date().toISOString() });
   });
 
   app.get('/openapi.yaml', (req, res, next) => {

@@ -3,6 +3,8 @@ const { isCoordinate } = require('../lib/params');
 
 const logtailToken = process.env.LOGTAIL_TOKEN;
 const logtailEndpoint = process.env.LOGTAIL_ENDPOINT;
+const LOGTAIL_TIMEOUT_MS = 5000;
+const MAX_USER_AGENT_LENGTH = 200;
 
 if (!logtailToken || !logtailEndpoint) {
   console.warn('⚠️  LOGTAIL_TOKEN or LOGTAIL_ENDPOINT not set, logs are not sent');
@@ -64,7 +66,8 @@ const sendToLogtail = async logData => {
         Authorization: `Bearer ${logtailToken}`,
         'Content-Type': 'application/json'
       },
-      body: payload
+      body: payload,
+      signal: AbortSignal.timeout(LOGTAIL_TIMEOUT_MS)
     });
 
     if (!response.ok) {
@@ -100,7 +103,7 @@ const loggingMiddleware = (req, res, next) => {
         path,
         statusCode: res.statusCode,
         responseTime: responseTime,
-        userAgent: req.get('User-Agent') || 'Unknown',
+        userAgent: (req.get('User-Agent') || 'Unknown').slice(0, MAX_USER_AGENT_LENGTH),
         clientId: getClientId(req.ip || req.socket?.remoteAddress),
         ...location,
         contentLength: res.get('Content-Length') || 0,

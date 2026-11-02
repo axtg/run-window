@@ -181,6 +181,35 @@ describe('other routes', () => {
     Object.values(body.cache).forEach(value => expect(typeof value).toBe('number'));
   });
 
+  describe('/health/cache is for the host only, also if nginx drifts', () => {
+    test('a direct loopback connection is allowed', async () => {
+      await request(build()).get('/health/cache').expect(200);
+    });
+
+    test.each([['127.0.0.1'], ['::1'], ['::ffff:127.0.0.1']])('forwarded for %s is allowed', async ip => {
+      await request(build()).get('/health/cache').set('X-Forwarded-For', ip).expect(200);
+    });
+
+    test.each([
+      ['a public client', '203.0.113.7'],
+      ['a client that claims loopback in front of its real address', '127.0.0.1, 203.0.113.7'],
+      ['a public IPv6 client', '2001:db8::1']
+    ])('%s gets the fixed 404 and no counters', async (_, forwardedFor) => {
+      const weather = fakeWeather();
+      const { body } = await request(build(weather))
+        .get('/health/cache')
+        .set('X-Forwarded-For', forwardedFor)
+        .expect(404);
+
+      expect(body).toEqual({ status: 'error', message: 'Endpoint not found.' });
+      expect(weather.stats).not.toHaveBeenCalled();
+    });
+
+    test('/health stays public', async () => {
+      await request(build()).get('/health').set('X-Forwarded-For', '203.0.113.7').expect(200);
+    });
+  });
+
   test('the landing page is served', async () => {
     const { text } = await request(build()).get('/').expect(200).expect('Content-Type', /html/);
 

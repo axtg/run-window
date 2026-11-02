@@ -253,6 +253,30 @@ describe('Logging middleware', () => {
       expect(global.fetch.mock.calls[0][0]).toBe('https://logs.example.test');
     });
 
+    test('a log delivery that hangs is given up after 5 seconds', async () => {
+      const timeout = jest.spyOn(AbortSignal, 'timeout');
+      try {
+        await loadLogger().sendToLogtail({ message: 'x' });
+
+        expect(timeout).toHaveBeenCalledWith(5000);
+        expect(global.fetch.mock.calls[0][1].signal).toBe(timeout.mock.results[0].value);
+      } finally {
+        timeout.mockRestore();
+      }
+    });
+
+    test('the User-Agent is cut to 200 characters', async () => {
+      await request(buildApp(loadLogger())).get('/api/window').set('User-Agent', 'x'.repeat(5000));
+
+      expect(sentPayloads()[0].userAgent).toBe('x'.repeat(200));
+    });
+
+    test('a short User-Agent is logged as sent', async () => {
+      await request(buildApp(loadLogger())).get('/api/window').set('User-Agent', 'x'.repeat(200));
+
+      expect(sentPayloads()[0].userAgent).toBe('x'.repeat(200));
+    });
+
     test('sends nothing when LOGTAIL_ENDPOINT is not set', async () => {
       process.env.LOGTAIL_TOKEN = 'test-token';
       delete process.env.LOGTAIL_ENDPOINT;
