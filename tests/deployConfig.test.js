@@ -7,10 +7,8 @@ const read = file => fs.readFileSync(path.join(root, file), 'utf8');
 const conf = read('docker/nginx-run.xadi.eu.conf');
 const compose = read('docker-compose.yml');
 
-// Contents of the `{ ... }` block that starts at the first match of `opener`
-const block = opener => {
-  const start = conf.search(opener);
-  expect(start).toBeGreaterThanOrEqual(0);
+// Contents of the `{ ... }` block whose opening brace is the first one at or after `start`
+const blockAt = start => {
   const open = conf.indexOf('{', start);
   let depth = 0;
   for (let i = open; i < conf.length; i++) {
@@ -20,7 +18,16 @@ const block = opener => {
   throw new Error('unbalanced braces');
 };
 
-const server = block(/^server\s*\{/m);
+// Contents of the block that starts at the first match of `opener`
+const block = opener => {
+  const start = conf.search(opener);
+  expect(start).toBeGreaterThanOrEqual(0);
+  return blockAt(start);
+};
+
+// Contents of every top-level `server { ... }` block, in file order
+const servers = [...conf.matchAll(/^server\s*\{/gm)].map(match => blockAt(match.index));
+const [server, redirect] = servers;
 const locations = [...server.matchAll(/^\s*location\s[^{]*\{/gm)].map(match => ({
   head: match[0].trim(),
   body: block(new RegExp(match[0].trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&')))
@@ -43,9 +50,26 @@ describe('nginx config', () => {
 
   test('serves run.xadi.eu and leaves TLS to certbot', () => {
     expect(server).toMatch(/server_name run\.xadi\.eu;/);
-    expect(server).toMatch(/listen 80;/);
     expect(server).not.toMatch(/ssl_certificate|listen\s+443/);
-    expect(conf).toMatch(/certbot/);
+    expect(conf).toMatch(/certbot --nginx --no-redirect/);
+  });
+
+  test('port 80 is a block of its own that only redirects, so certbot has nothing to create', () => {
+    expect(servers).toHaveLength(2);
+    expect(redirect).toMatch(/listen 80;/);
+    expect(redirect).toMatch(/server_name run\.xadi\.eu;/);
+    expect(redirect).toMatch(/return 301 https:\/\/\$host\$request_uri;/);
+    expect(redirect).not.toMatch(/proxy_pass|location/);
+    // Two blocks with one name on port 80 make nginx ignore the second, and the app would be served over plain http.
+    expect(server).not.toMatch(/listen\s+(\S+:)?80\b/);
+    expect(server).toMatch(/listen 127\.0\.0\.1:\d+;/);
+  });
+
+  test('every server block logs with the safe format at crit, so none inherits the host format', () => {
+    servers.forEach(body => {
+      expect(body).toMatch(/access_log \S+ runwindow;/);
+      expect(body).toMatch(/error_log \S+ crit;/);
+    });
   });
 
   test('logs a fixed allow-list of paths, never a query string', () => {
@@ -81,6 +105,10 @@ describe('docker compose', () => {
 });
 
 describe('docker image', () => {
+  test('the build context leaves out the working notes', () => {
+    expect(read('.dockerignore').split('\n')).toContain('.superpowers');
+  });
+
   test('exposes 3001 and checks health on loopback', () => {
     expect(read('docker/Dockerfile')).toMatch(/EXPOSE 3001/);
     const healthcheck = read('docker/healthcheck.js');

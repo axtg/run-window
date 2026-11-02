@@ -8,6 +8,7 @@ coverage
 .gitignore
 .github
 .claude
+.superpowers
 eslint.config.js
 .prettierrc
 readme.md
