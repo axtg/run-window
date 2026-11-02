@@ -1,5 +1,4 @@
-// Load test-specific overrides first, then fall back to .env for vars not pinned by
-// .env.test (ENTSOE_API_KEY in particular — present locally, absent in CI).
+// Load test-specific overrides first, then fall back to .env for vars not pinned by .env.test.
 require('dotenv').config({ path: '.env.test' });
 require('dotenv').config();
 

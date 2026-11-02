@@ -2,7 +2,7 @@
 const DEFAULT_MAX_BYTES = 5 * 1024 * 1024;
 
 // GET with a deadline covering the whole request, including the body. Errors never include the URL,
-// because ENTSOE takes its token as a query parameter. Redirects are refused for the same reason.
+// because it carries the coordinates. Redirects are refused for the same reason.
 async function fetchText(url, { timeoutMs, maxBytes = DEFAULT_MAX_BYTES }) {
   const signal = AbortSignal.timeout(timeoutMs);
   const chunks = [];
