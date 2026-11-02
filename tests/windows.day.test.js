@@ -254,3 +254,16 @@ describe('anti-goals hold across combinations', () => {
     }
   });
 });
+
+test('localDates does not depend on the host timezone', () => {
+  const { execFileSync } = require('child_process');
+  const script = `const { localDates } = require('./lib/windows');
+console.log(JSON.stringify(localDates(Date.parse('2026-11-02T09:00:00Z'), 'Europe/Amsterdam')));`;
+  for (const tz of ['Pacific/Auckland', 'Pacific/Kiritimati', 'America/Los_Angeles']) {
+    const out = execFileSync(process.execPath, ['-e', script], {
+      cwd: require('path').join(__dirname, '..'),
+      env: { ...process.env, TZ: tz }
+    });
+    expect(JSON.parse(out)).toEqual(['2026-11-02', '2026-11-03']);
+  }
+});
