@@ -1,0 +1,386 @@
+openapi: 3.0.3
+info:
+  title: Run window API
+  description: |
+    Given a location and the hours someone can run, returns the best weather window for each session length, today and
+    tomorrow (local days at the location).
+
+    The service is stateless and anonymous. Weather data by [Open-Meteo.com](https://open-meteo.com/) (CC BY 4.0).
+
+    ## Capacity
+    The service accepts at most 300 distinct locations (coordinates rounded to 2 decimals) per UTC day. A location
+    that was admitted keeps working for the rest of that day. A new location over the limit gets a 503 with a
+    `Retry-After` header, until UTC midnight.
+
+    ## Privacy
+    - The service receives the coordinates you send. Requests to Open-Meteo carry them rounded to 2 decimals.
+    - An `Authorization` or `Cookie` header is removed before the app sees it, and is never read, logged or stored.
+    - Logs hold known paths and coordinates rounded to 1 decimal, and a per-day salted client ID instead of an IP.
+    - The cache holds coordinates rounded to 2 decimals for at most 3 hours.
+    - The distinct-location counter holds salted hashes for one day.
+  version: 1.0.0
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: http://localhost:3000
+    description: Development server
+  - url: https://run.xadi.eu
+    description: Production server
+
+tags:
+  - name: Windows
+    description: Weather windows for runs
+  - name: System
+    description: Health and contract
+
+paths:
+  /api/window:
+    get:
+      tags:
+        - Windows
+      summary: Best weather window per session length
+      description: |
+        For each session length from 15 to 180 minutes, returns the best window today and tomorrow that falls inside
+        the available hours, or `null` if no window qualifies. Empty parameter values mean "use the default".
+        Invalid, out-of-range or repeated parameters return 400 with a message naming the parameter.
+      parameters:
+        - name: lat
+          in: query
+          required: true
+          description: Latitude in degrees. Rounded to 2 decimals.
+          schema:
+            type: number
+            minimum: -90
+            maximum: 90
+          example: 52.37
+        - name: lon
+          in: query
+          required: true
+          description: Longitude in degrees. Rounded to 2 decimals.
+          schema:
+            type: number
+            minimum: -180
+            maximum: 180
+          example: 4.89
+        - name: avail
+          in: query
+          required: false
+          description: |
+            Comma-separated local-time ranges, `HH-HH` or `HH:MM-HH:MM`. `24` and `24:00` are allowed as an end only.
+            Ranges may not cross midnight or overlap. A window never spans two ranges. Applies to both days.
+          schema:
+            type: string
+            default: 06-22
+          example: 07-09,12-14,17-21
+        - name: dark
+          in: query
+          required: false
+          description: '`avoid` excludes time outside sunrise to sunset. `ok` allows it.'
+          schema:
+            type: string
+            enum:
+              - ok
+              - avoid
+            default: avoid
+        - name: rain
+          in: query
+          required: false
+          description: Highest precipitation probability (%) allowed in any slot of a window.
+          schema:
+            type: integer
+            minimum: 0
+            maximum: 100
+            default: 40
+        - name: lang
+          in: query
+          required: false
+          description: Language of the `label` fields only.
+          schema:
+            type: string
+            enum:
+              - en
+              - nl
+            default: en
+      responses:
+        '200':
+          description: Windows for today and tomorrow
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WindowResponse'
+        '400':
+          description: A parameter is missing, invalid, out of range or repeated. The message names the parameter.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                status: error
+                message: 'lat is required'
+        '429':
+          description: Too many requests from this client (per-second limit).
+          headers:
+            Retry-After:
+              description: Seconds to wait.
+              schema:
+                type: string
+            X-RateLimit-Limit:
+              description: Requests allowed per second.
+              schema:
+                type: string
+            X-RateLimit-Remaining:
+              description: Requests left in the current second.
+              schema:
+                type: string
+            X-RateLimit-Reset:
+              description: Unix time in seconds when the limit resets.
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Error'
+                  - type: object
+                    properties:
+                      limitPerSecond:
+                        type: integer
+        '503':
+          description: |
+            Weather data is unavailable and no cached copy under 3 hours old exists, or the service is at capacity:
+            it accepts at most 300 distinct locations per UTC day and this one is new. Only the capacity response
+            carries `Retry-After`, in seconds until UTC midnight.
+          headers:
+            Retry-After:
+              description: Seconds to wait. Present when the service is at capacity.
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                status: error
+                message: The service is at capacity for new locations today. Try again after midnight UTC.
+
+  /health:
+    get:
+      tags:
+        - System
+      summary: Health check
+      responses:
+        '200':
+          description: The service is running
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status, timestamp]
+                properties:
+                  status:
+                    type: string
+                    enum: [healthy]
+                  timestamp:
+                    type: string
+                    format: date-time
+
+  /health/cache:
+    get:
+      tags:
+        - System
+      summary: Cache and upstream counters
+      description: Counts and ages only. Never cache keys or locations.
+      responses:
+        '200':
+          description: Counters
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status, cache, timestamp]
+                properties:
+                  status:
+                    type: string
+                    enum: [success]
+                  cache:
+                    type: object
+                    additionalProperties:
+                      type: number
+                  timestamp:
+                    type: string
+                    format: date-time
+
+  /openapi.yaml:
+    get:
+      tags:
+        - System
+      summary: This description
+      responses:
+        '200':
+          description: The OpenAPI document
+          content:
+            application/yaml:
+              schema:
+                type: string
+
+components:
+  schemas:
+    WindowResponse:
+      type: object
+      required: [location, generatedAt, params, days, attribution]
+      properties:
+        location:
+          $ref: '#/components/schemas/Location'
+        generatedAt:
+          type: string
+          format: date-time
+          description: UTC.
+        params:
+          $ref: '#/components/schemas/Params'
+        days:
+          type: array
+          description: Today and tomorrow, in the location's timezone.
+          minItems: 2
+          maxItems: 2
+          items:
+            $ref: '#/components/schemas/WindowDay'
+        warnings:
+          type: array
+          description: Present only when something is off. `stale_data` means Open-Meteo failed and cached data up to 3 hours old was used.
+          items:
+            type: string
+            enum: [stale_data]
+        attribution:
+          type: string
+          example: Weather data by Open-Meteo.com
+    Location:
+      type: object
+      required: [lat, lon, timezone]
+      properties:
+        lat:
+          type: number
+          description: Requested latitude, rounded to 2 decimals.
+        lon:
+          type: number
+          description: Requested longitude, rounded to 2 decimals.
+        timezone:
+          type: string
+          description: IANA timezone of the location.
+          example: Europe/Amsterdam
+    Params:
+      type: object
+      description: The values used, with defaults applied.
+      required: [avail, dark, rain]
+      properties:
+        avail:
+          type: string
+        dark:
+          type: string
+          enum: [ok, avoid]
+        rain:
+          type: integer
+    WindowDay:
+      type: object
+      required: [date, sunrise, sunset, windows]
+      properties:
+        date:
+          type: string
+          format: date
+          description: Local date.
+        sunrise:
+          type: string
+          format: date-time
+          nullable: true
+          description: UTC.
+        sunset:
+          type: string
+          format: date-time
+          nullable: true
+          description: UTC.
+        windows:
+          type: object
+          description: |
+            Keyed by session length in minutes, as strings: every 15 minutes from "15" to "180" (12 keys). A client
+            rounds its session length up to the next key. Over 180, use "180" and say the session does not fully fit.
+            A value is null when no qualifying window of that length exists that day.
+          additionalProperties:
+            allOf:
+              - $ref: '#/components/schemas/Window'
+            nullable: true
+        fallback:
+          allOf:
+            - $ref: '#/components/schemas/Window'
+          nullable: true
+          description: |
+            Present only when `windows["60"]` is null. The least-bad 60 minute window, with `qualifies` false. It may
+            break the rain limit but never the available hours. Null if even that is impossible.
+    Window:
+      type: object
+      required:
+        - start
+        - end
+        - score
+        - qualifies
+        - precipProbMax
+        - precipSum
+        - windAvg
+        - gustMax
+        - windFrom
+        - windFromCardinal
+        - apparentTempAvg
+        - inDaylight
+        - label
+      properties:
+        start:
+          type: string
+          format: date-time
+          description: UTC.
+        end:
+          type: string
+          format: date-time
+          description: UTC.
+        score:
+          type: number
+          description: Lower is better. For debugging and tuning, not a promise.
+        qualifies:
+          type: boolean
+        precipProbMax:
+          type: integer
+          description: Highest precipitation probability in the window, %.
+        precipSum:
+          type: number
+          description: Total precipitation, mm.
+        windAvg:
+          type: integer
+          description: Average wind speed, km/h.
+        gustMax:
+          type: integer
+          description: Strongest gust, km/h.
+        windFrom:
+          type: integer
+          minimum: 0
+          maximum: 359
+          description: Direction the wind comes from, degrees.
+        windFromCardinal:
+          type: string
+          enum: [N, NE, E, SE, S, SW, W, NW]
+        apparentTempAvg:
+          type: number
+          description: Average apparent temperature, degrees Celsius.
+        inDaylight:
+          type: boolean
+        label:
+          type: string
+          description: Local time range and summary in the location's timezone, in `lang`.
+          example: 12:15–13:30 · dry · 18 km/h SW · 8°C
+    Error:
+      type: object
+      required: [status, message]
+      properties:
+        status:
+          type: string
+          enum: [error]
+        message:
+          type: string

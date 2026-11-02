@@ -4,10 +4,63 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Run window</title>
+    <meta
+      name="description"
+      content="The best weather window for a run today and tomorrow, for a location and the hours you can run."
+    />
+    <link rel="stylesheet" href="/tailwind.css" />
   </head>
-  <body>
-    <h1>Run window</h1>
-    <p>Best weather window for a run, today and tomorrow. See <a href="/openapi.yaml">the API description</a>.</p>
-    <p>Weather data by Open-Meteo.com</p>
+  <body class="bg-surface text-primary antialiased">
+    <main class="mx-auto max-w-2xl px-4 py-10 space-y-8">
+      <header class="space-y-2">
+        <h1 class="text-3xl font-semibold">Run window</h1>
+        <p class="text-secondary">
+          Give it a location and the hours you can run. It returns the best weather window for each session length,
+          today and tomorrow.
+        </p>
+      </header>
+
+      <section class="space-y-2">
+        <h2 class="text-xl font-semibold">Example request</h2>
+        <pre
+          class="overflow-x-auto rounded bg-surface-muted p-3 text-sm"
+        ><code>GET /api/window?lat=52.37&amp;lon=4.89&amp;avail=07-09,12-14,17-21</code></pre>
+        <p>
+          <code>lat</code> and <code>lon</code> are required. <code>avail</code>, <code>dark</code>,
+          <code>rain</code> and <code>lang</code> are optional. The full contract is in
+          <a class="underline" href="/openapi.yaml">openapi.yaml</a>.
+        </p>
+      </section>
+
+      <section class="space-y-2">
+        <h2 class="text-xl font-semibold">Capacity</h2>
+        <p>
+          The service accepts at most 300 locations per UTC day, to stay within the weather provider's free limits. A
+          location that was admitted keeps working all day. A new location over the limit gets a 503 until UTC midnight.
+        </p>
+      </section>
+
+      <section class="space-y-2">
+        <h2 class="text-xl font-semibold">Privacy</h2>
+        <ul class="list-disc space-y-1 pl-5">
+          <li>The service receives the coordinates you send.</li>
+          <li>
+            TRMNL users also send a Tredict token in the Authorization header. nginx removes it, and the app removes it
+            again. The service never reads, logs or stores it. It never stores tokens.
+          </li>
+          <li>Weather is requested from Open-Meteo with coordinates rounded to 2 decimals.</li>
+          <li>The cache holds coordinates rounded to 2 decimals for at most 3 hours.</li>
+          <li>
+            The count of distinct locations holds salted hashes for one day. They cannot be read back as locations.
+          </li>
+          <li>Logs hold known paths and coordinates rounded to 1 decimal.</li>
+          <li>Logs hold a client ID that is salted and changes every day, instead of an IP address.</li>
+        </ul>
+      </section>
+
+      <footer class="border-t pt-4 text-sm text-secondary">
+        <p>Weather data by <a class="underline" href="https://open-meteo.com/">Open-Meteo.com</a> (CC BY 4.0).</p>
+      </footer>
+    </main>
   </body>
 </html>
