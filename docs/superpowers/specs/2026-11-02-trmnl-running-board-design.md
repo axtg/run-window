@@ -65,7 +65,7 @@ In this order (the indices are part of the contract with the template):
 | 0 | `https://www.tredict.com/api/oauth/v2/plannedTrainingList?startDate={monday}&endDate={sunday}` (+ `&sportType=running` if the sport setting says so) | This week's plan |
 | 1 | `https://www.tredict.com/api/oauth/v2/activityList?pageSize=50&extendedSummary=1` | Actuals; newest first, filter to this week in JS |
 | 2 | `https://www.tredict.com/api/oauth/v2/efforts` | Daily effort per training; defaults cover 1 year back to 1 month ahead, including planned (`unconfirmed`) sessions |
-| 3 | `https://run.xadi.eu/api/window?lat={{ lat }}&lon={{ lon }}&avail={{ availability }}&dark={{ dark }}&rain={{ rain }}&lang={lang}` | Run window |
+| 3 | `https://run.xadi.eu/api/window?lat={{ lat \| round: 2 }}&lon={{ lon \| round: 2 }}&avail={{ availability }}&dark={{ dark }}&rain={{ rain }}&lang={lang}` | Run window |
 
 `{monday}` and `{sunday}` are UTC ISO strings for the current local ISO week (Monday 00:00 to Sunday 23:59:59 in the
 user's timezone). **Verify** first: which time variables TRMNL exposes to polling URLs (the docs mention global
