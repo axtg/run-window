@@ -79,7 +79,9 @@ const consoleOutput = () =>
     .flatMap(mock => mock.mock.calls)
     .map(args => args.map(arg => util.inspect(arg, { depth: null })).join(' '))
     .join('\n');
-const logOutput = () => `${JSON.stringify(logged)}\n${consoleOutput()}`;
+// Timestamp, client ID and timing come from the clock and a random hash, so they can match by chance (04.891Z).
+const withoutRandomFields = payloads => payloads.map(({ dt, clientId, responseTime, ...rest }) => rest);
+const logOutput = () => `${JSON.stringify(withoutRandomFields(logged))}\n${consoleOutput()}`;
 
 function expectNoLeak(response) {
   expect(logOutput()).not.toMatch(LOG_LEAK);
@@ -238,4 +240,19 @@ describe('error reporting', () => {
     expect(errorPayloads()).toEqual([expect.objectContaining({ error: 'upstream_failed_no_usable_entry' })]);
     expectNoLeak(response);
   });
+});
+
+describe('the log leak check', () => {
+  const scan = payloads => JSON.stringify(withoutRandomFields(payloads));
+
+  test.each(['2026-11-02T09:00:04.891Z', '2026-11-02T09:00:52.371Z'])('ignores a timestamp such as %s', dt => {
+    expect(scan([{ dt, clientId: '4a89d0052b37e1c4', responseTime: 52, path: '/health' }])).not.toMatch(LOG_LEAK);
+  });
+
+  test.each([{ message: 'lat 4.89' }, { lat: 52.37 }, { error: 'x 373187' }, { path: '/p?latitude=1' }])(
+    'still catches %j in any other field',
+    fields => {
+      expect(scan([{ dt: 'x', clientId: 'y', ...fields }])).toMatch(LOG_LEAK);
+    }
+  );
 });
