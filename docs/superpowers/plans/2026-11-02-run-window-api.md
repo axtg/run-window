@@ -752,7 +752,10 @@ git add -A && git commit -m "chore: add Docker, nginx and CI configuration"
 Needs host access and approval, so no agent does this unprompted. The API stays unlinked from the plugin until every check passes.
 
 - [ ] **Step 1: Merge the branch**, using superpowers:finishing-a-development-branch.
-- [ ] **Step 2: Deploy** next to eu-dayahead, with the nginx config and a `run.xadi.eu` DNS record and certificate. First confirm port 3001 is free on the host.
+- [ ] **Step 2: Deploy** next to eu-dayahead, with the nginx config and a `run.xadi.eu` DNS record and certificate. First confirm ports 3001 and 3081 are free on `127.0.0.1` on the host (`docker/nginx-run.xadi.eu.conf` uses 3081 as a placeholder listen). Then:
+  - Run certbot as the conf comment says: `certbot --nginx --no-redirect -d run.xadi.eu`.
+  - Delete the `listen 127.0.0.1:3081;` line from the installed conf, reload nginx and re-run `nginx -t`.
+  - This certbot flow has not been tested against a real ACME server: only its installer step was run, with a self-signed certificate. Check the result by hand.
 - [ ] **Step 3: Check a request with a test token**
 
 Run: `curl -s -H 'Authorization: Bearer canary-123' 'https://run.xadi.eu/api/window?lat=52.3731&lon=4.8922' | head -c 300`
