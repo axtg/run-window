@@ -32,6 +32,21 @@ describe('formatLabel', () => {
     );
   });
 
+  describe('dry only up to a 20% rain chance, whether or not the window qualifies', () => {
+    test.each([
+      ['en', true, 20, 'dry'],
+      ['en', false, 20, 'dry'],
+      ['nl', true, 20, 'droog'],
+      ['en', true, 21, 'rain 21%'],
+      ['en', false, 21, 'rain 21%'],
+      ['nl', true, 21, 'regen 21%'],
+      ['en', true, 95, 'rain 95%'],
+      ['nl', true, 40, 'regen 40%']
+    ])('%s, qualifies %s, %i%%', (lang, qualifies, precipProbMax, sky) => {
+      expect(formatLabel({ ...w, qualifies, precipProbMax }, { ...ams, lang })).toContain(` · ${sky} · `);
+    });
+  });
+
   test('nl cardinals', () => {
     const map = { NE: 'NO', E: 'O', SE: 'ZO', S: 'Z', SW: 'ZW', W: 'W', NW: 'NW', N: 'N' };
     Object.entries(map).forEach(([en, nl]) => {
