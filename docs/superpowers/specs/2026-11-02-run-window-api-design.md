@@ -227,7 +227,9 @@ users share a few IPs.
   containing `secret`. **Verify** in rollout that the app no longer receives the header.
 - **Coordinates in app logs:** eu-dayahead's logging middleware logs `originalUrl` in `url` and `message`, plus the full
   `query` and `Referrer`, and `logError` logs `originalUrl` too. The copied versions, on every route and status,
-  including 404s, log `req.path` only, never a query string or a referrer. The only location logged is lat/lon rounded
+  including 404s, log known paths (`/`, `/api/window`, `/health`, `/health/cache`, `/openapi.yaml`, `/tailwind.css`,
+  `/favicon.ico`) and log any other path as `other`, never a query string or a referrer: a path can carry coordinates too
+  (`/api/window%3Flat%3D...`, `;lat=...`, `/52.37/4.89`). The only location logged is lat/lon rounded
   to 1 decimal, as separate fields, on `/api/window`.
 - **Coordinates in nginx logs:** the default log format records the full query string. This site's `access_log` uses a
   format with `$uri` instead of `$request`, so no query string is logged. Check that `error_log` output doesn't contain

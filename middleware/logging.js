@@ -28,11 +28,24 @@ const getClientId = ip => {
   return crypto.createHmac('sha256', clientIdSalt).update(ip).digest('hex').slice(0, 16);
 };
 
+// Only these paths are logged by name. Anything else may carry coordinates (`/api/window%3Flat%3D...`,
+// `;lat=...`, `/52.37/4.89`), so it is logged as the fixed string 'other'.
+const LOGGABLE_PATHS = new Set([
+  '/',
+  '/api/window',
+  '/health',
+  '/health/cache',
+  '/openapi.yaml',
+  '/tailwind.css',
+  '/favicon.ico'
+]);
+const safePath = path => (LOGGABLE_PATHS.has(path) ? path : 'other');
+
 const round1 = value => Math.round(value * 10) / 10 || 0; // `|| 0` turns -0 into 0
 
 // The only location ever logged: lat/lon rounded to 1 decimal, on /api/window, when both are valid.
-const roundedLocation = req => {
-  if (req.path !== '/api/window') return {};
+const roundedLocation = (req, path) => {
+  if (path !== '/api/window') return {};
   const { lat, lon } = req.query || {};
   if (!isCoordinate(lat, 90) || !isCoordinate(lon, 180)) return {};
   return { lat: round1(Number(lat)), lon: round1(Number(lon)) };
@@ -62,8 +75,12 @@ const sendToLogtail = async logData => {
   }
 };
 
-// Logs req.path only, never the query string or referrer: both can carry coordinates.
+// Logs an allowlisted path only, never the query string or referrer: both can carry coordinates.
 const loggingMiddleware = (req, res, next) => {
+  // Read now: inside res.end Express has stripped the prefix of any router or middleware mount.
+  const path = safePath(req.path);
+  const location = roundedLocation(req, req.path);
+  req.loggablePath = path;
   const startTime = Date.now();
 
   // Capture original end function
@@ -78,15 +95,14 @@ const loggingMiddleware = (req, res, next) => {
       const logData = {
         dt: new Date().toISOString(), // Better Stack expects 'dt' for timestamp
         level: res.statusCode >= 400 ? 'error' : 'info',
-        message: `${req.method} ${req.path} - ${res.statusCode}`,
+        message: `${req.method} ${path} - ${res.statusCode}`,
         method: req.method,
-        path: req.path,
+        path,
         statusCode: res.statusCode,
         responseTime: responseTime,
         userAgent: req.get('User-Agent') || 'Unknown',
         clientId: getClientId(req.ip || req.socket?.remoteAddress),
-        endpoint: req.route?.path || req.path,
-        ...roundedLocation(req),
+        ...location,
         contentLength: res.get('Content-Length') || 0,
         service: 'run-window-api',
         environment: process.env.NODE_ENV || 'development'
@@ -101,7 +117,7 @@ const loggingMiddleware = (req, res, next) => {
 
       // Also log to console for local development
       if (process.env.NODE_ENV !== 'production') {
-        console.log(`${req.method} ${req.path} - ${res.statusCode} - ${responseTime}ms`);
+        console.log(`${req.method} ${path} - ${res.statusCode} - ${responseTime}ms`);
       }
     } catch (err) {
       console.error('Request logging failed:', err.message);
@@ -122,7 +138,7 @@ const logError = (error, req = null) => {
     message: `Application Error: ${error.message}`,
     error: error.message,
     stack: error.stack,
-    path: req?.path || 'Unknown',
+    path: req ? req.loggablePath || safePath(req.path) : 'Unknown',
     method: req?.method || 'Unknown',
     clientId: getClientId(req?.ip || req?.socket?.remoteAddress),
     service: 'run-window-api',
@@ -141,6 +157,7 @@ const logError = (error, req = null) => {
 };
 
 module.exports = {
+  LOGGABLE_PATHS,
   loggingMiddleware,
   logError,
   sendToLogtail,

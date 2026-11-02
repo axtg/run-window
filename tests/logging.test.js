@@ -2,6 +2,7 @@ const express = require('express');
 const request = require('supertest');
 
 const stripAuth = require('../middleware/stripAuth');
+const { createRateLimiter } = require('../middleware/rateLimit');
 
 const LAT = '52.373187';
 const LON = '4.892241';
@@ -47,27 +48,113 @@ describe('Logging middleware', () => {
     const app = express();
     app.use(stripAuth);
     app.use(logger.loggingMiddleware);
-    app.get('/api/window', (req, res) => res.json({ ok: true }));
+    app.get('/api/window', (req, res, next) => {
+      if (String(req.query.lat).startsWith('91')) {
+        const error = new Error('Invalid lat');
+        error.statusCode = 400;
+        return next(error);
+      }
+      return res.json({ ok: true });
+    });
     app.get('/boom', (req, res, next) => next(new Error('failed upstream')));
     app.use((error, req, res, _next) => {
       logger.logError(error, req);
-      res.status(500).json({ message: 'Internal server error' });
+      res.status(error.statusCode || 500).json({ message: error.statusCode ? error.message : 'Internal server error' });
     });
     return app;
   }
 
   describe('privacy', () => {
     test.each([
-      ['a 200 on the window route', `/api/window?lat=${LAT}&lon=${LON}`],
-      ['a 404', `/nope?lat=${LAT}&lon=${LON}`],
-      ['a 400', `/api/window?lat=91.373187&lon=${LON}`]
-    ])('%s logs no query string or exact coordinates', async (_, url) => {
+      ['a 200 on the window route', `/api/window?lat=${LAT}&lon=${LON}`, 200, '/api/window'],
+      ['a 404', `/nope?lat=${LAT}&lon=${LON}`, 404, 'other'],
+      ['a 400', `/api/window?lat=91.373187&lon=${LON}`, 400, '/api/window']
+    ])('%s logs no query string or exact coordinates', async (_, url, status, path) => {
       await request(buildApp(loadLogger())).get(url);
 
-      const [payload] = sentPayloads();
-      expect(payload).toBeDefined();
+      const payload = sentPayloads().find(entry => 'statusCode' in entry); // the error handler also reports
+      expect(payload.statusCode).toBe(status);
+      expect(payload.path).toBe(path);
+      expect(payload.message).toBe(`GET ${path} - ${status}`);
       expect(JSON.stringify(payload)).not.toMatch(COORDINATE_LEAK);
-      expect(payload.message).toMatch(/^GET \/(api\/window|nope) - \d{3}$/);
+    });
+
+    test.each([
+      ['an encoded query', `/api/window%3Flat%3D${LAT}%26lon%3D${LON}`],
+      ['matrix parameters', `/;lat=${LAT};lon=${LON}`],
+      ['coordinates as path segments', `/${LAT}/${LON}`]
+    ])('coordinates in %s are logged as other, by the request log, the console and logError', async (_, url) => {
+      const logger = loadLogger();
+      const app = buildApp(logger);
+      app.use((req, res) => res.status(404).end());
+      console.log.mockClear();
+
+      await request(app).get(url).expect(404);
+      logger.logError(new Error('failed upstream'), { path: url, method: 'GET' });
+
+      const [payload, errorPayload] = sentPayloads();
+      expect(payload).toMatchObject({ path: 'other', message: 'GET other - 404' });
+      expect(errorPayload.path).toBe('other');
+      expect(JSON.stringify(sentPayloads())).not.toMatch(COORDINATE_LEAK);
+      expect(JSON.stringify(console.log.mock.calls)).not.toMatch(COORDINATE_LEAK);
+    });
+
+    test('logError after the middleware logs the allowlisted path, not a mount-stripped one', async () => {
+      const logger = loadLogger();
+      const app = express();
+      app.use(logger.loggingMiddleware);
+      const router = express.Router();
+      router.get('/window', (req, res, next) => next(new Error('failed upstream')));
+      app.use('/api', router);
+      app.use((error, req, res, _next) => {
+        logger.logError(error, req);
+        res.status(500).end();
+      });
+
+      await request(app).get('/api/window');
+
+      expect(sentPayloads()[0]).toMatchObject({ path: '/api/window' });
+    });
+
+    test('a 429 from the rate limiter on a coordinate path logs other and no coordinates', async () => {
+      const logger = loadLogger();
+      const app = express();
+      app.use(logger.loggingMiddleware);
+      app.use(createRateLimiter({ limit: 1 }));
+      app.use((req, res) => res.json({ ok: true }));
+      const url = `/api/window%3Flat%3D${LAT}%26lon%3D${LON}`;
+
+      await request(app).get(url).expect(200);
+      await request(app).get(url).expect(429);
+
+      const payload = sentPayloads()[1];
+      expect(payload).toMatchObject({ statusCode: 429, path: 'other' });
+      expect(JSON.stringify(sentPayloads())).not.toMatch(COORDINATE_LEAK);
+    });
+
+    test.each([
+      ['a router mounted on /api', 'router'],
+      ['a rate limiter mounted on /api', 'limiter']
+    ])('%s still logs /api/window with the rounded location', async (_, kind) => {
+      const app = express();
+      app.use(loadLogger().loggingMiddleware);
+      if (kind === 'router') {
+        const router = express.Router();
+        router.get('/window', (req, res) => res.json({ ok: true }));
+        app.use('/api', router);
+      } else {
+        app.use('/api', createRateLimiter({ limit: 1 }));
+        app.get('/api/window', (req, res) => res.json({ ok: true }));
+      }
+      const url = `/api/window?lat=${LAT}&lon=${LON}`;
+
+      await request(app).get(url);
+      if (kind === 'limiter') await request(app).get(url).expect(429);
+
+      const payloads = sentPayloads();
+      const last = payloads[payloads.length - 1];
+      expect(last).toMatchObject({ path: '/api/window', lat: 52.4, lon: 4.9 });
+      if (kind === 'limiter') expect(last.statusCode).toBe(429);
     });
 
     test('referrer with coordinates is not logged', async () => {
@@ -214,7 +301,7 @@ describe('Logging middleware', () => {
 
       await request(app).get('/%FF/today');
 
-      expect(sentPayloads()[0]).toMatchObject({ statusCode: 400, path: '/%FF/today' });
+      expect(sentPayloads()[0]).toMatchObject({ statusCode: 400, path: 'other' });
     });
   });
 
