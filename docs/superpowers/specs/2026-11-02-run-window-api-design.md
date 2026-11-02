@@ -114,8 +114,8 @@ A window object:
 - `windFrom` is the direction the wind comes from, in degrees, as Open-Meteo reports it. "Start into the wind" means
   heading towards `windFromCardinal`. 8-point cardinals.
 - `label` is preformatted local time in the location's timezone, using `lang`. Clients may ignore it and build their
-  own from the fields. It says "dry"/"droog" only when `precipProbMax` <= 20; above that `rain 40%`/`regen 40%`, whether
-  or not the window qualifies.
+  own from the fields. It says "dry"/"droog" only when `qualifies` is true and `precipProbMax` <= 20; otherwise `rain 40%`/
+  `regen 40%`.
 - `score`: lower is better. Exposed for debugging and tuning, not as a promise.
 
 ## Weather source

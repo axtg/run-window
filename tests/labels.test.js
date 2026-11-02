@@ -32,11 +32,13 @@ describe('formatLabel', () => {
     );
   });
 
-  describe('dry only up to a 20% rain chance, whether or not the window qualifies', () => {
+  describe('dry only for a qualifying window at up to a 20% rain chance', () => {
     test.each([
       ['en', true, 20, 'dry'],
-      ['en', false, 20, 'dry'],
       ['nl', true, 20, 'droog'],
+      ['en', false, 20, 'rain 20%'],
+      ['en', false, 10, 'rain 10%'],
+      ['nl', false, 10, 'regen 10%'],
       ['en', true, 21, 'rain 21%'],
       ['en', false, 21, 'rain 21%'],
       ['nl', true, 21, 'regen 21%'],
