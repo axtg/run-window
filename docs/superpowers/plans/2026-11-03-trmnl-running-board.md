@@ -51,7 +51,7 @@ after Task 1). **Verify answers:** `docs/superpowers/specs/2026-11-03-trmnl-runn
 - No token, real coordinate or personal name anywhere in the repo. Examples use Amsterdam centre (52.37, 4.89).
 - Quote every select value in `settings.yml`. Plugin files each ≤ 100 KB. Only the `full` layout in v1.
 - Garmin `attribution` text is shown whenever a shown activity has `isFromGarminApi: true`; the API's `attribution` is
-  shown whenever a run window is shown.
+  shown whenever the run panel is based on weather data (`window`, `shorter`, `fallback` or `none`).
 
 ## Review Focus
 
@@ -74,7 +74,8 @@ Each has a test in the task that owns the code (marked "Review Focus N").
 - **Weather retry:** a failed poll arrives as `{}` (status lost). The script then fetches the same window URL itself
   (tokenless, built by `windowUrl(settings)`, which a test keeps equal to the rendered polling URL). Its status picks
   the message: 400 → "Check your hours setting"; anything else → "Weather unavailable". No retry when the previous
-  output's `run.kind` was `error` and its `fetchedAt` is under 30 minutes old (no extra load during an outage).
+  output's `run.kind` was `error` and its `weatherRetryAt` (the time of the last retry actually made) is under 30
+  minutes old, so an outage adds one request per 30 minutes and a bad setting still shows its own message.
 - **Settings in the URL:** the polling URL removes spaces from `availability` (the API rejects `07-09, 17-21`) and
   uses the same defaults as `readSettings` for empty fields, so the API and the script agree on the hours. Without a
   location the URL has no `lat`/`lon` (the API answers 400 without spending location budget).
@@ -86,8 +87,8 @@ Each has a test in the task that owns the code (marked "Review Focus N").
   Tredict fetch, set on `ok` and copied unchanged on `stale`. On a Tredict 5xx, timeout or unreadable body, the script
   reuses `week` (with its `garmin` list) and `form` from `trmnl.previous_merge_variables` only when that `tredictAt`
   is on today's local date; the message is "Tredict data from {tredictAtText}". Otherwise `unavailable`. 401/403/402
-  never reuse old data. An efforts response with no keys counts as `unavailable` (the endpoint always covers a year;
-  an empty one may be a paused token).
+  never reuse old data. An efforts response with no keys counts as empty (a new account) when the plan and activity calls
+  succeeded, and as `unavailable` otherwise (a paused token fails those calls too).
 - **Copy for a shorter window:** "Only {n} min fits your hours", not "Only 45 min dry in your hours": a qualifying
   window can have up to the user's rain limit, so "dry" could contradict the API's rule.
 - **Nothing planned today or tomorrow:** today while today's hours remain, with "no session planned". A rest day with
@@ -101,7 +102,8 @@ Each has a test in the task that owns the code (marked "Review Focus N").
   IANA `timezone`, else the user's.
 - **Spec deviations that follow from the above:** the location setting's key is `lat_lon` (spec: `location`); no
   `shared.liquid` and no `append_random` chart ids (no chart JS); the en headings are "BEST TIME TODAY" / "TOMORROW",
-  nl "BESTE TIJD VANDAAG" / "MORGEN".
+  nl "BESTE TIJD VANDAAG" / "MORGEN"; on `auth`, `payment` and `unavailable` the Tredict message shows once, in
+  the left column.
 - **Form model:** CTL += (load − CTL)/42, ATL += (load − ATL)/7, form = CTL − ATL, both from 0 on the first day with
   data. Load: confirmed efforts for past days; all entries for today and later (a done plan's `unconfirmed` entry is
   already gone). Constants exported for V10.
@@ -112,7 +114,7 @@ Each has a test in the task that owns the code (marked "Review Focus N").
   ```
   { v: 1, lang: 'en'|'nl', fetchedAt, fetchedAtText,
     tredict: { state: 'ok'|'stale'|'auth'|'payment'|'unavailable', message: string },
-    tredictAt: ISO|null, tredictAtText: string,
+    tredictAt: ISO|null, tredictAtText: string, weatherRetryAt: ISO|null,
     week: null | { title, days: [{ label, today: bool, items: [{ kind: 'done'|'planned'|'missed'|'unplanned', text }], more }], footer, garmin: [string] },
     form: null | { heading, today, pastPath, futurePath, zeroY, todayX, labels: { back, today, ahead }, empty: string },
     run: { kind: 'window'|'shorter'|'fallback'|'none'|'error'|'badSettings'|'noLocation', heading, lines: [string] },
