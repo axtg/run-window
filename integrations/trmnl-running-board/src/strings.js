@@ -30,7 +30,16 @@ const STRINGS = {
     weatherStale: 'weather may be out of date',
     dry: 'dry',
     rain: 'rain',
-    speed: 'km/h'
+    speed: 'km/h',
+    sportRunning: 'Run',
+    sportCycling: 'Ride',
+    sportSwimming: 'Swim',
+    sportStrength: 'Strength',
+    sportOther: 'Session',
+    formWeeksBack: '{n} weeks back',
+    formDaysBack: '{n} days back',
+    formToday: 'today',
+    formDaysAhead: '{n} days ahead'
   },
   nl: {
     week: 'WEEK',
@@ -61,7 +70,16 @@ const STRINGS = {
     weatherStale: 'weer is mogelijk verouderd',
     dry: 'droog',
     rain: 'regen',
-    speed: 'km/u'
+    speed: 'km/u',
+    sportRunning: 'Hardlopen',
+    sportCycling: 'Fietsen',
+    sportSwimming: 'Zwemmen',
+    sportStrength: 'Kracht',
+    sportOther: 'Training',
+    formWeeksBack: '{n} weken terug',
+    formDaysBack: '{n} dagen terug',
+    formToday: 'vandaag',
+    formDaysAhead: '{n} dagen vooruit'
   }
 };
 
