@@ -279,6 +279,48 @@ describe('windowPanel', () => {
     expect(panel(noWindows).kind).toBe('none');
   });
 
+  describe('windows with missing condition fields', () => {
+    const body = fixture('ok');
+    const good = body.days[0].windows['60'];
+    const MALFORMED = [
+      ['only start and end', { start: good.start, end: good.end }],
+      ['windAvg null', { ...good, windAvg: null }],
+      ['unknown cardinal', { ...good, windFromCardinal: 'XX' }],
+      ['precipProbMax missing', { ...good, precipProbMax: undefined }],
+      ['apparentTempAvg NaN', { ...good, apparentTempAvg: NaN }],
+      ['windAvg as text', { ...good, windAvg: '18' }]
+    ];
+    const withDay = (windows, extra = {}) => ({
+      ...body,
+      days: [{ ...body.days[0], windows, ...extra }, body.days[1]]
+    });
+    const allMalformed = bad => Object.fromEntries(Object.keys(body.days[0].windows).map(key => [key, bad]));
+
+    it.each(MALFORMED)('falls through to a valid shorter window (%s)', (name, bad) => {
+      const result = panel(withDay({ ...body.days[0].windows, 60: bad }));
+      expect(result).toMatchObject({ kind: 'shorter', heading: 'Only 45 min fits your hours' });
+      expect(result.lines[1]).toBe('dry · 18 km/h SW · 8°C');
+    });
+
+    it.each(MALFORMED)('gives none when every window is malformed (%s)', (name, bad) => {
+      expect(panel(withDay(allMalformed(bad), { fallback: bad }), { lang: 'nl' })).toMatchObject({ kind: 'none' });
+    });
+
+    it.each(MALFORMED)('uses a valid fallback when every window is malformed (%s)', (name, bad) => {
+      const fallback = fixture('fallback').days[0].fallback;
+      expect(panel(withDay(allMalformed(bad), { fallback })).kind).toBe('fallback');
+    });
+
+    it.each(MALFORMED)('never prints undefined, null or NaN (%s)', (name, bad) => {
+      for (const lang of ['en', 'nl']) {
+        for (const windows of [{ ...body.days[0].windows, 60: bad }, allMalformed(bad)]) {
+          const result = panel(withDay(windows, { fallback: bad }), { lang });
+          expect([result.heading, ...result.lines].join('\n')).not.toMatch(/undefined|null|NaN/);
+        }
+      }
+    });
+  });
+
   it('falls back to en for an unknown language', () => {
     expect(panel(fixture('ok'), { lang: 'de' }).heading).toBe('BEST TIME TODAY · 60 min');
   });

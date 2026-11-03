@@ -50,13 +50,20 @@ function pickSession({ plans, now, tz, avail, sport = 'running' }) {
   return choose(!pastToday && !plannedToday ? 'today' : 'tomorrow', unplanned('noPlan'));
 }
 
+// The API contract's compass points
+const WIND_CARDINALS = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
+
+// A window the screen can print in full; anything less counts as missing, so the next option is used
 function readableWindow(value) {
-  return value &&
-    typeof value === 'object' &&
+  if (!value || typeof value !== 'object') return null;
+  const readable =
     Number.isFinite(Date.parse(value.start)) &&
-    Number.isFinite(Date.parse(value.end))
-    ? value
-    : null;
+    Number.isFinite(Date.parse(value.end)) &&
+    Number.isFinite(value.precipProbMax) &&
+    Number.isFinite(value.windAvg) &&
+    Number.isFinite(value.apparentTempAvg) &&
+    WIND_CARDINALS.includes(value.windFromCardinal);
+  return readable ? value : null;
 }
 
 // The session's own window, else the longest shorter one, else the API's fallback
