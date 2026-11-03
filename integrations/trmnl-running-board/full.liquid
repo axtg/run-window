@@ -25,9 +25,9 @@
   .rb-run__heading { font-size: 24px; font-weight: 700; line-height: 30px; }
   .rb-run__line { font-size: 22px; line-height: 28px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .rb-run__line--first { font-size: 36px; font-weight: 700; line-height: 44px; }
-  .rb-foot { display: flex; justify-content: space-between; gap: 12px; font-size: 13px; line-height: 16px; padding-top: 4px; }
-  .rb-foot__source { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .rb-foot__time { flex: 0 0 auto; }
+  .rb-foot { display: flex; justify-content: space-between; align-items: flex-end; gap: 12px; font-size: 13px; line-height: 16px; padding-top: 4px; }
+  .rb-foot__source { flex: 1 1 auto; min-width: 0; white-space: normal; overflow-wrap: anywhere; }
+  .rb-foot__time { flex: 0 0 auto; white-space: nowrap; }
 </style>
 
 <div class="layout">

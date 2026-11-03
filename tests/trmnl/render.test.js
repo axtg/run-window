@@ -87,6 +87,22 @@ describe('full.liquid: normal case', () => {
   });
 });
 
+describe('full.liquid: attribution', () => {
+  it('prints a long attribution in full and never clips it', async () => {
+    const { output } = await board();
+    const notice = 'Garmin and the Garmin logo are trademarks of Garmin Ltd. or its subsidiaries; via Garmin Connect';
+    const garmin = [`${notice} for device A`, `${notice} for device B`];
+    const attribution = [...garmin, 'Weather data by Open-Meteo.com'].join(' · ');
+    const html = await renderFull({ ...output, week: { ...output.week, garmin }, attribution });
+    expect(textOf(html)).toContain(attribution);
+    expect(textOf(html)).toContain('data We 12:00');
+
+    const rule = template.match(/\.rb-foot__source\s*\{([^}]*)\}/);
+    expect(rule).not.toBeNull();
+    expect(rule[1]).not.toMatch(/nowrap|ellipsis|overflow\s*:\s*hidden/);
+  });
+});
+
 describe('full.liquid: template rules', () => {
   it('escapes every printed value except the validated SVG data', () => {
     const allowed = ['form.pastPath', 'form.futurePath', 'form.zeroY', 'form.todayX'];
