@@ -82,8 +82,15 @@ describe('nginx config', () => {
   test('the logged path map matches LOGGABLE_PATHS', () => {
     expect(mapBody).toMatch(/default\s+other;/);
     const mapped = [...mapBody.matchAll(/^\s*(\S+)\s+(\S+);/gm)].filter(([, key]) => key !== 'default');
-    mapped.forEach(([, key, value]) => expect(value).toBe(key));
-    expect(mapped.map(([, key]) => key).sort()).toEqual([...LOGGABLE_PATHS].sort());
+    expect(mapped.map(([, , value]) => value).sort()).toEqual([...LOGGABLE_PATHS].sort());
+    // Each key is a case-insensitive regex matching its path with or without a trailing slash, like Express does
+    mapped.forEach(([, key, value]) => {
+      expect(key.startsWith('~*^') && key.endsWith('$')).toBe(true);
+      const regex = new RegExp(key.slice(2), 'i');
+      [value, value.toUpperCase(), value === '/' ? '/' : `${value}/`].forEach(url => expect(url).toMatch(regex));
+      expect(`${value}x`).not.toMatch(regex);
+      expect(`/x${value}`).not.toMatch(regex);
+    });
   });
 
   test('/health/cache is reachable from the host only, whatever the case', () => {

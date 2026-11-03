@@ -41,7 +41,17 @@ const LOGGABLE_PATHS = new Set([
   '/tailwind.css',
   '/favicon.ico'
 ]);
-const safePath = path => (LOGGABLE_PATHS.has(path) ? path : 'other');
+// Express routes case-insensitively and accepts one trailing slash, so `/API/Window/` is served as `/api/window`.
+// Compare that canonical form; what is logged still only ever comes from the list above.
+const canonicalPath = path =>
+  String(path)
+    .toLowerCase()
+    .replace(/\/{2,}/g, '/')
+    .replace(/(.)\/$/, '$1');
+const safePath = path => {
+  const canonical = canonicalPath(path);
+  return LOGGABLE_PATHS.has(canonical) ? canonical : 'other';
+};
 
 const round1 = value => Math.round(value * 10) / 10 || 0; // `|| 0` turns -0 into 0
 
@@ -82,7 +92,7 @@ const sendToLogtail = async logData => {
 const loggingMiddleware = (req, res, next) => {
   // Read now: inside res.end Express has stripped the prefix of any router or middleware mount.
   const path = safePath(req.path);
-  const location = roundedLocation(req, req.path);
+  const location = roundedLocation(req, path);
   req.loggablePath = path;
   const startTime = Date.now();
 

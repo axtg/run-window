@@ -79,6 +79,33 @@ describe('Logging middleware', () => {
       expect(JSON.stringify(payload)).not.toMatch(COORDINATE_LEAK);
     });
 
+    // Express routes case-insensitively and allows one trailing slash; nginx passes doubled slashes through.
+    test.each(['/api/window/', '/API/Window', '/Api/window/', '/api//window'])(
+      'the served variant %s logs as /api/window with its rounded location',
+      async variant => {
+        await request(buildApp(loadLogger()))
+          .get(`${variant}?lat=${LAT}&lon=${LON}`)
+          .expect(variant === '/api//window' ? 404 : 200);
+
+        const [payload] = sentPayloads();
+        expect(payload).toMatchObject({ path: '/api/window', lat: 52.4, lon: 4.9 });
+        expect(JSON.stringify(payload)).not.toMatch(COORDINATE_LEAK);
+      }
+    );
+
+    test.each(['/HEALTH/', '/health//cache', '//'])('the variant %s logs as its allowlisted path', async variant => {
+      const logger = loadLogger();
+      const app = express();
+      app.use(logger.loggingMiddleware);
+      app.use((req, res) => res.status(404).end());
+
+      await request(app).get(variant);
+
+      expect(sentPayloads()[0].path).toBe(
+        { '/HEALTH/': '/health', '/health//cache': '/health/cache', '//': '/' }[variant]
+      );
+    });
+
     test.each([
       ['an encoded query', `/api/window%3Flat%3D${LAT}%26lon%3D${LON}`],
       ['matrix parameters', `/;lat=${LAT};lon=${LON}`],
