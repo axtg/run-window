@@ -88,7 +88,7 @@ function buildWeek({ plans, activities, now, tz, sport = 'running' }) {
     if (isPositive(plan.duration)) plannedDurationS += plan.duration;
 
     const activity = plan.executedTrainingId ? activityById.get(plan.executedTrainingId) : undefined;
-    if (activity) {
+    if (activity && !used.has(activity)) {
       used.add(activity);
       const item = weekItem('done', plan.title, activity.sportType, activityMetrics(activity));
       addDone(date, Date.parse(activity.date), item, activity);

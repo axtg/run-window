@@ -130,6 +130,15 @@ describe('buildWeek on Wednesday 2026-11-04 12:00', () => {
     });
   });
 
+  it('counts an activity once when two plans point at it', () => {
+    const twin = { ...plannedWeek[0], id: 'SynPlanTwinxxxxxxxxxxx', title: 'Twin run' };
+    const doubled = week(WEDNESDAY_NOON, 'running', [...plannedWeek, twin]);
+    expect(doubled.totals.doneDistanceM).toBe(result.totals.doneDistanceM);
+    expect(doubled.totals.doneDurationS).toBe(result.totals.doneDurationS);
+    const withMetrics = doubled.days[0].items.filter(item => item.kind === 'done' && item.distanceM);
+    expect(withMetrics).toHaveLength(1);
+  });
+
   it('lists the Garmin attribution of a shown Garmin activity once', () => {
     expect(result.garmin).toEqual(['Synthetic Garmin attribution text']);
   });

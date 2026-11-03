@@ -1,8 +1,8 @@
 <style>
   .rb { display: flex; flex-direction: column; width: 100%; height: 100%; color: #000; background: #fff; }
-  .rb-main { display: flex; flex: 1 1 auto; min-height: 0; }
+  .rb-main { display: flex; flex: 1 1 auto; min-height: 0; overflow: hidden; }
   .rb-left { display: flex; flex-direction: column; flex: 0 0 45%; min-width: 0; padding-right: 12px; border-right: 2px solid #000; }
-  .rb-right { display: flex; flex-direction: column; flex: 1 1 auto; min-width: 0; padding-left: 14px; }
+  .rb-right { display: flex; flex-direction: column; flex: 1 1 auto; min-width: 0; min-height: 0; overflow: hidden; padding-left: 14px; }
   .rb-title { font-size: 26px; font-weight: 700; line-height: 30px; margin-bottom: 4px; }
   .rb-days { flex: 1 1 auto; display: flex; flex-direction: column; }
   .rb-day { display: flex; align-items: center; flex: 1 1 0; min-height: 0; padding: 0 6px; border-bottom: 1px solid #000; }
@@ -88,8 +88,6 @@
                 <span>{{ form.labels.ahead | escape }}</span>
               </div>
             {% endif %}
-          {% else %}
-            <div class="rb-message rb-message--big">{{ tredict.message | escape }}</div>
           {% endif %}
         </div>
 

@@ -1,5 +1,6 @@
 const FALLBACK_ZONE = 'UTC';
-const RANGE_TEXT = /^(\d{1,2})-(\d{1,2})$/;
+// The API's clock: two-digit hours, optional minutes (lib/params.js)
+const CLOCK_TEXT = /^(\d{2})(?::(\d{2}))?$/;
 const DAY_MS = 86400000;
 
 // Intl in TRMNL has English data only: always en-US, parts, never a locale string
@@ -86,17 +87,42 @@ function zonedMidnight(date, timeZone) {
   return zonedWall(date, 0, timeZone);
 }
 
-// End of the latest range that local day; 24 is the next midnight. Without a valid range: the end of the day.
-function availabilityEnd(avail, date, timeZone) {
-  let latest = 0;
-  for (const piece of String(avail ?? '').split(',')) {
-    const match = RANGE_TEXT.exec(piece.trim());
-    if (!match) continue;
-    const start = Number(match[1]);
-    const end = Number(match[2]);
-    if (end <= 24 && start < end && end > latest) latest = end;
+// 'HH' or 'HH:MM' as minutes since midnight, as the API reads it; 24:00 only as an end. null when invalid.
+function clockMinutes(text, isEnd) {
+  const match = CLOCK_TEXT.exec(text);
+  if (!match) return null;
+  const hours = Number(match[1]);
+  const minutes = match[2] === undefined ? 0 : Number(match[2]);
+  if (minutes > 59 || hours > 24 || (hours === 24 && (!isEnd || minutes !== 0))) return null;
+  return hours * 60 + minutes;
+}
+
+// Ranges in minutes, sorted, exactly as the API accepts them; null for anything it answers 400 to
+function availabilityRanges(avail) {
+  const ranges = [];
+  const pieces = String(avail ?? '')
+    .replace(/ /g, '')
+    .split(',');
+  for (const piece of pieces) {
+    const bounds = piece.split('-');
+    if (bounds.length !== 2) return null;
+    const start = clockMinutes(bounds[0], false);
+    const end = clockMinutes(bounds[1], true);
+    if (start === null || end === null || end <= start) return null;
+    ranges.push({ start, end });
   }
-  return zonedWall(date, latest || 24, timeZone);
+  ranges.sort((a, b) => a.start - b.start);
+  for (let index = 1; index < ranges.length; index += 1) {
+    if (ranges[index].start < ranges[index - 1].end) return null;
+  }
+  return ranges;
+}
+
+// End of the latest range that local day; 24:00 is the next midnight. Hours the API rejects: the end of the day.
+function availabilityEnd(avail, date, timeZone) {
+  const ranges = availabilityRanges(avail);
+  const latest = ranges ? Math.max(...ranges.map(range => range.end)) : 24 * 60;
+  return zonedWall(date, latest / 60, timeZone);
 }
 
 module.exports = {

@@ -24,6 +24,14 @@ const panel = (body, extra = {}) =>
   windowPanel({ body, status: 200, session: session(), lang: 'en', hasLocation: true, ...extra });
 
 describe('pickSession', () => {
+  it('keeps today at 12:00 when the last range has minutes', () => {
+    const noon = ms('2026-11-04T11:00:00Z');
+    const result = pick([plan('A', '2026-11-04T16:30:00Z', { duration: 45 * 60 })], noon, {
+      avail: '07-09,17:30-21:30'
+    });
+    expect(result).toEqual({ day: 'today', date: '2026-11-04', minutes: 45, reason: 'planned', overLimit: false });
+  });
+
   it('rounds a 52-minute plan today up to 60', () => {
     const result = pick([plan('A', '2026-11-04T16:00:00Z', { duration: 52 * 60 })]);
     expect(result).toEqual({ day: 'today', date: '2026-11-04', minutes: 60, reason: 'planned', overLimit: false });

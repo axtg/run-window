@@ -144,7 +144,8 @@ function formatPace(secondsPerKm) {
 }
 
 const FALLBACK_ZONE = 'UTC';
-const RANGE_TEXT = /^(\d{1,2})-(\d{1,2})$/;
+// The API's clock: two-digit hours, optional minutes (lib/params.js)
+const CLOCK_TEXT = /^(\d{2})(?::(\d{2}))?$/;
 const DAY_MS = 86400000;
 
 // Intl in TRMNL has English data only: always en-US, parts, never a locale string
@@ -231,17 +232,42 @@ function zonedMidnight(date, timeZone) {
   return zonedWall(date, 0, timeZone);
 }
 
-// End of the latest range that local day; 24 is the next midnight. Without a valid range: the end of the day.
-function availabilityEnd(avail, date, timeZone) {
-  let latest = 0;
-  for (const piece of String(avail ?? '').split(',')) {
-    const match = RANGE_TEXT.exec(piece.trim());
-    if (!match) continue;
-    const start = Number(match[1]);
-    const end = Number(match[2]);
-    if (end <= 24 && start < end && end > latest) latest = end;
+// 'HH' or 'HH:MM' as minutes since midnight, as the API reads it; 24:00 only as an end. null when invalid.
+function clockMinutes(text, isEnd) {
+  const match = CLOCK_TEXT.exec(text);
+  if (!match) return null;
+  const hours = Number(match[1]);
+  const minutes = match[2] === undefined ? 0 : Number(match[2]);
+  if (minutes > 59 || hours > 24 || (hours === 24 && (!isEnd || minutes !== 0))) return null;
+  return hours * 60 + minutes;
+}
+
+// Ranges in minutes, sorted, exactly as the API accepts them; null for anything it answers 400 to
+function availabilityRanges(avail) {
+  const ranges = [];
+  const pieces = String(avail ?? '')
+    .replace(/ /g, '')
+    .split(',');
+  for (const piece of pieces) {
+    const bounds = piece.split('-');
+    if (bounds.length !== 2) return null;
+    const start = clockMinutes(bounds[0], false);
+    const end = clockMinutes(bounds[1], true);
+    if (start === null || end === null || end <= start) return null;
+    ranges.push({ start, end });
   }
-  return zonedWall(date, latest || 24, timeZone);
+  ranges.sort((a, b) => a.start - b.start);
+  for (let index = 1; index < ranges.length; index += 1) {
+    if (ranges[index].start < ranges[index - 1].end) return null;
+  }
+  return ranges;
+}
+
+// End of the latest range that local day; 24:00 is the next midnight. Hours the API rejects: the end of the day.
+function availabilityEnd(avail, date, timeZone) {
+  const ranges = availabilityRanges(avail);
+  const latest = ranges ? Math.max(...ranges.map(range => range.end)) : 24 * 60;
+  return zonedWall(date, latest / 60, timeZone);
 }
 
 const DEFAULT_AVAILABILITY = '07-09,12-14,17-21';
@@ -440,7 +466,7 @@ function buildWeek({ plans, activities, now, tz, sport = 'running' }) {
     if (isPositive(plan.duration)) plannedDurationS += plan.duration;
 
     const activity = plan.executedTrainingId ? activityById.get(plan.executedTrainingId) : undefined;
-    if (activity) {
+    if (activity && !used.has(activity)) {
       used.add(activity);
       const item = weekItem('done', plan.title, activity.sportType, activityMetrics(activity));
       addDone(date, Date.parse(activity.date), item, activity);
@@ -835,7 +861,8 @@ const BOARD_VERSION = 1;
 const REQUEST_TIMEOUT_MS = 3000;
 const RETRY_PAUSE_MS = 30 * 60000;
 const ATTRIBUTION_SEPARATOR = ' · ';
-const WINDOW_KINDS = ['window', 'shorter', 'fallback'];
+// Run panel kinds that used weather data, so they carry its attribution
+const WEATHER_KINDS = ['window', 'shorter', 'fallback', 'none'];
 const ITEM_KINDS = ['done', 'planned', 'missed', 'unplanned'];
 const REUSED_PATH = /^[ML0-9. -]*$/;
 
@@ -898,9 +925,11 @@ async function fetchWindow(fetchFn, url, timeoutMs) {
   }
 }
 
-// The previous retry's time, when it is under 30 minutes old: anchored to the retry, so skipping doesn't renew it
+// The previous retry's time, when it is under 30 minutes old and the weather was unavailable then: anchored to the
+// retry, so skipping doesn't renew it. Any other previous result (badSettings, a window) retries again.
 function recentWeatherRetry(previous, now) {
   if (!isObject(previous) || typeof previous.weatherRetryAt !== 'string') return null;
+  if (!isObject(previous.run) || previous.run.kind !== 'error') return null;
   const at = Date.parse(previous.weatherRetryAt);
   const age = now - at;
   return age >= 0 && age < RETRY_PAUSE_MS ? new Date(at).toISOString() : null;
@@ -917,11 +946,12 @@ function embeddedList(result, key) {
   return { ok: true, list: Array.isArray(embedded[key]) ? embedded[key] : [] };
 }
 
-// The endpoint always covers a year: an empty one may be a paused token
+// No keys is an empty account. It only gives the empty form when the plan and activity calls also succeeded: any
+// other failure already makes the Tredict state unavailable, stale, auth or payment.
 function effortsOf(result) {
   if (!result.ok) return { ok: false, kind: result.kind };
   const efforts = isObject(result.data) ? result.data.trainingEfforts : null;
-  if (!isObject(efforts) || Object.keys(efforts).length === 0) return { ok: false, kind: 'unavailable' };
+  if (!isObject(efforts)) return { ok: false, kind: 'unavailable' };
   return { ok: true, efforts };
 }
 
@@ -1061,7 +1091,7 @@ async function assembleBoard(input, { fetch: fetchFn, now, timeoutMs }) {
   });
 
   const attribution = tredict.week ? tredict.week.garmin.slice() : [];
-  if (WINDOW_KINDS.includes(run.kind) && isObject(windowBody) && typeof windowBody.attribution === 'string') {
+  if (WEATHER_KINDS.includes(run.kind) && isObject(windowBody) && typeof windowBody.attribution === 'string') {
     attribution.push(windowBody.attribution);
   }
 

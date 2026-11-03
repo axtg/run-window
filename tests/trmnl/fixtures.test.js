@@ -1,4 +1,5 @@
 const fs = require('fs');
+const os = require('os');
 const path = require('path');
 
 const FIXTURES = path.join(__dirname, '..', 'fixtures');
@@ -8,7 +9,15 @@ const COORDINATE_KEYS = { positionLat: 52.37, lat: 52.37, positionLong: 4.89, lo
 const TWINS = ['planned', 'activities', 'efforts'];
 
 const listJson = dir => (fs.existsSync(dir) ? fs.readdirSync(dir).filter(name => name.endsWith('.json')) : []);
-const readJson = file => JSON.parse(fs.readFileSync(file, 'utf8'));
+// A fixed message naming the file only: a SyntaxError's text quotes the content, which may be private
+function readJson(file) {
+  const text = fs.readFileSync(file, 'utf8');
+  try {
+    return JSON.parse(text);
+  } catch {
+    throw new Error(`Not valid JSON: ${path.basename(file)}`);
+  }
+}
 const syntheticFiles = SYNTHETIC_DIRS.flatMap(dir => listJson(dir).map(name => path.join(dir, name)));
 
 const normalize = key => (/^\d{8}$/.test(key) ? '*' : key);
@@ -36,6 +45,27 @@ function collect(value, visit) {
     }
   }
 }
+
+describe('readJson', () => {
+  it('names only the file when the JSON is malformed', () => {
+    const scratch = fs.mkdtempSync(path.join(os.tmpdir(), 'trmnl-fixture-'));
+    try {
+      const file = path.join(scratch, 'efforts.json');
+      fs.writeFileSync(file, '{"secretValue": 52.37,');
+      let thrown;
+      try {
+        readJson(file);
+      } catch (error) {
+        thrown = error;
+      }
+      expect(thrown).toBeInstanceOf(Error);
+      expect(String(thrown)).toBe('Error: Not valid JSON: efforts.json');
+      expect(thrown.cause).toBeUndefined();
+    } finally {
+      fs.rmSync(scratch, { recursive: true, force: true });
+    }
+  });
+});
 
 describe('synthetic fixtures', () => {
   it('exist', () => {

@@ -10,7 +10,8 @@ const BOARD_VERSION = 1;
 const REQUEST_TIMEOUT_MS = 3000;
 const RETRY_PAUSE_MS = 30 * 60000;
 const ATTRIBUTION_SEPARATOR = ' · ';
-const WINDOW_KINDS = ['window', 'shorter', 'fallback'];
+// Run panel kinds that used weather data, so they carry its attribution
+const WEATHER_KINDS = ['window', 'shorter', 'fallback', 'none'];
 const ITEM_KINDS = ['done', 'planned', 'missed', 'unplanned'];
 const REUSED_PATH = /^[ML0-9. -]*$/;
 
@@ -73,9 +74,11 @@ async function fetchWindow(fetchFn, url, timeoutMs) {
   }
 }
 
-// The previous retry's time, when it is under 30 minutes old: anchored to the retry, so skipping doesn't renew it
+// The previous retry's time, when it is under 30 minutes old and the weather was unavailable then: anchored to the
+// retry, so skipping doesn't renew it. Any other previous result (badSettings, a window) retries again.
 function recentWeatherRetry(previous, now) {
   if (!isObject(previous) || typeof previous.weatherRetryAt !== 'string') return null;
+  if (!isObject(previous.run) || previous.run.kind !== 'error') return null;
   const at = Date.parse(previous.weatherRetryAt);
   const age = now - at;
   return age >= 0 && age < RETRY_PAUSE_MS ? new Date(at).toISOString() : null;
@@ -92,11 +95,12 @@ function embeddedList(result, key) {
   return { ok: true, list: Array.isArray(embedded[key]) ? embedded[key] : [] };
 }
 
-// The endpoint always covers a year: an empty one may be a paused token
+// No keys is an empty account. It only gives the empty form when the plan and activity calls also succeeded: any
+// other failure already makes the Tredict state unavailable, stale, auth or payment.
 function effortsOf(result) {
   if (!result.ok) return { ok: false, kind: result.kind };
   const efforts = isObject(result.data) ? result.data.trainingEfforts : null;
-  if (!isObject(efforts) || Object.keys(efforts).length === 0) return { ok: false, kind: 'unavailable' };
+  if (!isObject(efforts)) return { ok: false, kind: 'unavailable' };
   return { ok: true, efforts };
 }
 
@@ -236,7 +240,7 @@ async function assembleBoard(input, { fetch: fetchFn, now, timeoutMs }) {
   });
 
   const attribution = tredict.week ? tredict.week.garmin.slice() : [];
-  if (WINDOW_KINDS.includes(run.kind) && isObject(windowBody) && typeof windowBody.attribution === 'string') {
+  if (WEATHER_KINDS.includes(run.kind) && isObject(windowBody) && typeof windowBody.attribution === 'string') {
     attribution.push(windowBody.attribution);
   }
 

@@ -151,11 +151,21 @@ describe('buildBoard: Tredict states', () => {
       );
     });
 
-    it('treats efforts without keys as unavailable (Review Focus 2)', async () => {
+    it('treats efforts without keys as empty when the plan and activity calls succeed', async () => {
       const { output } = await board({ previous: first }, { efforts: { trainingEfforts: {} } });
-      expect(output.tredict.state).toBe('stale');
-      const { output: fresh } = await board({ previous: null }, { efforts: { trainingEfforts: {} } });
-      expect(fresh.tredict.state).toBe('unavailable');
+      expect(output.tredict).toEqual({ state: 'ok', message: '' });
+      expect(output.tredictAt).toBe(output.fetchedAt);
+      expect(output.form.empty).toBe('No training data yet');
+      expect(output.week.days).toHaveLength(7);
+    });
+
+    it('treats efforts without keys as unavailable when another call failed (Review Focus 2)', async () => {
+      const overrides = { activities: 503, efforts: { trainingEfforts: {} } };
+      const { output } = await board({ previous: null }, overrides);
+      expect(output.tredict).toEqual({ state: 'unavailable', message: 'Tredict unavailable' });
+      expect(output.form).toBeNull();
+      const { output: plan } = await board({ previous: null }, { plan: 503, efforts: { trainingEfforts: {} } });
+      expect(plan.tredict.state).toBe('unavailable');
     });
 
     it('treats an HTML body as unavailable (Review Focus 2)', async () => {
@@ -250,6 +260,24 @@ describe('buildBoard: weather retry', () => {
     expect(third.output.weatherRetryAt).toBe(new Date(NOW + 31 * MINUTE).toISOString());
   });
 
+  it('keeps badSettings over two failed polls in a row', async () => {
+    const first = await board({ body: {} }, { window: 400 });
+    expect(first.output.run.kind).toBe('badSettings');
+    const second = await board({ body: {}, previous: first.output }, { window: 400 }, NOW + 29 * MINUTE);
+    expect(second.calls.filter(call => call.name === 'window')).toHaveLength(1);
+    expect(second.output.run).toEqual({ kind: 'badSettings', heading: 'Check your hours setting', lines: [] });
+    expect(second.output.weatherRetryAt).toBe(new Date(NOW + 29 * MINUTE).toISOString());
+  });
+
+  it('retries a failed poll 10 minutes after a successful retry', async () => {
+    const first = await board({ body: {} });
+    expect(first.output.run.kind).toBe('window');
+    expect(first.output.weatherRetryAt).toBe('2026-11-04T11:00:00.000Z');
+    const second = await board({ body: {}, previous: first.output }, {}, NOW + 10 * MINUTE);
+    expect(second.calls.filter(call => call.name === 'window')).toHaveLength(1);
+    expect(second.output.run.kind).toBe('window');
+  });
+
   it('no longer pauses on an old-style error output without weatherRetryAt', async () => {
     const previous = { v: 1, fetchedAt: new Date(NOW - 5 * MINUTE).toISOString(), run: { kind: 'error' } };
     const { calls } = await board({ body: {}, previous });
@@ -274,6 +302,15 @@ describe('buildBoard: weather retry', () => {
     const { output, calls } = await board({ body: {}, fields: { lat_lon: '' } });
     expect(calls.some(call => call.name === 'window')).toBe(false);
     expect(output.run.kind).toBe('noLocation');
+  });
+});
+
+describe('buildBoard: attribution', () => {
+  it.each(['shorter', 'fallback', 'none'])('includes the weather attribution for a %s panel', async name => {
+    const body = require(`../fixtures/trmnl/window-${name}.json`);
+    const { output } = await board({ body }, { plan: 503 });
+    expect(output.run.kind).toBe(name);
+    expect(output.attribution).toBe(body.attribution);
   });
 });
 

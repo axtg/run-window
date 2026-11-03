@@ -105,4 +105,17 @@ describe('availabilityEnd', () => {
     expect(availabilityEnd(undefined, '2026-11-04', AMS)).toBe(ms('2026-11-04T23:00:00Z'));
     expect(availabilityEnd('garbage', '2026-11-04', AMS)).toBe(ms('2026-11-04T23:00:00Z'));
   });
+
+  it('reads HH:MM ranges like the API and takes the latest end in minutes', () => {
+    expect(availabilityEnd('07:30-09:15,17:00-21:30', '2026-11-04', AMS)).toBe(ms('2026-11-04T20:30:00Z'));
+    expect(availabilityEnd('07-09,17:30-21:30', '2026-11-04', AMS)).toBe(ms('2026-11-04T20:30:00Z'));
+    expect(availabilityEnd('20:00-24:00', '2026-11-04', AMS)).toBe(ms('2026-11-04T23:00:00Z'));
+  });
+
+  it('invents no hours for ranges the API rejects', () => {
+    const endOfDay = ms('2026-11-04T23:00:00Z');
+    for (const avail of ['7-9', '07-9', '07-09,7-21', '07:60-09', '24-24', '09-07', '07-09,08-10', '07-09-10']) {
+      expect(availabilityEnd(avail, '2026-11-04', AMS)).toBe(endOfDay);
+    }
+  });
 });

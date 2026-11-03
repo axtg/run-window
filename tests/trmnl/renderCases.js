@@ -15,7 +15,7 @@ const STATE_CASES = {
 const EMPTY_ACCOUNT_OVERRIDES = {
   plan: EMPTY_LIST('plannedWorkoutList'),
   activities: EMPTY_LIST('activityList'),
-  efforts: { trainingEfforts: { x: [] } }
+  efforts: { trainingEfforts: {} }
 };
 
 const ERROR_OUTPUT = {

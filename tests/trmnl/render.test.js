@@ -101,6 +101,28 @@ describe('full.liquid: attribution', () => {
   });
 });
 
+describe('full.liquid: layout', () => {
+  const ruleOf = name => {
+    const rule = template.match(new RegExp(`\\.${name}\\s*\\{([^}]*)\\}`));
+    return rule ? rule[1] : '';
+  };
+
+  it.each(['rb-main', 'rb-right'])('lets .%s shrink and clip, so the footer keeps its space', name => {
+    expect(ruleOf(name)).toMatch(/min-height:\s*0\b/);
+    expect(ruleOf(name)).toMatch(/overflow:\s*hidden/);
+  });
+
+  it('prints a long run heading and five lines in full in the markup', async () => {
+    const { output } = await board();
+    const heading = 'TOMORROW · 60 min · no session planned · does not fit your hours · and more words';
+    const lines = ['07:00–08:00', 'dry · 12 km/h SW · 9°C', 'Wind at the start from SW', 'Dark after 17:05', 'x'];
+    const text = textOf(await renderFull({ ...output, run: { kind: 'window', heading, lines } }));
+    expect(text).toContain(heading);
+    for (const line of lines) expect(text).toContain(line);
+    expect(text).toContain('data We 12:00');
+  });
+});
+
 describe('full.liquid: template rules', () => {
   it('escapes every printed value except the validated SVG data', () => {
     const allowed = ['form.pastPath', 'form.futurePath', 'form.zeroY', 'form.todayX'];
@@ -131,11 +153,15 @@ describe('full.liquid: Tredict states', () => {
     ['auth', /Tredict token paused or invalid/],
     ['payment', /Tredict says this account can(?:'|&#39;|&#x27;|&apos;)t use the API\./],
     ['unavailable', /Tredict unavailable/]
-  ])('%s: shows the message instead of the week and graph, keeps the run window', async (state, message) => {
+  ])('%s: shows the message once instead of the week and graph, keeps the run window', async (state, message) => {
     const { output, html } = await rendered({ previous: null }, STATE_CASES[state]);
     expect(output.tredict.state).toBe(state);
     const text = textOf(html);
-    expect(text).toMatch(message);
+    expect(text.match(new RegExp(message.source, 'g'))).toHaveLength(1);
+    const left = html.slice(html.indexOf('class="rb-left"'), html.indexOf('class="rb-right"'));
+    expect(textOf(left)).toMatch(message);
+    const graph = html.slice(html.indexOf('class="rb-form"'), html.indexOf('class="rb-run"'));
+    expect(graph).not.toContain('rb-message');
     expect(html).not.toContain('<svg');
     expect(rows(html)).toHaveLength(0);
     expect(text).toContain(output.run.heading);
@@ -149,7 +175,7 @@ describe('full.liquid: Tredict states', () => {
     const { output, html } = await rendered({ previous: first }, { efforts: 503 });
     expect(output.tredict.state).toBe('stale');
     const text = textOf(html);
-    expect(text).toContain('Tredict data from We 10:00');
+    expect(text.match(/Tredict data from We 10:00/g)).toHaveLength(1);
     expect(rows(html)).toHaveLength(7);
     expect(html).toContain('<svg');
     expect(text).toContain('WEEK 45');
@@ -173,7 +199,7 @@ describe('full.liquid: empty and broken outputs (Review Focus 4)', () => {
     const output = ERROR_OUTPUT;
     const html = await renderFull(output);
     const text = textOf(html);
-    expect(text).toContain('Tredict unavailable');
+    expect(text.match(/Tredict unavailable/g)).toHaveLength(1);
     expect(text).toContain('Weather unavailable');
     expect(text).not.toMatch(/\bdata\b/);
     expect(text).not.toMatch(/\b(NaN|undefined|null)\b/);

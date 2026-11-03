@@ -18,8 +18,8 @@ The API comes first: the plugin depends on it.
 ## Status
 
 The API is live at `https://run.xadi.eu` (deployed 2026-11-03). The TRMNL plugin is built and tested; install steps are
-in `integrations/trmnl-running-board/README.md`. Publishing it as a recipe waits for Tredict's written agreement (see
-the plugin spec, "Tredict's terms").
+in `integrations/trmnl-running-board/README.md`. The install check on the device (plan Task 12) is pending. Publishing
+it as a recipe waits for Tredict's written agreement (see the plugin spec, "Tredict's terms").
 
 ## Sister project
 

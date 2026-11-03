@@ -3,6 +3,7 @@ const os = require('os');
 const path = require('path');
 const { build } = require('../../scripts/build-trmnl');
 const { loadTransform, renderFull } = require('./harness');
+const { makeInput } = require('./boardCases');
 
 const PLUGIN_DIR = path.join(__dirname, '..', '..', 'integrations', 'trmnl-running-board');
 const SRC_DIR = path.join(PLUGIN_DIR, 'src');
@@ -68,6 +69,33 @@ describe('build', () => {
       expect(requires).toHaveLength(imports.length);
     }
   });
+
+  it('throws on a module in src that the build order leaves out', () => {
+    const scratch = fs.mkdtempSync(path.join(os.tmpdir(), 'trmnl-build-'));
+    try {
+      fs.writeFileSync(
+        path.join(scratch, 'board.js'),
+        'function buildBoard() {}\n\nmodule.exports = { buildBoard };\n'
+      );
+      fs.writeFileSync(path.join(scratch, 'extra.js'), 'const extra = 1;\n\nmodule.exports = { extra };\n');
+      expect(() => build({ srcDir: scratch })).toThrow('Not in MODULE_ORDER: extra.js');
+    } finally {
+      fs.rmSync(scratch, { recursive: true, force: true });
+    }
+  });
+
+  it('pins the 3000 ms request timeout in the built transform', () => {
+    expect(read('transform.js').match(/^const REQUEST_TIMEOUT_MS = (\d+);$/m)[1]).toBe('3000');
+  });
+
+  it('settles within 4 s when fetch never resolves', async () => {
+    const run = loadTransform({ fetch: () => new Promise(() => {}), now: Date.parse('2026-11-04T10:00:00Z') });
+    const started = Date.now();
+    const result = JSON.parse(JSON.stringify(await run(makeInput({ body: {} }))));
+    expect(Date.now() - started).toBeLessThan(4000);
+    expect(result.tredict.state).toBe('unavailable');
+    expect(result.run.kind).toBe('error');
+  }, 10000);
 
   it('matches the committed transform.js', () => {
     expect(read('transform.js')).toBe(output);

@@ -36,6 +36,11 @@ function stripModuleGlue(source) {
 }
 
 function build({ srcDir = DEFAULT_SRC_DIR } = {}) {
+  // A module left out of the order would be dropped from transform.js without a word
+  const unknown = fs
+    .readdirSync(srcDir)
+    .filter(name => name.endsWith('.js') && !MODULE_ORDER.includes(name.slice(0, -3)));
+  if (unknown.length > 0) throw new Error(`Not in MODULE_ORDER: ${unknown.join(', ')}`);
   const parts = MODULE_ORDER.map(name => path.join(srcDir, `${name}.js`))
     .filter(file => fs.existsSync(file))
     .map(file => stripModuleGlue(fs.readFileSync(file, 'utf8')));
