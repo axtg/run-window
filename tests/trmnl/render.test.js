@@ -2,10 +2,10 @@ const fs = require('fs');
 const path = require('path');
 const { renderFull } = require('./harness');
 const { board, MINUTE, NOW } = require('./boardCases');
+const { EMPTY_ACCOUNT_OVERRIDES, ERROR_OUTPUT, STATE_CASES, longAttributionOutput } = require('./renderCases');
 
 const TEMPLATE_PATH = path.join(__dirname, '..', '..', 'integrations', 'trmnl-running-board', 'full.liquid');
 const template = fs.readFileSync(TEMPLATE_PATH, 'utf8');
-const EMPTY_LIST = key => ({ _embedded: { [key]: [] } });
 // Ruby Liquid escapes " as &quot;, liquidjs as &#34;
 const QUOTE = '(?:&quot;|&#34;)';
 
@@ -89,11 +89,9 @@ describe('full.liquid: normal case', () => {
 
 describe('full.liquid: attribution', () => {
   it('prints a long attribution in full and never clips it', async () => {
-    const { output } = await board();
-    const notice = 'Garmin and the Garmin logo are trademarks of Garmin Ltd. or its subsidiaries; via Garmin Connect';
-    const garmin = [`${notice} for device A`, `${notice} for device B`];
-    const attribution = [...garmin, 'Weather data by Open-Meteo.com'].join(' · ');
-    const html = await renderFull({ ...output, week: { ...output.week, garmin }, attribution });
+    const output = await longAttributionOutput();
+    const { attribution } = output;
+    const html = await renderFull(output);
     expect(textOf(html)).toContain(attribution);
     expect(textOf(html)).toContain('data We 12:00');
 
@@ -130,11 +128,11 @@ describe('full.liquid: template rules', () => {
 
 describe('full.liquid: Tredict states', () => {
   it.each([
-    ['auth', { plan: 401 }, /Tredict token paused or invalid/],
-    ['payment', { efforts: 402 }, /Tredict says this account can(?:'|&#39;|&#x27;|&apos;)t use the API\./],
-    ['unavailable', { efforts: 503 }, /Tredict unavailable/]
-  ])('%s: shows the message instead of the week and graph, keeps the run window', async (state, overrides, message) => {
-    const { output, html } = await rendered({ previous: null }, overrides);
+    ['auth', /Tredict token paused or invalid/],
+    ['payment', /Tredict says this account can(?:'|&#39;|&#x27;|&apos;)t use the API\./],
+    ['unavailable', /Tredict unavailable/]
+  ])('%s: shows the message instead of the week and graph, keeps the run window', async (state, message) => {
+    const { output, html } = await rendered({ previous: null }, STATE_CASES[state]);
     expect(output.tredict.state).toBe(state);
     const text = textOf(html);
     expect(text).toMatch(message);
@@ -161,14 +159,7 @@ describe('full.liquid: Tredict states', () => {
 
 describe('full.liquid: empty and broken outputs (Review Focus 4)', () => {
   it('shows empty states for a new account', async () => {
-    const { output, html } = await rendered(
-      { previous: null },
-      {
-        plan: EMPTY_LIST('plannedWorkoutList'),
-        activities: EMPTY_LIST('activityList'),
-        efforts: { trainingEfforts: { x: [] } }
-      }
-    );
+    const { output, html } = await rendered({ previous: null }, EMPTY_ACCOUNT_OVERRIDES);
     expect(output.form.empty).toBe('No training data yet');
     const text = textOf(html);
     expect(text).toContain('No training data yet');
@@ -179,19 +170,7 @@ describe('full.liquid: empty and broken outputs (Review Focus 4)', () => {
   });
 
   it('renders the fixed error output without lang, week, form or data time', async () => {
-    const output = {
-      v: 1,
-      fetchedAt: '2026-11-04T11:00:00.000Z',
-      fetchedAtText: '',
-      tredict: { state: 'unavailable', message: 'Tredict unavailable' },
-      tredictAt: null,
-      tredictAtText: '',
-      week: null,
-      form: null,
-      run: { kind: 'error', heading: 'Weather unavailable', lines: [] },
-      weatherRetryAt: null,
-      attribution: ''
-    };
+    const output = ERROR_OUTPUT;
     const html = await renderFull(output);
     const text = textOf(html);
     expect(text).toContain('Tredict unavailable');
