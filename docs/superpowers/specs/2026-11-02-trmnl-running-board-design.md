@@ -178,7 +178,7 @@ Left column, about 45% wide:
 - Matching actuals to plans: a plan with `executedTrainingId` matches that activity. Activities without a plan still
   show on their day.
 
-Right top, form graph (Highcharts, as in eu-dayahead):
+Right top, form graph (an SVG path computed by the transform script, so no JS runs at render):
 
 - 6 weeks back to 7 days ahead. One line; the future part dashed (built from `unconfirmed` efforts). Today's value as
   a large number top right. No fitness/fatigue lines: three lines turn to grey noise in 1-bit.
