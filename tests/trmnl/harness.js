@@ -31,8 +31,8 @@ function renderFull(output) {
 
 // Runs the built transform.js in a vm context. Date.now() and new Date() return the injected now;
 // Date.parse, Date.UTC and new Date(arg) keep working. Compare results after a JSON round trip,
-// since objects from the vm context fail toStrictEqual.
-function loadTransform({ fetch, now }) {
+// since objects from the vm context fail toStrictEqual. `code` replaces the committed transform.js.
+function loadTransform({ fetch, now, code }) {
   class FakeDate extends Date {
     constructor(...args) {
       if (args.length === 0) {
@@ -56,8 +56,8 @@ function loadTransform({ fetch, now }) {
     clearTimeout,
     Date: FakeDate
   });
-  const code = fs.readFileSync(path.join(PLUGIN_DIR, 'transform.js'), 'utf8');
-  vm.runInContext(`${code}\n;run;`, context);
+  const source = code ?? fs.readFileSync(path.join(PLUGIN_DIR, 'transform.js'), 'utf8');
+  vm.runInContext(`${source}\n;run;`, context);
   return input => vm.runInContext('run', context)(input);
 }
 
