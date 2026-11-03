@@ -1,7 +1,8 @@
 # TRMNL plugin: Running Board
 
 Date: 2026-11-02, revised 2026-11-03
-Status: approved 2026-11-03
+Status: approved 2026-11-03; data flow revised the same day after "Verify first" (answers in
+`2026-11-03-trmnl-running-board-verify.md`)
 Plugin: `integrations/trmnl-running-board/`
 Depends on: Run-window API (`2026-11-02-run-window-api-design.md`), live at `run.xadi.eu` since 2026-11-03
 
@@ -18,7 +19,8 @@ only if Tredict agrees (see "Tredict's terms"). Either way, no backend holds any
 
 ## Goals
 
-- Backend-free for Tredict: TRMNL polls Tredict directly with the user's Personal API token.
+- Backend-free for Tredict: the plugin's transform script, inside TRMNL, calls Tredict directly with the user's
+  Personal API token. The token goes to Tredict and nowhere else.
 - The run window matches today's planned session length (or tomorrow's, see "Run window").
 - Glanceable from across a room on the original 800x480 device in 1-bit.
 - Honest failure: an inactive token, a missing plan, a weather outage or stale weather each get a clear message, never a
@@ -42,8 +44,8 @@ only if Tredict agrees (see "Tredict's terms"). Either way, no backend holds any
 
 ## Verify first
 
-The plan's first task runs these on a private plugin, because several design calls below depend on them. Each lists
-what to do if the answer is no.
+Answered on 2026-11-03; see `2026-11-03-trmnl-running-board-verify.md`. The decisive finding: TRMNL's transform script
+can fetch, so it calls Tredict itself and the plugin polls only the run-window API. V1, V2 and V4 are moot as a result. The table stays as the record of what was asked.
 
 | # | Question | Depends on it | If no |
 |---|----------|---------------|-------|
@@ -60,22 +62,25 @@ what to do if the answer is no.
 
 ## Constraints (from TRMNL and Tredict docs, 2026-11-02)
 
-- **Multiple polling URLs:** one per line; responses arrive as `IDX_0`, `IDX_1`, … in polling order. Polling URLs are
-  rendered with Liquid first and then split on line breaks.
-- **One headers field** for all polling URLs (V2): `authorization=bearer {{ tredict_token }}` goes to every URL,
-  including the run-window API if it is polled (V1). That API strips it (see its spec).
-- **Tredict Personal API:** bearer token with chosen scopes. Needs `activityRead` only. The token goes **inactive
-  (401) unless the user opens the Tredict app at least once every 10 days**; it reactivates on the next visit.
+- **Transform script** (`transform.js`): runs after every poll in TRMNL's Node runtime (Node 24, `fetch`, built-ins
+  only, no packages, 5 s and 128 MB per the docs). It gets the polled response, the custom field values (password
+  fields in clear) and the previous merge variables, and its return value becomes the merge variables. If it throws,
+  TRMNL silently keeps the previous merge variables. Its `Intl` has English locale data only, though timezones work.
+- **A failed polled URL** arrives as `{}` (the status is lost); the script still runs.
+- **One headers field** for all polling URLs. The plugin sets none.
+- **Tredict Personal API:** bearer token with chosen scopes. Needs `activityRead` only, which covers all three
+  endpoints. An invalid token gets 403. The token goes **inactive unless the user opens the Tredict app at least once
+  every 10 days**; it reactivates on the next visit.
 - **Tredict rate limits** are per IP, and all TRMNL polls come from TRMNL's few server IPs. Activity download is limited
   to 10 requests/second. Fine for a handful of installs; note it if the recipe grows.
-- **Run-window API limits:** 20 requests per second per IP, which every TRMNL install shares when the API is polled;
-  and 300 distinct rounded locations per UTC day for the whole service. Both are far above a handful of installs, and
+- **Run-window API limits:** 20 requests per second per IP, which every TRMNL install shares, since all polls and
+  scripts run from TRMNL's servers; and 300 distinct rounded locations per UTC day for the whole service. Both are far above a handful of installs, and
   both are the recipe's ceiling.
 - **Garmin attribution:** activities from Garmin carry `isFromGarminApi: true` and an `attribution` string. If the
   screen shows such data, it must show the attribution visibly.
 - **Open-Meteo attribution** must be shown when showing the run window (the API returns it as `attribution`).
 - Plugin format and the shared/layout split as in eu-dayahead's TRMNL plugin (see its design doc): `settings.yml`,
-  `shared.liquid`, `full.liquid`, files ≤ 100 KB, animations off, chart IDs via `append_random`.
+  `shared.liquid`, `full.liquid`, plus `transform.js`, files ≤ 100 KB, animations off, chart IDs via `append_random`.
 
 ## Tredict's terms
 
@@ -88,30 +93,42 @@ the terms, not a legal opinion.
 - **Published recipe:** only after Tredict has said in writing that it is fine. The maintainer asks before step 4 of the
   rollout, not after.
 
-## Polling URLs
+## Data flow
 
-In this order (the indices are part of the contract with the template):
+One polling URL, no headers:
 
-| IDX | URL | Purpose |
-|-----|-----|---------|
-| 0 | `https://www.tredict.com/api/oauth/v2/plannedTrainingList?startDate={monday}&endDate={sunday}` (+ `&sportType=running` if the sport setting says so) | This week's plan |
-| 1 | `https://www.tredict.com/api/oauth/v2/activityList?pageSize=50&extendedSummary=1` | Actuals; newest first, filter to this week in JS |
-| 2 | `https://www.tredict.com/api/oauth/v2/efforts` | Daily effort per training; defaults cover 1 year back to 1 month ahead, including planned (`unconfirmed`) sessions |
-| 3 | `https://run.xadi.eu/api/window?lat={lat}&lon={lon}&avail={{ availability }}&dark={{ dark }}&rain={{ rain }}` | Run window. Only if V1 fails; otherwise the markup fetches the same URL |
+`https://run.xadi.eu/api/window?lat={lat}&lon={lon}&avail={{ availability | url_encode }}&dark={{ dark }}&rain={{ rain }}`
 
-- `{lat}` and `{lon}` are the location setting rounded to 2 decimals (V5, V6). No `lang`: the plugin builds its own
-  text from the API's fields, so it never uses `label`.
-- `{monday}` and `{sunday}` are UTC ISO strings for the current local ISO week (Monday 00:00 to Sunday 23:59:59 in the
-  user's timezone), if V4 allows.
+- `{lat}` and `{lon}` are the `lat_lon` setting (`"52.37,4.89"`) rounded to 2 decimals in Liquid. No `lang`: the
+  plugin builds its own text from the API's fields, so it never uses `label`.
+- Its `generatedAt` changes on every poll, so the merge variables change and TRMNL redraws the screen even on days
+  Tredict's data doesn't change.
+
+The transform script then fetches, in parallel, each with a 3-second timeout:
+
+| Name | URL | Purpose |
+|------|-----|---------|
+| plan | `https://www.tredict.com/api/oauth/v2/plannedTrainingList?startDate={from}&endDate={to}` | This week's plan, plus tomorrow on a Sunday |
+| activities | `https://www.tredict.com/api/oauth/v2/activityList?pageSize=50&extendedSummary=1` | Actuals; newest first, filtered to this week |
+| efforts | `https://www.tredict.com/api/oauth/v2/efforts` | Daily effort; defaults cover 1 year back to 1 month ahead |
+
+- Headers: `Authorization: Bearer {token}` and `Accept: application/json;charset=UTF-8`.
+- `{from}` and `{to}` are UTC ISO strings from the day before this local Monday to the day after next Monday, in the
+  user's timezone. The script filters by local date.
+- The script returns a small, screen-ready set of merge variables: day rows, footer totals, the form series, the run
+  window panel, attribution flags, and `fetchedAt`. It never passes raw responses through: an activity's `summary`
+  holds start coordinates.
 
 Relevant response fields (from Tredict's docs):
 
-- `plannedTrainingList` → `_embedded.plannedWorkoutList[]`: `id`, `date`, `timezone` (hours), `sportType`, optional
-  `title`, `notes`, `distance` (m), `duration` (s), `executedTrainingId`. Don't derive pace or duration from distance
-  (Tredict's own warning).
-- `activityList` → `_embedded.activityList[]`: `id`, `date`, `sportType`, optional `isFromGarminApi`, `attribution`;
-  with `extendedSummary=1` also summary metrics (V9).
-- `efforts` → `trainingEfforts`: `{ "YYYYMMDD": [[effort, {isRace?, unconfirmed?}], ...] }`.
+- `plannedTrainingList` → `_embedded.plannedWorkoutList[]`: `id`, `date` (UTC), `timezone` (UTC offset in hours),
+  `sportType`, optional `title`, `notes`, `distance` (m), `duration` (s), `executedTrainingId`. A done plan stays in
+  the list. Don't derive pace or duration from distance (Tredict's own warning).
+- `activityList` → `_embedded.activityList[]`: `id`, `date` (UTC), `timezone` (IANA), `sportType`, optional
+  `isFromGarminApi`, `attribution`; with `extendedSummary=1` also `summary` (`distance`, `duration`, `heartrate`,
+  `pace` in s/km, and start coordinates).
+- `efforts` → `trainingEfforts`: `{ "YYYYMMDD": [[effort, {isRace?, unconfirmed?}], ...] }`, keyed by local date. Once
+  a planned session is done, its `unconfirmed` entry is replaced by the confirmed one.
 
 Real responses are personal training data and never get committed. Capture one of each into the gitignored
 `tests/fixtures/private/` to learn the exact shape. Committed fixtures in `tests/fixtures/tredict/` are synthetic: same
@@ -203,9 +220,10 @@ When `windows[key]` is null (design call):
 
 ## Form
 
-Tredict exposes daily efforts, not a form value. Compute in the template's JS:
+Tredict exposes daily efforts, not a form value. Compute in the transform script:
 
-- Daily load = sum of that day's efforts (planned ones included for future days).
+- Daily load = sum of that day's efforts: confirmed ones for past days, all of them for today and later (a done
+  session's planned entry is already gone, so nothing counts twice).
 - Fitness = 42-day exponentially weighted average, fatigue = 7-day, form = fitness − fatigue (the common
   CTL/ATL/TSB model; design call).
 - Warm up on the full year the endpoint returns, so the first displayed day is stable (V8).
@@ -215,28 +233,25 @@ Tredict exposes daily efforts, not a form value. Compute in the template's JS:
 
 ## Errors and empty states
 
-Decide per panel, so one failure doesn't blank the screen. How a failed polling URL shows up depends on V3.
+Decide per panel, so one failure doesn't blank the screen. The script never throws: a throw would silently keep the
+previous screen. Every output carries `fetchedAt`, printed small in the footer, so a frozen screen shows its age.
 
-- Tredict 401 (any of IDX 0–2): whole left column and graph replaced by "Tredict token paused or invalid. Open the
-  Tredict app to reactivate it." This will be the most common failure (10-day rule).
-- Tredict 403: "Token lacks the activityRead scope."
+- Tredict 401 or 403 (any of the three calls): whole left column and graph replaced by "Tredict token paused or
+  invalid. Open the Tredict app, and check the token has the activityRead scope." The 10-day rule makes this the most
+  common failure.
+- Tredict 402: "Tredict says this account can't use the API."
+- Tredict 5xx, timeout or unreadable body: show the last good Tredict panels from the previous merge variables, with
+  "Tredict data from {time}". With none, "Tredict unavailable".
 - No plan this week: calendar shows actuals only, footer shows done totals only.
 - Location not set: the bottom-right panel says "Set your location in the plugin settings"; the rest renders.
-- Run-window API 503, 429 or any other error: the bottom-right panel says "Weather unavailable"; the rest renders.
+- Run-window API error of any kind (the polled body then arrives empty, without `generatedAt`): the bottom-right panel
+  says "Weather unavailable"; the rest renders. A 400 means a bad setting: "Check your hours setting".
 
 ## Privacy
 
-Depends on V1 and V2:
-
-- **If `fetch()` works (V1):** the run window is fetched from the markup, without the token, so the token only travels
-  from TRMNL to Tredict.
-- **If not, but TRMNL has per-URL headers (V2):** the token is set on the Tredict URLs only. Same result.
-- **Otherwise:** the token also reaches `run.xadi.eu`, which removes it in nginx before it reaches the app, and again in
-  the app. The recipe description says so in one sentence.
-
-In every case:
-
-- No other server sees Tredict data. All Tredict processing happens in the render.
+- The token is stored in TRMNL (masked in the form) and sent only to Tredict, by the transform script. `run.xadi.eu`
+  never receives it: the plugin sets no polling headers.
+- No server outside TRMNL and Tredict sees Tredict data. The script keeps only what the screen needs.
 - `run.xadi.eu` gets the location rounded to 2 decimals, the availability hours and the two weather settings. It logs
   the location rounded to 1 decimal only.
 
@@ -245,7 +260,8 @@ In every case:
 - en and nl in v1. Strings: day abbreviations, "week", headings, the panel messages above, "start into the wind",
   "dark after", "tomorrow", "no session planned", "no duration planned", the null-window lines, "weather may be out of
   date", "Form (est.)".
-- Dates, numbers and times via `Intl` in the resolved language, in the user's timezone.
+- Day and month names from the plugin's own en/nl tables, because TRMNL's runtime has English locale data only.
+  Timezone conversion uses `Intl.DateTimeFormat` with `timeZone`, which works there.
 
 ## Refresh
 
@@ -255,8 +271,8 @@ API keeps locations it has cached at midnight and holds entries for 3 hours.
 
 ## Verification
 
-Extend eu-dayahead's liquidjs harness for 4 polling URLs, or for 3 plus a faked `fetch()` if V1 works. Fixtures and
-cases:
+Jest tests the transform script directly, with a faked `fetch` and a fixed clock; eu-dayahead's liquidjs harness
+renders the templates from the script's output. Fixtures and cases:
 
 - A normal week (mixed done, planned, missed, rest), today in the middle of the week.
 - Monday morning (nothing done yet) and Sunday evening (week complete).
@@ -268,7 +284,8 @@ cases:
 - `windows[key]` null with a shorter key available; with only `fallback`; with neither.
 - Rain wording: qualifying at 20% says "dry"; qualifying at 30% says "rain 30%"; the fallback never says "dry".
 - `stale_data` warning; `sunset` null.
-- Tredict 401, 403; run-window 503 and 429; location not set; whatever V3 shows for a failed URL.
+- Tredict 401, 403, 402, 5xx and timeout, with and without previous good data; run-window failure (empty body) and
+  400; location not set.
 - Garmin attribution present and absent.
 - en, nl, unknown locale.
 - Form: compare the computed series for a private fixture against values read from the Tredict app on a few dates.
@@ -287,5 +304,5 @@ cases:
 ## Left to the builder
 
 - Exact typography, spacing and row layout, as long as it reads from a few metres in 1-bit.
-- How to embed the responses safely in JS (eu-dayahead's `json` filter approach).
+- How the graph series reaches the chart JS safely (an escaped data attribute, not script text).
 - Whether missed sessions use strike-through or ✗.
