@@ -1,7 +1,7 @@
 # TRMNL plugin: Running Board
 
 Date: 2026-11-02, revised 2026-11-03
-Status: awaiting approval
+Status: approved 2026-11-03
 Plugin: `integrations/trmnl-running-board/`
 Depends on: Run-window API (`2026-11-02-run-window-api-design.md`), live at `run.xadi.eu` since 2026-11-03
 
