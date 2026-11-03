@@ -31,7 +31,7 @@ function activityDay(activity, tz) {
   return localDate(Date.parse(activity.date), isZone(activity.timezone) ? activity.timezone : tz);
 }
 
-const matchesSport = (entry, sport) => sport === 'all' || entry.sportType === 'running';
+const matchesSport = (entry, sport) => sport === 'all' || entry.sportType === sport;
 
 // Copies only the fields the screen needs: never the summary (it holds start coordinates)
 function weekItem(kind, title, sportType, metrics) {
@@ -54,7 +54,7 @@ function activityMetrics(activity) {
   return { distanceM, durationS, paceSPerKm, heartrate: summary.heartrate };
 }
 
-function buildWeek({ plans, activities, now, tz, sport }) {
+function buildWeek({ plans, activities, now, tz, sport = 'running' }) {
   const today = localDate(now, tz);
   const dates = weekDates(today);
   const byDate = new Map(dates.map(date => [date, []]));
@@ -177,9 +177,12 @@ function itemText(item, lang, text) {
 function weekFooter(totals, lang) {
   const doneKm = formatKm(totals.doneDistanceM, lang);
   const doneTime = formatDuration(totals.doneDurationS);
-  if (totals.plannedDistanceM === undefined) return `${doneKm} km · ${doneTime}`;
-  const plannedKm = formatKm(totals.plannedDistanceM, lang);
-  return `${doneKm} / ${plannedKm} km · ${doneTime} / ${formatDuration(totals.plannedDurationS)}`;
+  // A planned half is left out when nothing planned has that value, so it never reads "/ 0:00" or "/ 0.0 km"
+  const km = isPositive(totals.plannedDistanceM) ? `${doneKm} / ${formatKm(totals.plannedDistanceM, lang)}` : doneKm;
+  const time = isPositive(totals.plannedDurationS)
+    ? `${doneTime} / ${formatDuration(totals.plannedDurationS)}`
+    : doneTime;
+  return `${km} km · ${time}`;
 }
 
 // Text stays verbatim: escaping is the markup's job

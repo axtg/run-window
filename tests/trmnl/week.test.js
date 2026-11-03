@@ -202,6 +202,34 @@ describe('buildWeek on other days', () => {
     ]);
   });
 
+  it('keeps only the chosen sport: cycling keeps only cycling', () => {
+    const ride = {
+      id: 'SynActRide',
+      date: '2026-11-03T16:00:00.000Z',
+      timezone: 'Europe/Amsterdam',
+      sportType: 'cycling',
+      title: 'Ride',
+      summary: { distance: 20000, duration: 2400 }
+    };
+    const ridePlan = { date: '2026-11-05T16:00:00.000Z', sportType: 'cycling', title: 'Ride plan', duration: 3600 };
+    const result = week(WEDNESDAY_NOON, 'cycling', [...plannedWeek, ridePlan], [...activitiesWeek, ride]);
+    expect(allItems(result).map(item => [item.kind, item.title])).toEqual([
+      ['unplanned', 'Ride'],
+      ['planned', 'Ride plan']
+    ]);
+    expect(result.totals).toEqual({
+      doneDistanceM: 20000,
+      doneDurationS: 2400,
+      plannedDistanceM: 0,
+      plannedDurationS: 3600
+    });
+  });
+
+  it('defaults to running when no sport is given', () => {
+    const result = buildWeek({ plans: plannedWeek, activities: activitiesWeek, now: WEDNESDAY_NOON, tz: AMS });
+    expect(result.totals).toEqual(week(WEDNESDAY_NOON).totals);
+  });
+
   it('ignores activities after now', () => {
     const result = week(ms('2026-11-02T06:59:00Z'));
     expect(result.days[0].items.map(item => item.title)).toEqual(['Dawn run', 'Easy run']);
@@ -273,6 +301,19 @@ describe('weekView', () => {
   it('prints done-only totals when nothing is planned', () => {
     const doneOnly = weekView(week(WEDNESDAY_NOON, 'running', [], activitiesWeek), 'en');
     expect(doneOnly.footer).toBe('18.7 km · 1:48');
+  });
+
+  it('leaves out the planned half of a footer pair whose planned total is 0', () => {
+    const plan = fields => ({ date: '2026-11-06T07:00:00.000Z', sportType: 'running', title: 'P', ...fields });
+    const footer = plans => weekView(week(WEDNESDAY_NOON, 'running', plans, activitiesWeek), 'en').footer;
+    expect(footer([plan({ distance: 12000 })])).toBe('18.7 / 12.0 km · 1:48');
+    expect(footer([plan({ duration: 16200 })])).toBe('18.7 km · 1:48 / 4:30');
+    expect(footer([plan({ distance: 42000, duration: 16200 })])).toBe('18.7 / 42.0 km · 1:48 / 4:30');
+    expect(footer([plan({})])).toBe('18.7 km · 1:48');
+    for (const plans of [[plan({ distance: 12000 })], [plan({ duration: 16200 })], [plan({})]]) {
+      const text = weekView(week(WEDNESDAY_NOON, 'running', plans, []), 'en').footer;
+      expect(text).not.toMatch(/\/ 0:00|\/ 0\.0 km|undefined|NaN|null/);
+    }
   });
 
   it('prints zero done totals for an empty week (Review Focus 4)', () => {
