@@ -1,0 +1,214 @@
+{
+  "count": 6,
+  "_links": {
+    "self": {
+      "href": "https://www.tredict.com/api/oauth/v2/activityList?pageSize=50&extendedSummary=1"
+    },
+    "next": {
+      "href": "https://www.tredict.com/api/oauth/v2/activityList?cursor=SyntheticCursor&pageSize=50",
+      "cursor": "SyntheticCursor"
+    }
+  },
+  "_embedded": {
+    "activityList": [
+      {
+        "_links": {
+          "self": {
+            "href": "https://www.tredict.com/api/oauth/v2/activity/SynAct01xxxxxxxxxxxxxx"
+          }
+        },
+        "id": "SynAct01xxxxxxxxxxxxxx",
+        "date": "2026-11-01T22:30:00.000Z",
+        "timezone": "Europe/Amsterdam",
+        "sportType": "running",
+        "subSportType": "generic",
+        "title": "Night run",
+        "notes": "Sunday 23:30 local, previous week",
+        "summary": {
+          "distance": 5000,
+          "duration": 1800,
+          "durationTotal": 1840,
+          "pace": 360,
+          "speed": 2.78,
+          "cadence": 82,
+          "calories": 357,
+          "positionLat": 52.37,
+          "positionLong": 4.89,
+          "walkingDuration": 0,
+          "altitude": {
+            "ascent": 12,
+            "descent": 11,
+            "elevation": 3
+          },
+          "heartrate": 148
+        },
+        "createdAt": "2026-11-01T22:30:00.000Z",
+        "trainingType": "file",
+        "isFromGarminApi": false
+      },
+      {
+        "_links": {
+          "self": {
+            "href": "https://www.tredict.com/api/oauth/v2/activity/SynAct02xxxxxxxxxxxxxx"
+          }
+        },
+        "id": "SynAct02xxxxxxxxxxxxxx",
+        "date": "2026-11-01T23:30:00.000Z",
+        "timezone": "Europe/Amsterdam",
+        "sportType": "running",
+        "subSportType": "generic",
+        "title": "Dawn run",
+        "notes": "Monday 00:30 local, no heart rate",
+        "summary": {
+          "distance": 4200,
+          "duration": 1500,
+          "durationTotal": 1540,
+          "pace": 357,
+          "speed": 2.8,
+          "cadence": 82,
+          "calories": 300,
+          "positionLat": 52.37,
+          "positionLong": 4.89,
+          "walkingDuration": 0,
+          "altitude": {
+            "ascent": 12,
+            "descent": 11,
+            "elevation": 3
+          }
+        },
+        "createdAt": "2026-11-01T23:30:00.000Z",
+        "trainingType": "file",
+        "isFromGarminApi": false
+      },
+      {
+        "_links": {
+          "self": {
+            "href": "https://www.tredict.com/api/oauth/v2/activity/SynAct03xxxxxxxxxxxxxx"
+          }
+        },
+        "id": "SynAct03xxxxxxxxxxxxxx",
+        "date": "2026-11-02T07:00:00.000Z",
+        "timezone": "Europe/Amsterdam",
+        "sportType": "running",
+        "subSportType": "generic",
+        "title": "Easy run",
+        "notes": "Garmin activity",
+        "summary": {
+          "distance": 8000,
+          "duration": 2760,
+          "durationTotal": 2800,
+          "pace": 345,
+          "speed": 2.9,
+          "cadence": 82,
+          "calories": 571,
+          "positionLat": 52.37,
+          "positionLong": 4.89,
+          "walkingDuration": 0,
+          "altitude": {
+            "ascent": 12,
+            "descent": 11,
+            "elevation": 3
+          },
+          "heartrate": 142
+        },
+        "createdAt": "2026-11-02T07:00:00.000Z",
+        "trainingType": "file",
+        "isFromGarminApi": true,
+        "attribution": "Synthetic Garmin attribution text"
+      },
+      {
+        "_links": {
+          "self": {
+            "href": "https://www.tredict.com/api/oauth/v2/activity/SynAct04xxxxxxxxxxxxxx"
+          }
+        },
+        "id": "SynAct04xxxxxxxxxxxxxx",
+        "date": "2026-11-04T06:30:00.000Z",
+        "timezone": "Europe/Amsterdam",
+        "sportType": "running",
+        "subSportType": "generic",
+        "title": "Unplanned run",
+        "notes": "Run with no plan",
+        "summary": {
+          "distance": 6500,
+          "duration": 2200,
+          "durationTotal": 2240,
+          "pace": 338,
+          "speed": 2.96,
+          "cadence": 82,
+          "calories": 464,
+          "positionLat": 52.37,
+          "positionLong": 4.89,
+          "walkingDuration": 0,
+          "altitude": {
+            "ascent": 12,
+            "descent": 11,
+            "elevation": 3
+          },
+          "heartrate": 151
+        },
+        "createdAt": "2026-11-04T06:30:00.000Z",
+        "trainingType": "file",
+        "isFromGarminApi": false
+      },
+      {
+        "_links": {
+          "self": {
+            "href": "https://www.tredict.com/api/oauth/v2/activity/SynAct05xxxxxxxxxxxxxx"
+          }
+        },
+        "id": "SynAct05xxxxxxxxxxxxxx",
+        "date": "2026-11-04T17:00:00.000Z",
+        "timezone": "Europe/Amsterdam",
+        "sportType": "misc",
+        "subSportType": "generic",
+        "title": "Strength",
+        "notes": "Gym session",
+        "summary": {
+          "duration": 3000,
+          "durationTotal": 3200,
+          "heartrate": 112,
+          "calories": 240
+        },
+        "createdAt": "2026-11-04T17:00:00.000Z",
+        "trainingType": "file",
+        "isFromGarminApi": false
+      },
+      {
+        "_links": {
+          "self": {
+            "href": "https://www.tredict.com/api/oauth/v2/activity/SynAct06xxxxxxxxxxxxxx"
+          }
+        },
+        "id": "SynAct06xxxxxxxxxxxxxx",
+        "date": "2026-11-08T08:00:00.000Z",
+        "timezone": "Europe/Amsterdam",
+        "sportType": "running",
+        "subSportType": "generic",
+        "title": "Sunday long run",
+        "notes": "Done",
+        "summary": {
+          "distance": 16000,
+          "duration": 5700,
+          "durationTotal": 5740,
+          "pace": 356,
+          "speed": 2.81,
+          "cadence": 82,
+          "calories": 1143,
+          "positionLat": 52.37,
+          "positionLong": 4.89,
+          "walkingDuration": 0,
+          "altitude": {
+            "ascent": 12,
+            "descent": 11,
+            "elevation": 3
+          },
+          "heartrate": 150
+        },
+        "createdAt": "2026-11-08T08:00:00.000Z",
+        "trainingType": "file",
+        "isFromGarminApi": false
+      }
+    ]
+  }
+}

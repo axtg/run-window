@@ -1,0 +1,107 @@
+{
+  "count": 9,
+  "_embedded": {
+    "plannedWorkoutList": [
+      {
+        "id": "SynPlan01xxxxxxxxxxxxx",
+        "date": "2026-11-02T07:00:00.000Z",
+        "timezone": 1,
+        "sportType": "running",
+        "title": "Easy run",
+        "notes": "Keep it relaxed",
+        "distance": 8000,
+        "duration": 2700,
+        "updatedAt": "2026-10-30T09:00:00.000Z",
+        "executedTrainingId": "SynAct03xxxxxxxxxxxxxx"
+      },
+      {
+        "id": "SynPlan02xxxxxxxxxxxxx",
+        "date": "2026-11-03T07:00:00.000Z",
+        "timezone": 1,
+        "sportType": "running",
+        "title": "Missed tempo",
+        "notes": "Tempo blocks",
+        "distance": 10000,
+        "duration": 3000,
+        "updatedAt": "2026-10-30T09:00:00.000Z"
+      },
+      {
+        "id": "SynPlan03xxxxxxxxxxxxx",
+        "date": "2026-11-04T07:00:00.000Z",
+        "timezone": 1,
+        "sportType": "strength",
+        "title": "Strength",
+        "notes": "Legs and core",
+        "duration": 3000,
+        "updatedAt": "2026-10-30T09:00:00.000Z",
+        "executedTrainingId": "SynAct05xxxxxxxxxxxxxx"
+      },
+      {
+        "id": "SynPlan04xxxxxxxxxxxxx",
+        "date": "2026-11-05T07:00:00.000Z",
+        "timezone": 1,
+        "sportType": "running",
+        "title": "Threshold run",
+        "notes": "Morning",
+        "distance": 9000,
+        "duration": 2900,
+        "updatedAt": "2026-10-30T09:00:00.000Z"
+      },
+      {
+        "id": "SynPlan05xxxxxxxxxxxxx",
+        "date": "2026-11-05T11:00:00.000Z",
+        "timezone": 1,
+        "sportType": "running",
+        "title": "Recovery run",
+        "notes": "Lunch",
+        "distance": 5000,
+        "duration": 1800,
+        "updatedAt": "2026-10-30T09:00:00.000Z"
+      },
+      {
+        "id": "SynPlan06xxxxxxxxxxxxx",
+        "date": "2026-11-05T16:00:00.000Z",
+        "timezone": 1,
+        "sportType": "running",
+        "title": "Evening strides",
+        "notes": "After work",
+        "distance": 4000,
+        "duration": 1500,
+        "updatedAt": "2026-10-30T09:00:00.000Z"
+      },
+      {
+        "id": "SynPlan07xxxxxxxxxxxxx",
+        "date": "2026-11-07T07:00:00.000Z",
+        "timezone": 1,
+        "sportType": "running",
+        "title": "Distance only",
+        "notes": "No duration set",
+        "distance": 12000,
+        "updatedAt": "2026-10-30T09:00:00.000Z"
+      },
+      {
+        "id": "SynPlan08xxxxxxxxxxxxx",
+        "date": "2026-11-07T09:00:00.000Z",
+        "timezone": 1,
+        "sportType": "running",
+        "title": "Tempo </script><b>\"x\"</b> {{ x }} {% raw %} 🏃",
+        "notes": "Hostile title",
+        "distance": 7000,
+        "duration": 2400,
+        "updatedAt": "2026-10-30T09:00:00.000Z"
+      },
+      {
+        "id": "SynPlan09xxxxxxxxxxxxx",
+        "date": "2026-11-08T07:00:00.000Z",
+        "timezone": 1,
+        "sportType": "running",
+        "title": "Sunday long run",
+        "notes": "Long",
+        "distance": 16000,
+        "duration": 5400,
+        "updatedAt": "2026-10-30T09:00:00.000Z",
+        "executedTrainingId": "SynAct06xxxxxxxxxxxxxx"
+      }
+    ]
+  }
+}

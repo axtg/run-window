@@ -1,0 +1,42 @@
+{
+  "count": 3,
+  "_embedded": {
+    "plannedWorkoutList": [
+      {
+        "id": "SynPlan11xxxxxxxxxxxxx",
+        "date": "2026-10-20T06:00:00.000Z",
+        "timezone": 2,
+        "sportType": "running",
+        "title": "Tuesday run",
+        "notes": "Before the change",
+        "distance": 7000,
+        "duration": 2400,
+        "updatedAt": "2026-10-30T09:00:00.000Z",
+        "executedTrainingId": "SynAct11xxxxxxxxxxxxxx"
+      },
+      {
+        "id": "SynPlan12xxxxxxxxxxxxx",
+        "date": "2026-10-25T10:00:00.000Z",
+        "timezone": 2,
+        "sportType": "running",
+        "title": "Sunday run",
+        "notes": "Plan made with the CEST offset",
+        "distance": 6000,
+        "duration": 2100,
+        "updatedAt": "2026-10-30T09:00:00.000Z",
+        "executedTrainingId": "SynAct13xxxxxxxxxxxxxx"
+      },
+      {
+        "id": "SynPlan13xxxxxxxxxxxxx",
+        "date": "2026-10-26T10:00:00.000Z",
+        "timezone": 1,
+        "sportType": "running",
+        "title": "Monday after",
+        "notes": "Next week",
+        "distance": 8000,
+        "duration": 2700,
+        "updatedAt": "2026-10-30T09:00:00.000Z"
+      }
+    ]
+  }
+}

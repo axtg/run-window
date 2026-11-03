@@ -1,0 +1,121 @@
+{
+  "count": 3,
+  "_links": {
+    "self": {
+      "href": "https://www.tredict.com/api/oauth/v2/activityList?pageSize=50&extendedSummary=1"
+    },
+    "next": {
+      "href": "https://www.tredict.com/api/oauth/v2/activityList?cursor=SyntheticCursor&pageSize=50",
+      "cursor": "SyntheticCursor"
+    }
+  },
+  "_embedded": {
+    "activityList": [
+      {
+        "_links": {
+          "self": {
+            "href": "https://www.tredict.com/api/oauth/v2/activity/SynAct11xxxxxxxxxxxxxx"
+          }
+        },
+        "id": "SynAct11xxxxxxxxxxxxxx",
+        "date": "2026-10-20T06:00:00.000Z",
+        "timezone": "Europe/Amsterdam",
+        "sportType": "running",
+        "subSportType": "generic",
+        "title": "Tuesday run",
+        "notes": "Before the change",
+        "summary": {
+          "distance": 7000,
+          "duration": 2400,
+          "durationTotal": 2440,
+          "pace": 343,
+          "speed": 2.92,
+          "cadence": 82,
+          "calories": 500,
+          "positionLat": 52.37,
+          "positionLong": 4.89,
+          "walkingDuration": 0,
+          "altitude": {
+            "ascent": 12,
+            "descent": 11,
+            "elevation": 3
+          },
+          "heartrate": 145
+        },
+        "createdAt": "2026-10-20T06:00:00.000Z",
+        "trainingType": "file",
+        "isFromGarminApi": false
+      },
+      {
+        "_links": {
+          "self": {
+            "href": "https://www.tredict.com/api/oauth/v2/activity/SynAct12xxxxxxxxxxxxxx"
+          }
+        },
+        "id": "SynAct12xxxxxxxxxxxxxx",
+        "date": "2026-10-24T22:30:00.000Z",
+        "timezone": "Europe/Amsterdam",
+        "sportType": "running",
+        "subSportType": "generic",
+        "title": "Sunday 00:30 CEST run",
+        "notes": "00:30 CEST on 25 Oct",
+        "summary": {
+          "distance": 5000,
+          "duration": 1750,
+          "durationTotal": 1790,
+          "pace": 350,
+          "speed": 2.86,
+          "cadence": 82,
+          "calories": 357,
+          "positionLat": 52.37,
+          "positionLong": 4.89,
+          "walkingDuration": 0,
+          "altitude": {
+            "ascent": 12,
+            "descent": 11,
+            "elevation": 3
+          },
+          "heartrate": 147
+        },
+        "createdAt": "2026-10-24T22:30:00.000Z",
+        "trainingType": "file",
+        "isFromGarminApi": false
+      },
+      {
+        "_links": {
+          "self": {
+            "href": "https://www.tredict.com/api/oauth/v2/activity/SynAct13xxxxxxxxxxxxxx"
+          }
+        },
+        "id": "SynAct13xxxxxxxxxxxxxx",
+        "date": "2026-10-25T22:30:00.000Z",
+        "timezone": "Europe/Amsterdam",
+        "sportType": "running",
+        "subSportType": "generic",
+        "title": "Sunday 23:30 CET run",
+        "notes": "23:30 CET on 25 Oct",
+        "summary": {
+          "distance": 6000,
+          "duration": 2100,
+          "durationTotal": 2140,
+          "pace": 350,
+          "speed": 2.86,
+          "cadence": 82,
+          "calories": 429,
+          "positionLat": 52.37,
+          "positionLong": 4.89,
+          "walkingDuration": 0,
+          "altitude": {
+            "ascent": 12,
+            "descent": 11,
+            "elevation": 3
+          },
+          "heartrate": 149
+        },
+        "createdAt": "2026-10-25T22:30:00.000Z",
+        "trainingType": "file",
+        "isFromGarminApi": false
+      }
+    ]
+  }
+}
