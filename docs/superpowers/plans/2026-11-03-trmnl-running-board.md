@@ -27,7 +27,13 @@ after Task 1). **Verify answers:** `docs/superpowers/specs/2026-11-03-trmnl-runn
   `require`, no npm packages. It defines `async function run(input)`.
 - `run` never throws and never takes 5 s: every outbound call is in parallel with `AbortSignal.timeout(3000)`, and
   every branch returns an object. A throw would make TRMNL silently keep the previous screen.
-- Every output carries `fetchedAt` (ISO) and `fetchedAtText` (`HH:MM` in the user's timezone), printed in the footer.
+- Every output carries `fetchedAt` (ISO) and `fetchedAtText` (day and time in the user's timezone, "We 12:00" /
+  "wo 12:00"), printed in the footer, so a frozen screen shows its age even a day later.
+- No `console.*` in `src/`, and outputs carry fixed strings only, never an `error.message`: TRMNL logs what a script
+  prints, and the input holds the token in clear. Task 2's build test fails on `console.` or `.message` in
+  `transform.js`.
+- Source modules live in `integrations/trmnl-running-board/src/`. `transform.js` is generated: ESLint and Prettier
+  ignore it, and CI checks it equals the build output.
 - The output never contains a raw Tredict response, a token, or an activity's `summary` (it holds start coordinates).
 - `Intl` in TRMNL has English locale data only: never format with an `nl` locale. Timezone conversion uses
   `Intl.DateTimeFormat('en-US', { timeZone, ... }).formatToParts`. Day and month names, decimal separators and all
@@ -37,7 +43,8 @@ after Task 1). **Verify answers:** `docs/superpowers/specs/2026-11-03-trmnl-runn
   `precipProbMax <= 20`, otherwise "rain N%" / "regen N%"; speed `km/h` / `km/u`; nl compass points NO, O, ZO, Z, ZW
   for NE, E, SE, S, SW (others unchanged); temperature `Math.round(apparentTempAvg) || 0` then `°C`.
 - The form is always labelled "Form (est.)" / "Vorm (schatting)".
-- Every value the markup prints goes through `| escape`, except SVG path data and numbers the script produced.
+- Every value the markup prints goes through `| escape`, except SVG path data and coordinates, which the script
+  validates (`/^[ML0-9. -]*$/` for paths, finite numbers) before output and replaces with `''` / `0` otherwise.
 - Committed Tredict fixtures are synthetic: Tredict's structure (see the verify answers), invented ids, dates, titles,
   notes and metrics, no token. Real responses only in the gitignored `tests/fixtures/private/`; `npm test` passes
   without it, and no test prints a value from it.
@@ -66,12 +73,21 @@ Each has a test in the task that owns the code (marked "Review Focus N").
   Tredict. The token never reaches `run.xadi.eu`.
 - **Weather retry:** a failed poll arrives as `{}` (status lost). The script then fetches the same window URL itself
   (tokenless, built by `windowUrl(settings)`, which a test keeps equal to the rendered polling URL). Its status picks
-  the message: 400 → "Check your hours setting"; anything else → "Weather unavailable".
+  the message: 400 → "Check your hours setting"; anything else → "Weather unavailable". No retry when the previous
+  output's `run.kind` was `error` and its `fetchedAt` is under 30 minutes old (no extra load during an outage).
+- **Settings in the URL:** the polling URL removes spaces from `availability` (the API rejects `07-09, 17-21`) and
+  uses the same defaults as `readSettings` for empty fields, so the API and the script agree on the hours. Without a
+  location the URL has no `lat`/`lon` (the API answers 400 without spending location budget).
+- **Sport filter:** `running` matches `sportType === 'running'` exactly (the maintainer's data: `running`, `cycling`,
+  `misc`; plans `running`). `all` matches everything.
 - **Form graph as SVG**, not Highcharts: the script computes the path, so the screen runs no JS, needs no CDN script,
   and has no JSON-in-script escaping problem. Deviates from the spec's "Highcharts, as in eu-dayahead".
-- **Last good Tredict data:** on a Tredict 5xx, timeout or unreadable body, the script reuses `week` and `form` from
-  `trmnl.previous_merge_variables` when they are present, with "Tredict data from {fetchedAtText}" taken from that
-  earlier output. 401/403/402 never reuse old data.
+- **Last good Tredict data:** each output carries `tredictAt` / `tredictAtText`: the time of the last successful
+  Tredict fetch, set on `ok` and copied unchanged on `stale`. On a Tredict 5xx, timeout or unreadable body, the script
+  reuses `week` (with its `garmin` list) and `form` from `trmnl.previous_merge_variables` only when that `tredictAt`
+  is on today's local date; the message is "Tredict data from {tredictAtText}". Otherwise `unavailable`. 401/403/402
+  never reuse old data. An efforts response with no keys counts as `unavailable` (the endpoint always covers a year;
+  an empty one may be a paused token).
 - **Copy for a shorter window:** "Only {n} min fits your hours", not "Only 45 min dry in your hours": a qualifying
   window can have up to the user's rain limit, so "dry" could contradict the API's rule.
 - **Nothing planned today or tomorrow:** today while today's hours remain, with "no session planned". A rest day with
@@ -80,8 +96,12 @@ Each has a test in the task that owns the code (marked "Review Focus N").
 - **Tredict range:** from the day before this local Monday to the day after next Monday; filter by local date.
 - **Timezones:** the calendar and form use `trmnl.user.time_zone_iana`, else the API's `location.timezone`, else `UTC`.
   The run window panel uses the API's `location.timezone` and picks the `days[i]` whose `date` matches.
-- **Plan day:** a plan's local day is its `date` shifted by its `timezone` hours (Tredict's own offset). An activity's
-  is its `date` in its IANA `timezone`, else the user's.
+- **Plan day:** a plan's local day is its `date` in the user's IANA timezone. Its numeric `timezone` is an offset
+  fixed when the plan was made, wrong across a DST change, so it is ignored. An activity's day is its `date` in its own
+  IANA `timezone`, else the user's.
+- **Spec deviations that follow from the above:** the location setting's key is `lat_lon` (spec: `location`); no
+  `shared.liquid` and no `append_random` chart ids (no chart JS); the en headings are "BEST TIME TODAY" / "TOMORROW",
+  nl "BESTE TIJD VANDAAG" / "MORGEN".
 - **Form model:** CTL += (load − CTL)/42, ATL += (load − ATL)/7, form = CTL − ATL, both from 0 on the first day with
   data. Load: confirmed efforts for past days; all entries for today and later (a done plan's `unconfirmed` entry is
   already gone). Constants exported for V10.
@@ -92,13 +112,15 @@ Each has a test in the task that owns the code (marked "Review Focus N").
   ```
   { v: 1, lang: 'en'|'nl', fetchedAt, fetchedAtText,
     tredict: { state: 'ok'|'stale'|'auth'|'payment'|'unavailable', message: string },
-    week: null | { title, days: [{ label, today: bool, items: [{ kind: 'done'|'planned'|'missed'|'unplanned', text }], more }], footer },
+    tredictAt: ISO|null, tredictAtText: string,
+    week: null | { title, days: [{ label, today: bool, items: [{ kind: 'done'|'planned'|'missed'|'unplanned', text }], more }], footer, garmin: [string] },
     form: null | { heading, today, pastPath, futurePath, zeroY, todayX, labels: { back, today, ahead }, empty: string },
     run: { kind: 'window'|'shorter'|'fallback'|'none'|'error'|'badSettings'|'noLocation', heading, lines: [string] },
     attribution: string }
   ```
 
-  `message` is `''` when `state` is `ok`. `more` is `''` or `'+N'`. SVG coordinates are in a 360x150 box.
+  `message` is `''` when `state` is `ok`. `more` is `''` or `'+N'`. A day with no items prints "—". SVG coordinates
+  are in a 360x150 box.
 
 ## File Structure
 
@@ -124,10 +146,12 @@ tests/fixtures/tredict/ synthetic Tredict responses
 tests/fixtures/trmnl/   run-window responses for the plugin cases (live API shape, Amsterdam)
 ```
 
-Module rules (Task 2 enforces them): each `src/*.js` has no `require` other than lines of the form
-`const { a, b } = require('./other');`, declares top-level names uniquely across all modules, and ends with exactly
-one line `module.exports = { ... };`. The build strips both kinds of line, concatenates the modules in the order
-strings, time, settings, tredict, week, form, runWindow, board, and appends:
+Module rules (Task 2 enforces them): each `src/*.js` has no `require` other than statements of the form
+`const { a, b } = require('./other');` (Prettier may wrap them over several lines), declares top-level names uniquely
+across all modules, and ends with one `module.exports = { ... };` statement (also possibly wrapped). The build strips
+both with multi-line patterns (`/^const \{[^}]*\} = require\([^)]*\);\n/gm`, `/^module\.exports = \{[^}]*\};\s*$/m`),
+concatenates the modules that exist in the order strings, time, settings, tredict, week, form, runWindow, board, and
+appends:
 
 ```js
 async function run(input) {
@@ -150,11 +174,13 @@ Answers in `docs/superpowers/specs/2026-11-03-trmnl-running-board-verify.md` (co
 **Files:**
 - Create: `scripts/build-trmnl.js`, `tests/trmnl/harness.js`, `tests/trmnl/build.test.js`,
   `integrations/trmnl-running-board/full.liquid` (placeholder: root element and `{{ fetchedAtText | escape }}`),
-  `src/board.js` (placeholder `buildBoard` returning `{ v: 1, fetchedAt, fetchedAtText: '' }` from `now`)
+  `integrations/trmnl-running-board/src/board.js` (placeholder `buildBoard` returning
+  `{ v: 1, fetchedAt, fetchedAtText: '' }` from `now`)
 - Modify: `package.json` (devDependencies `liquidjs` ^10.30.1, `js-yaml` ^5.5.0; script
   `"build:trmnl": "node scripts/build-trmnl.js"`), `eslint.config.js` if `integrations/**` needs Node globals,
   `.github/workflows/ci.yml` (after the CSS check: `npm run build:trmnl`, then
-  `git diff --exit-code integrations/trmnl-running-board/transform.js`)
+  `git diff --exit-code integrations/trmnl-running-board/transform.js`), `eslint.config.js` and `.prettierignore`
+  (ignore `transform.js`)
 
 **Interfaces:**
 - Produces: `build({ srcDir }) -> string` (the `transform.js` text) and a CLI that writes it.
@@ -162,13 +188,14 @@ Answers in `docs/superpowers/specs/2026-11-03-trmnl-running-board-verify.md` (co
   fields as top-level names); `renderFull(output) -> Promise<string>` (liquidjs with the output's keys as top-level
   names, `append_random` with a fixed `-test` suffix); `loadTransform({ fetch, now }) -> run` (runs the built file in a
   `vm` context with `fetch`, `AbortSignal`, `Intl`, `URLSearchParams`, `setTimeout`, `clearTimeout` and a `Date` whose
-  `now()` and `new Date()` return `now`).
+  `now()` and `new Date()` return `now`; `Date.parse`, `Date.UTC` and `new Date(arg)` behave normally). Compare its
+  results with `toEqual` after a `JSON.parse(JSON.stringify(...))` round trip (vm objects fail `toStrictEqual`).
 
 - [ ] **Step 1: Write `tests/trmnl/build.test.js`**
   - `build()` starts with `// Generated by scripts/build-trmnl.js from src/. Do not edit.`, contains no `require(` and
     no `module.exports`, and ends with the `run` function above.
-  - Top-level names are unique across `src/*.js`; each file's last non-empty line matches
-    `/^module\.exports = \{.*\};$/`.
+  - Top-level names are unique across `src/*.js`; each file ends with one `module.exports = { … };` statement.
+  - `transform.js` contains no `console.` and no `.message`.
   - The committed `transform.js` equals `build()`; `settings.yml` (once it exists), `full.liquid` and `transform.js` are
     each ≤ 100 * 1024 bytes.
   - `loadTransform({ fetch: async () => { throw new Error('x'); }, now: Date.parse('2026-11-04T10:00:00Z') })` gives a
@@ -193,22 +220,26 @@ Answers in `docs/superpowers/specs/2026-11-03-trmnl-running-board-verify.md` (co
 - Produces: `readSettings(input) -> { token, lat, lon, availability, dark, rain, sport, language, hasLocation }` from
   `input.trmnl.plugin_settings.custom_fields_values`, defaults applied, `lat`/`lon` rounded to 2 decimals (numbers or
   `null`), never throwing on a missing or malformed input.
-- Produces: `windowUrl(settings) -> string|null` (`null` without a location).
+- Produces: `windowUrl(settings) -> string|null` (`null` without a location). `readSettings` removes spaces from `availability`.
 
 `settings.yml`: `strategy: polling`, `polling_verb: get`, no `polling_headers`, `framework_version: 3.4.0`,
 `refresh_interval: 30`, `dark_mode: 'no'`, `no_screen_padding: 'yes'`, fields as in the spec's Settings table (the
 token's help text: Tredict → Settings → Personal API, scope `activityRead` only, open the Tredict app every 10 days).
 Polling URL (one line):
-`https://run.xadi.eu/api/window?{% assign ll = lat_lon | split: ',' %}lat={{ ll[0] | strip | round: 2 }}&lon={{ ll[1] | strip | round: 2 }}&avail={{ availability | url_encode }}&dark={{ dark }}&rain={{ rain }}`
+`https://run.xadi.eu/api/window?{% assign ll = lat_lon | split: ',' %}{% if ll.size == 2 %}lat={{ ll[0] | strip | round: 2 }}&lon={{ ll[1] | strip | round: 2 }}&{% endif %}avail={{ availability | default: '07-09,12-14,17-21' | remove: ' ' | url_encode }}&dark={{ dark | default: 'avoid' }}&rain={{ rain | default: '40' }}`
 
 - [ ] **Step 1: Write `tests/trmnl/settings.test.js`**
   - Every select option value is quoted in the raw YAML; defaults: availability `07-09,12-14,17-21`, dark `avoid`,
     rain `40`, sport `running`, language `device`; `refresh_interval` 30; no `polling_headers` key or an empty one.
   - The token field is `password` and its help text mentions `activityRead` and 10 days.
   - `renderPollingUrl({ lat_lon: '52.373187,4.892241', availability: '07-09, 17-21', dark: 'avoid', rain: '40' })` is
-    `https://run.xadi.eu/api/window?lat=52.37&lon=4.89&avail=07-09%2C+17-21&dark=avoid&rain=40`, and equals
+    `https://run.xadi.eu/api/window?lat=52.37&lon=4.89&avail=07-09%2C17-21&dark=avoid&rain=40`, and equals
     `windowUrl(readSettings(...))` for the same values; same for `lat_lon: '-33.8688, 151.2093'`.
-  - `readSettings({})` returns defaults with `hasLocation: false` and `windowUrl` `null`; `lat_lon: 'abc'` too.
+  - The API accepts it: `parseWindowQuery` (from `lib/params.js`) on that URL's query returns without throwing and
+    with two `avail` ranges.
+  - Empty `availability`, `dark` and `rain` render the defaults, and `readSettings` gives the same values.
+  - Without `lat_lon` (or `'abc'`) the URL has no `lat=`; `readSettings` gives `hasLocation: false` and `windowUrl`
+    `null`.
 - [ ] **Step 2:** Run; expect FAIL.
 - [ ] **Step 3:** Write `settings.yml` and `src/settings.js`. `windowUrl` encodes `avail` the way Liquid's `url_encode`
   does (`encodeURIComponent` with `%20` → `+`).
@@ -284,16 +315,17 @@ with two entries, and today (2026-11-04) holding one confirmed and one `unconfir
 - [ ] **Step 1: Write the tests**
   - `tredictRange(Date.parse('2026-11-04T10:00:00Z'), 'Europe/Amsterdam')` is
     `{ from: '2026-10-31T23:00:00.000Z', to: '2026-11-10T22:59:59.999Z' }`; Sunday 2026-11-01T22:30Z (23:30 local) gives
-    `from: '2026-10-25T23:00:00.000Z'` (true local midnight, across the DST change).
+    `from: '2026-10-24T22:00:00.000Z'` (Sunday 25 Oct 00:00, still CEST).
   - `fetchJson` with a fake `fetch`: 200 JSON → `ok`; 401 and 403 → `auth`; 402 → `payment`; 500, an HTML 200 body,
     and a rejected promise → `unavailable`; a `fetch` that never resolves with `timeoutMs: 50` → `unavailable` within
     1 s (it must pass the `signal` to `fetch` and also race its own timer); the request carries both headers and the
     token only in `Authorization` (Review Focus 2, 5).
-  - `fixtures.test.js`: no committed fixture contains `bearer`, `token`, a coordinate other than 52.37/4.89 to 2
-    decimals, or an e-mail address. If `tests/fixtures/private/{planned,activities,efforts}.json` exist, each synthetic
-    twin has the same set of key paths after replacing `YYYYMMDD` keys and array indices with `*` (optional keys may be
-    missing from either side; a key present on one side with a different type fails); on a mismatch print only the
-    paths. Skipped without the folder.
+  - `fixtures.test.js`, over `tests/fixtures/tredict/` and `tests/fixtures/trmnl/` only: no file contains `bearer`,
+    `token` or an e-mail address, and every `positionLat`, `positionLong`, `lat` and `lon` key holds a value within
+    0.01 of 52.37 / 4.89. If `tests/fixtures/private/{planned,activities,efforts}.json` exist: each synthetic twin has
+    the same key paths after replacing `YYYYMMDD` keys and array indices with `*`, compared as sets of value types per
+    path (optional keys may be missing from either side); and no `id`, `title` or `executedTrainingId` value of a
+    synthetic fixture appears in the private files. On a mismatch print only the paths. Skipped without the folder.
 - [ ] **Step 2:** Run; expect FAIL.
 - [ ] **Step 3:** Implement and write the fixtures.
 - [ ] **Step 4:** Build, all tests, lint, format check; expect PASS.
@@ -308,28 +340,33 @@ with two entries, and today (2026-11-04) holding one confirmed and one `unconfir
 
 **Interfaces:**
 - Consumes: Task 4 helpers and strings; Task 5 fixtures.
-- Produces: `planDay(plan) -> 'YYYY-MM-DD'`; `activityDay(activity, tz) -> 'YYYY-MM-DD'`.
-- Produces: `buildWeek({ plans, activities, today, tz, sport }) -> { week, days: Day[7], totals, garmin: string[] }`,
+- Produces: `planDay(plan, tz) -> 'YYYY-MM-DD'`; `activityDay(activity, tz) -> 'YYYY-MM-DD'`.
+- Produces: `buildWeek({ plans, activities, now, tz, sport }) -> { week, days: Day[7], totals, garmin: string[] }`
+  (`now` in ms; today is `localDate(now, tz)`; activities after `now` are ignored),
   with `plans`/`activities` the `_embedded` lists or `[]`,
   `Day = { date, isToday, isPast, items: Item[], more: number }`,
   `Item = { kind: 'done'|'planned'|'missed'|'unplanned', title, sportType, distanceM?, durationS?, paceSPerKm?, heartrate? }`,
   `totals = { doneDistanceM, doneDurationS, plannedDistanceM?, plannedDurationS? }`, at most 2 items per day.
 - Produces: `weekView(week, lang) -> output.week` (strings per the contract: `title` "WEEK 45", day `label`, item
   `text` such as `✓ 8.2 km · 5:41 · 142`, `Tempo · 50 min`, missed with `✗ ` prefix, footer
-  `18.2 / 42.0 km · 1:42 / 4:30` or done-only when nothing is planned).
+  `18.2 / 42.0 km · 1:42 / 4:30` or done-only when nothing is planned; `garmin` passed through).
 - Produces: `FORM_CONSTANTS = { fitnessDays: 42, fatigueDays: 7 }`;
-  `formSeries({ efforts, today, back: 42, ahead: 7 }) -> { points: { date, form, planned }[], today: number|null }`;
+  `formSeries({ efforts, today, back: 42, ahead: 7 }) -> { points: { date, form, planned }[], today: number|null }`,
+  where `efforts` is the response's `trainingEfforts` object and `today` a date string; it walks every calendar day
+  from the earliest key (load 0 on days without entries) and returns the window from `today − back` to
+  `today + ahead`;
   `formChart(series, lang) -> output.form` (360x150 box, `pastPath`/`futurePath` as `M x y L x y …` with numbers to 1
-  decimal, `zeroY`, `todayX`, `today` as a signed integer string like `+4` / `−3`, `empty` set and paths `''` when there
-  are no points).
+  decimal, `zeroY`, `todayX`, `today` as a signed integer string like `+4` / `−3` / `0`, the y-scale always including
+  0, `empty` set and paths `''` when there are no points).
 
 - [ ] **Step 1: Write the tests**
   - `buildWeek` on Wednesday 2026-11-04 12:00 local: Monday `done` with distance, pace and heart rate; the missed plan
     is `missed`; Thursday has 2 items and `more: 1`; the unplanned run shows as `unplanned`; sport `running` drops the
     strength session from items and totals, `all` keeps it; the Garmin attribution is in `garmin`.
-  - Monday 2026-11-02 07:00 (no `missed`, zero done totals); Sunday 2026-11-08 21:00 (only `done`/`missed`).
+  - Monday 2026-11-02 07:00: no `missed`, and done totals hold only the 00:30 Monday activity. Sunday 2026-11-08
+    21:00 (the fixture's Sunday plan is done): only `done`/`missed` items.
   - The 23:30 Sunday activity is outside the week of 2 Nov, the 00:30 Monday one is on Monday; in the DST week both
-    25 Oct activities are on Sunday 25 Oct (Review Focus 3).
+    25 Oct activities, and a plan at 2026-10-25T22:30Z with `timezone: 2`, are on Sunday 25 Oct (Review Focus 3).
   - The plan without duration has no `durationS`; the activity without heart rate has no `heartrate`; `weekView` never
     prints `undefined`, `NaN`, `null` or `0:00` for them. Plans never get a pace.
   - Empty plans and activities → 7 days, no items, footer of zero done totals (Review Focus 4).
@@ -354,7 +391,7 @@ with two entries, and today (2026-11-04) holding one confirmed and one `unconfir
 
 **Interfaces:**
 - Consumes: `availabilityEnd`, `localDate`, `localTime`, `addDays`, `planDay`, `conditionsText`, `STRINGS`, `fill`.
-- Produces: `pickSession({ plans, now, tz, avail, sport }) -> { day: 'today'|'tomorrow', minutes, reason:
+- Produces: `pickSession({ plans, now, tz, avail, sport }) -> { day: 'today'|'tomorrow', date: 'YYYY-MM-DD', minutes, reason:
   'planned'|'noDuration'|'noPlan'|'unknown', overLimit }`, `plans` `null` when Tredict failed, `tz` the API's
   `location.timezone`.
 - Produces: `windowPanel({ body, status, session, lang, hasLocation }) -> output.run`, where `body` is the run-window
@@ -371,9 +408,9 @@ Minutes = `duration / 60` rounded up to 15, min 15; over 180 → 180 with `overL
 `noDuration`, 60.
 
 `windowPanel`: no location → `noLocation`; `body` without `days` → `badSettings` when `status` is 400, else `error`.
-Otherwise the `days[i]` whose `date` is the session's local date, then `windows[String(minutes)]`; if null, the
+Otherwise the `days[i]` whose `date` is `session.date` (none matches → `error`), then `windows[String(minutes)]`; if null, the
 longest shorter non-null key (`shorter`), else `fallback` (`fallback`), else `none`. Heading: "Best time today" /
-"TOMORROW", then the length ("60 min", plus "(no duration planned)", "no session planned" or "doesn't fully fit"
+"TOMORROW" (heading words per the Decisions), then the length ("60 min", plus "(no duration planned)", "no session planned" or "doesn't fully fit"
 where they apply). Lines: `HH:MM–HH:MM` in `location.timezone`; `sky · wind · temp`; "start into the wind
 ({cardinal})"; "dark after HH:MM" when that day's `sunset` is not null; "weather may be out of date" when `warnings`
 includes `stale_data`.
@@ -386,7 +423,8 @@ includes `stale_data`.
     planned"; same at 21:30 → tomorrow.
   - `plans: null` → 60, `unknown`, heading "Best time today · 60 min" without "no session planned".
   - Sunday with a plan next Monday → tomorrow uses it.
-  - `days[0].date` yesterday (cached across midnight) → the panel uses the entry for today.
+  - `days[0].date` yesterday (cached across midnight) → the panel uses the entry for today; no entry for the
+    session's date → `error`.
   - Window present → `window`, lines include `12:15–13:15`, `dry · 18 km/h SW · 8°C`, "start into the wind (SW)";
     nl → `droog · 18 km/u ZW · 8°C` and "(ZW)".
   - `"90"` null and `"45"` present → `shorter`, heading "Only 45 min fits your hours"; only `fallback` → heading "No
@@ -418,9 +456,10 @@ set, a retry of `windowUrl(settings)` via `fetch` with the same 3 s timeout; bui
 `attribution` (Garmin names joined with `·`, then the API's `attribution` when a window shows).
 
 Tredict state: any `auth` → `auth` with the token message, `week`/`form` `null`; else any `payment` → `payment`; else
-any `unavailable` → `stale` with `week`/`form` from `trmnl.previous_merge_variables` when its `v` is 1 and its
-`tredict.state` was `ok` or `stale` (message "Tredict data from {its fetchedAtText}"), otherwise `unavailable` with
-`null` panels; else `ok`. Plans for `pickSession` are `null` unless the plan call succeeded.
+any `unavailable` (including efforts with no keys) → `stale` per the Decisions (previous output with `v: 1`, panels
+present, `tredictAt` on today's local date; `tredictAt`/`tredictAtText` copied), otherwise `unavailable` with `null`
+panels; else `ok` with `tredictAt = fetchedAt`. Plans for `pickSession` are `null` unless the plan call succeeded.
+`attribution` uses `week.garmin` (fresh or reused). The top-level `catch` returns fixed strings only.
 
 - [ ] **Step 1: Write `tests/trmnl/board.test.js`** (fake `fetch` routing by URL to fixtures; `now` 2026-11-04T11:00Z)
   - Normal: `tredict.state` `ok`, `week.title` "WEEK 45", 7 days, `form.today` a signed integer string, `run.kind`
@@ -429,9 +468,13 @@ any `unavailable` → `stale` with `week`/`form` from `trmnl.previous_merge_vari
   - Tredict 401 on any one call → `auth`, `week` and `form` `null`, `run` still `window` with heading "… · 60 min"
     (plans unknown). 402 → `payment`.
   - Efforts 503, others 200 → `stale` from a previous output given as `previous_merge_variables`, message contains
-    its `fetchedAtText`; without a previous output → `unavailable` (Review Focus 2).
+    its `tredictAtText`, and its Garmin attribution is kept; two failures in a row keep the first `tredictAt`; a
+    previous output whose `tredictAt` was yesterday → `unavailable`; without a previous output → `unavailable`;
+    efforts `{ trainingEfforts: {} }` → treated as unavailable (Review Focus 2).
   - Polled body `{}` and the retry answering 400 → `run.kind` `badSettings`; retry 503 → `error`; the retry is not
-    made when the polled body has `generatedAt`.
+    made when the polled body has `generatedAt`, nor when the previous output's `run.kind` was `error` less than 30
+    minutes ago.
+  - A previous output with `form.pastPath` `'M 0 0"/><script>'` is reused with that path replaced by `''`.
   - Review Focus 5: `buildBoard({}, …)`, `buildBoard({ trmnl: null }, …)`, `fetch` rejecting, `fetch` returning `'<html>'`
     as text, and a never-resolving `fetch` all resolve (the last within 4 s via a 3000 ms timeout; run it with a
     shortened timeout parameter if the implementation exposes one) to an object with `v: 1` and `fetchedAt`.
@@ -463,7 +506,9 @@ show `tredict.message` instead; `stale` shows the panels plus the message. Foote
   - Normal: 7 rows Monday first, today's row has the inverted class, "WEEK 45", the footer totals, "Form (est.)", the
     run window lines, the attribution, `data 12:00`.
   - The `</script>` title appears as `&lt;/script&gt;` and `{{ x }}` / `{% raw %}` as text; the rendered HTML has no
-    `<script` at all (Review Focus 1).
+    `<script` at all (Review Focus 1). Assertions on escaped quotes accept both `&quot;` and `&#34;` (Ruby Liquid and
+    liquidjs differ).
+  - A day with no items shows "—".
   - Every `{{ … }}` in `full.liquid` that prints a string ends in `| escape` (a test reads the template and checks each
     output tag, allowing only `pastPath`, `futurePath`, `zeroY`, `todayX` without it).
   - `auth`, `payment`, `unavailable`, `stale`: the message shows; the run window still shows.
@@ -496,7 +541,8 @@ show `tredict.message` instead; `stale` shows the panels plus the message. Foote
 - Modify: `CLAUDE.md` (Status; `build:trmnl`; the transform script and its constraints), `readme.md` (plugin line)
 - Create: `integrations/trmnl-running-board/README.md`: install as a private plugin (import `settings.yml`,
   `full.liquid`, `transform.js`; the runtime stays on the default), the settings, the token rule, the privacy
-  sentence (token goes to Tredict only), and that publishing waits for Tredict.
+  sentence (token goes to Tredict only), a device refresh of 30 minutes or less (the screen shows the last image
+  until then), and that publishing waits for Tredict.
 
 - [ ] **Step 1:** Write them.
 - [ ] **Step 2:** `npm run format:check`; commit `docs(plugin): document installing the running board`.
@@ -514,7 +560,11 @@ Controller with the maintainer.
 
 - [ ] **Step 1:** Install on the maintainer's account as a private plugin with real settings (the maintainer enters
   the token). Preview on `og_plus`; check every panel against Tredict's app. After a scheduled poll (not a forced
-  refresh), check the plugin's logs show the transform ran; the next morning, check today's row moved.
+  refresh), check the plugin's logs show the transform ran, and count runs per hour (Tredict load); the next
+  morning, check today's row moved. Once, with a temporary `timings` field (removed afterwards), record how long each
+  Tredict call takes; if activities nears 3 s, note it as a follow-up.
+- [ ] **Step 1b:** Record what a paused token returns: either the maintainer leaves the Tredict app unopened for 10
+  days with the board running, or asks Tredict. Update the error mapping if it is not 401/403.
 - [ ] **Step 2:** `formCheck.js` reads `tests/fixtures/private/efforts.json` and
   `tests/fixtures/private/form-from-app.json` (`{ "YYYY-MM-DD": number }`, typed in by the maintainer) and prints the
   difference per date for the default constants, other starting values and a one-day offset. It exits 0 with a

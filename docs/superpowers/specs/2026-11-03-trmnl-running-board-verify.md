@@ -51,7 +51,8 @@ poll in TRMNL's Node runtime, with `fetch`, and whatever it returns becomes the 
   `cadence`, `calories`, maxima, `altitude {…}`, `positionLat`, `positionLong`, `walkingDuration`), `createdAt`,
   `trainingType`, `attribution`, `isFromGarminApi`, and sometimes `enjoyment`, `perceivedEffort`, `mcpUpdatedFields`.
   `pageSize=8` still returned 50: the parameter is ignored or has a floor. `summary` holds start coordinates, so the
-  script must never pass it through.
+  script must never pass it through. Sport types seen: activities `running`, `cycling`, `misc` (sub-types
+  `generic`, `walking`); plans `running`.
 - `efforts`: `{ trainingEfforts: { "YYYYMMDD": [[load], [load, { unconfirmed: true }], …] }, filterStartDate,
   filterEndDate }`. Keys are local dates without dashes. A day can hold several entries. Future planned sessions carry
   `{ unconfirmed: true }`; once a plan is done its unconfirmed entry is gone and only the confirmed one remains (today
@@ -59,7 +60,7 @@ poll in TRMNL's Node runtime, with `fetch`, and whatever it returns becomes the 
 
 ## Not verified
 
-- Scheduled polls run the script: only forced refreshes were tested. Checked in Task 10 on the device.
+- Scheduled polls run the script: only forced refreshes were tested. Checked in Task 12 on the device.
 - The status Tredict returns for a token paused after 10 days of inactivity.
 - That the default runtime has the same 5 s / 128 MB limits as the documented Serverless runtime (same
   `[TransformRuntime]` pool in the logs).
