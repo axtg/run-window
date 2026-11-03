@@ -13,3 +13,5 @@ test-results/
 junit.xml
 # Real personal data (Tredict responses, home coordinates). Never commit.
 tests/fixtures/private/
+# roborev snapshots
+/.roborev/
