@@ -2,13 +2,13 @@
 
 Best time to run today, from the weather, sized to the session you planned.
 
-- `run.xadi.eu` (planned): free, anonymous JSON endpoint. Location and availability in, best window per session
+- `run.xadi.eu`: free, anonymous JSON endpoint. Location and availability in, best window per session
   length out. Weather data by [Open-Meteo.com](https://open-meteo.com/).
 - `integrations/trmnl-running-board`: TRMNL plugin combining this week's Tredict training, a form graph and today's
   run window on one screen.
 
-Status: the API is built and tested, not yet deployed. The TRMNL plugin is not started. See
-`docs/superpowers/specs/`.
+Status: the API is live at `run.xadi.eu`. The TRMNL plugin is built; see its
+[README](integrations/trmnl-running-board/README.md). Design notes are in `docs/superpowers/specs/`.
 
 ## License
 
