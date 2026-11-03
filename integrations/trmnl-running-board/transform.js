@@ -13,7 +13,7 @@ const STRINGS = {
     minutes: '{n} min',
     dataAt: 'data {time}',
     tokenInvalid:
-      'Tredict token paused or invalid. Open the Tredict app, and check the token has the activityRead scope.',
+      'Tredict token paused or invalid. ' + 'Open the Tredict app, and check the token has the activityRead scope.',
     tredictPayment: "Tredict says this account can't use the API.",
     tredictUnavailable: 'Tredict unavailable',
     tredictDataFrom: 'Tredict data from {time}',
