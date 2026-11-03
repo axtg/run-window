@@ -41,7 +41,8 @@ const STRINGS = {
     minutes: '{n} min',
     dataAt: 'data {time}',
     tokenInvalid:
-      'Tredict-token gepauzeerd of ongeldig. Open de Tredict-app en controleer of het token de scope activityRead heeft.',
+      'Tredict-token gepauzeerd of ongeldig. ' +
+      'Open de Tredict-app en controleer of het token de scope activityRead heeft.',
     tredictPayment: 'Tredict meldt dat dit account de API niet kan gebruiken.',
     tredictUnavailable: 'Tredict niet beschikbaar',
     tredictDataFrom: 'Tredict-gegevens van {time}',
