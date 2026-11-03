@@ -53,12 +53,19 @@ Each has a test in the task that owns the code (marked "Review Focus N").
 
 ## Decisions this plan makes
 
-- **The run window is always polled as IDX 3; no `fetch()` from the markup.** TRMNL does not re-render a screen whose
-  merge variables are unchanged (help article "Private plugins"). With `fetch()`, the merge variables would be the
-  Tredict responses alone, which stay the same overnight, so today's row and the run window could freeze for hours.
-  The API's `generatedAt` changes on every poll and forces a render. Cost: unless TRMNL has per-URL headers (V2), the
-  token also reaches `run.xadi.eu`, which strips it in nginx and in the app (the spec's third privacy case). This
-  drops the spec's V1 branch.
+- **The Tredict token never reaches `run.xadi.eu`, not even to be stripped** (maintainer, 2026-11-03). An earlier
+  version of this plan always polled the run window as IDX 3; that is withdrawn. Which way the run window arrives
+  depends on Task 1:
+  - V1 `fetch()` works at render: the markup fetches it, tokenless.
+  - V2 per-URL headers exist: poll it as IDX 3 with no headers on that URL.
+  - V11 Tredict accepts the token in the query string: no headers field at all, poll it as IDX 3.
+  - None of these: open, decided by the maintainer after Task 1. Options: no run window on the board, or the run
+    window as its own tokenless private plugin shown next to this one in a TRMNL mashup.
+  Freeze risk (V12): TRMNL does not re-render a screen whose merge variables are unchanged (help article "Private
+  plugins"). If the run window is fetched (V1) and V12 confirms the skip, the Tredict data alone decides when the screen
+  redraws, so the window can freeze on quiet days. If so, the maintainer picks between accepting that, the mashup, or
+  another option before Task 2. Task 2 does not start until this paragraph has a single answer, and Tasks 3, 6 and 7
+  (written for IDX 3) are updated to match it first.
 - **Responses go into HTML attributes, not script text:** `data-json="{{ IDX_0 | json | escape }}"`, read with
   `JSON.parse(el.getAttribute('data-json'))`. `escape` behaves the same in Ruby Liquid and liquidjs; backslash escapes
   in Liquid string literals do not (liquidjs decodes them, Ruby does not), so they can't be tested.
@@ -124,7 +131,8 @@ values, only names, shapes and yes/no answers.
 
 Rules for every probe: a fresh private plugin per step (deleted after), a unique nonce query parameter in every URL
 (TRMNL can keep stale data at an index when URLs change), Amsterdam coordinates only, and a headers field with
-`x-probe=1` only. Third-party echo: `https://httpbin.org/anything`. V1 is dropped (see Decisions).
+`x-probe=1` only. Third-party echo: `https://httpbin.org/anything`. Once the token is in a plugin, the controller reads
+that plugin's merge variables only, never its settings (they may return field values).
 
 **Files:**
 - Create: `docs/superpowers/specs/2026-11-03-trmnl-running-board-verify.md`
@@ -141,14 +149,21 @@ Rules for every probe: a fresh private plugin per step (deleted after), a unique
   path between polls): record whether `IDX_1` keeps the last good data, and whether TRMNL pauses a plugin after
   repeated errors. Also record what `{{ IDX_0 | json }}` emits for a string containing `</script>` (httpbin
   `/anything?t=%3C/script%3E`).
-- [ ] **Step 3 (V7, V8, V9):** The maintainer adds their real token in a `password` field and reports whether it is
-  masked. Poll the three Tredict URLs once with the real headers. Record whether `IDX_2` (efforts) arrived complete
+- [ ] **Step 2b (V1, V12):** V1: a plugin polling a static httpbin body, whose markup fetches
+  `run.xadi.eu/api/window?lat=52.37&lon=4.89` and prints its `generatedAt` next to a render-time stamp; screenshot it
+  and record whether the fetch result appears and how long the renderer waits. V12: refresh the same plugin twice with
+  the polled body unchanged and compare the render-time stamps. Record whether the refresh was forced or scheduled, since
+  a forced refresh may not follow the scheduled skip rule.
+- [ ] **Step 3 (V7, V8, V9, V11, scopes):** The maintainer adds their real token in a `password` field and reports
+  whether it is masked. Poll the three Tredict URLs once with the real headers. Record whether each returns 200 with
+  the `activityRead` scope alone (a 403 changes the help text and the 403 message). V11: poll `plannedTrainingList`
+  once with the token as a query parameter (`access_token=`) and no headers, and record the status. Record whether `IDX_2` (efforts) arrived complete
   and its size in KB. The maintainer saves one real response of each to `tests/fixtures/private/` (`planned.json`,
   `activities.json`, `efforts.json`) and records, without values: the `extendedSummary=1` key names; whether a plan's
   `date` is UTC and how `timezone` relates to its local day; whether activities carry a timezone; whether rest days or
   notes appear in `plannedTrainingList`; and whether a done session appears in efforts both confirmed and
   `unconfirmed` on the same day.
-- [ ] **Step 4:** Write the answers file: one row per V2–V9 with the answer, the evidence, and the branch later tasks
+- [ ] **Step 4:** Write the answers file: one row per V1–V9, V11, V12 and the scope check, with the answer, the evidence, and the branch later tasks
   take. V10 is answered in Task 10. Delete the probe plugins.
 - [ ] **Step 5:** Commit `docs(plugin): record the TRMNL and Tredict verify answers`.
 
