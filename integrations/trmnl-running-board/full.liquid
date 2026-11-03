@@ -1,5 +1,112 @@
-<div class="view view--full">
-  <div class="layout layout--col">
-    <span class="description">{{ fetchedAtText | escape }}</span>
+<style>
+  .rb { display: flex; flex-direction: column; width: 100%; height: 100%; color: #000; background: #fff; }
+  .rb-main { display: flex; flex: 1 1 auto; min-height: 0; }
+  .rb-left { display: flex; flex-direction: column; flex: 0 0 45%; min-width: 0; padding-right: 12px; border-right: 2px solid #000; }
+  .rb-right { display: flex; flex-direction: column; flex: 1 1 auto; min-width: 0; padding-left: 14px; }
+  .rb-title { font-size: 26px; font-weight: 700; line-height: 30px; margin-bottom: 4px; }
+  .rb-days { flex: 1 1 auto; display: flex; flex-direction: column; }
+  .rb-day { display: flex; align-items: center; flex: 1 1 0; min-height: 0; padding: 0 6px; border-bottom: 1px solid #000; }
+  .rb-day--today, .rb-day--today * { background: #000; color: #fff; }
+  .rb-day__label { width: 42px; flex: 0 0 42px; font-size: 26px; font-weight: 700; }
+  .rb-day__items { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; }
+  .rb-item { font-size: 19px; line-height: 23px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .rb-item--done, .rb-item--unplanned { font-weight: 700; }
+  .rb-day__more { flex: 0 0 auto; padding-left: 6px; font-size: 19px; font-weight: 700; }
+  .rb-total { font-size: 21px; font-weight: 700; line-height: 26px; padding-top: 4px; }
+  .rb-message { font-size: 22px; font-weight: 700; line-height: 28px; padding: 6px 8px; border: 2px solid #000; }
+  .rb-message--big { margin-top: 12px; }
+  .rb-form { display: flex; flex-direction: column; flex: 1 1 auto; border-bottom: 2px solid #000; padding-bottom: 6px; }
+  .rb-form__head { display: flex; justify-content: space-between; align-items: flex-start; }
+  .rb-form__heading { font-size: 24px; font-weight: 700; line-height: 30px; }
+  .rb-form__value { font-size: 56px; font-weight: 700; line-height: 56px; }
+  .rb-form svg { display: block; width: 100%; height: auto; max-height: 160px; }
+  .rb-form__labels { display: flex; justify-content: space-between; font-size: 16px; line-height: 20px; }
+  .rb-run { padding-top: 8px; }
+  .rb-run__heading { font-size: 24px; font-weight: 700; line-height: 30px; }
+  .rb-run__line { font-size: 22px; line-height: 28px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .rb-run__line--first { font-size: 36px; font-weight: 700; line-height: 44px; }
+  .rb-foot { display: flex; justify-content: space-between; gap: 12px; font-size: 13px; line-height: 16px; padding-top: 4px; }
+  .rb-foot__source { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .rb-foot__time { flex: 0 0 auto; }
+</style>
+
+<div class="layout">
+  <div class="rb">
+    <div class="rb-main">
+      <div class="rb-left">
+        {% if week %}
+          {% if tredict.message and tredict.message != '' %}
+            <div class="rb-message">{{ tredict.message | escape }}</div>
+          {% endif %}
+          <div class="rb-title title">{{ week.title | escape }}</div>
+          <div class="rb-days">
+            {% for day in week.days %}
+              <div class="rb-day{% if day.today %} rb-day--today{% endif %}">
+                <span class="rb-day__label">{{ day.label | escape }}</span>
+                <div class="rb-day__items">
+                  {% if day.items.size > 0 %}
+                    {% for item in day.items %}
+                      <span class="rb-item rb-item--{{ item.kind | escape }}">{{ item.text | escape }}</span>
+                    {% endfor %}
+                  {% else %}
+                    <span class="rb-item">—</span>
+                  {% endif %}
+                </div>
+                {% if day.more and day.more != '' %}
+                  <span class="rb-day__more">{{ day.more | escape }}</span>
+                {% endif %}
+              </div>
+            {% endfor %}
+          </div>
+          <div class="rb-total">{{ week.footer | escape }}</div>
+        {% else %}
+          <div class="rb-message rb-message--big">{{ tredict.message | escape }}</div>
+        {% endif %}
+      </div>
+
+      <div class="rb-right">
+        <div class="rb-form">
+          {% if form %}
+            <div class="rb-form__head">
+              <span class="rb-form__heading">{{ form.heading | escape }}</span>
+              <span class="rb-form__value value">{{ form.today | escape }}</span>
+            </div>
+            {% if form.empty and form.empty != '' %}
+              <div class="rb-message rb-message--big">{{ form.empty | escape }}</div>
+            {% else %}
+              <svg viewBox="0 0 360 150" xmlns="http://www.w3.org/2000/svg">
+                <line class="rb-zero" x1="0" y1="{{ form.zeroY }}" x2="360" y2="{{ form.zeroY }}" stroke="#000" stroke-width="1" shape-rendering="crispEdges" vector-effect="non-scaling-stroke" />
+                <line class="rb-today" x1="{{ form.todayX }}" y1="0" x2="{{ form.todayX }}" y2="150" stroke="#000" stroke-width="1" stroke-dasharray="2 4" shape-rendering="crispEdges" vector-effect="non-scaling-stroke" />
+                <path class="rb-past" d="{{ form.pastPath }}" fill="none" stroke="#000" stroke-width="3" stroke-linejoin="round" vector-effect="non-scaling-stroke" />
+                {% if form.futurePath and form.futurePath != '' %}
+                  <path class="rb-future" d="{{ form.futurePath }}" fill="none" stroke="#000" stroke-width="3" stroke-dasharray="8 6" vector-effect="non-scaling-stroke" />
+                {% endif %}
+                <text x="{{ form.todayX }}" dx="-5" y="14" text-anchor="end" font-size="16" fill="#000">{{ form.labels.today | escape }}</text>
+              </svg>
+              <div class="rb-form__labels">
+                <span>{{ form.labels.back | escape }}</span>
+                <span>{{ form.labels.ahead | escape }}</span>
+              </div>
+            {% endif %}
+          {% else %}
+            <div class="rb-message rb-message--big">{{ tredict.message | escape }}</div>
+          {% endif %}
+        </div>
+
+        <div class="rb-run">
+          <div class="rb-run__heading">{{ run.heading | escape }}</div>
+          {% for line in run.lines %}
+            <div class="rb-run__line{% if forloop.first %} rb-run__line--first{% endif %}">{{ line | escape }}</div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+
+    <div class="rb-foot">
+      <span class="rb-foot__source">{{ attribution | escape }}</span>
+      {% if fetchedAtText and fetchedAtText != '' %}
+        <span class="rb-foot__time">data {{ fetchedAtText | escape }}</span>
+      {% endif %}
+    </div>
   </div>
 </div>
