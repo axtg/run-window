@@ -1,0 +1,56 @@
+---
+strategy: polling
+polling_verb: get
+framework_version: 3.4.0
+refresh_interval: 30
+dark_mode: 'no'
+no_screen_padding: 'yes'
+polling_url: "https://run.xadi.eu/api/window?{% assign ll = lat_lon | split: ',' %}{% if ll.size == 2 %}lat={{ ll[0] | strip | round: 2 }}&lon={{ ll[1] | strip | round: 2 }}&{% endif %}avail={{ availability | default: '07-09,12-14,17-21' | remove: ' ' | url_encode }}&dark={{ dark | default: 'avoid' }}&rain={{ rain | default: '40' }}"
+custom_fields:
+  - keyname: tredict_token
+    name: Tredict token
+    field_type: password
+    description: 'Create it in Tredict, under Settings, Personal API, with the scope activityRead only. Open the Tredict app at least every 10 days, or the token pauses. The token is only sent to Tredict.'
+  - keyname: lat_lon
+    name: Location
+    field_type: lat_lon
+    description: Where you usually start your runs. Only used to look up the weather, rounded to about 1 km.
+  - keyname: availability
+    name: Hours you can run
+    field_type: string
+    description: Time ranges as HH-HH, separated by commas. Minutes are allowed, as in 07:30-09:15.
+    default: '07-09,12-14,17-21'
+  - keyname: dark
+    name: Running in the dark
+    field_type: select
+    options:
+      - OK to run in the dark: 'ok'
+      - Avoid darkness: 'avoid'
+    description: Whether a window may include time between sunset and sunrise.
+    default: 'avoid'
+  - keyname: rain
+    name: Maximum chance of rain
+    field_type: select
+    options:
+      - 20%: '20'
+      - 40%: '40'
+      - 60%: '60'
+    description: The highest chance of rain a window may have.
+    default: '40'
+  - keyname: sport
+    name: Calendar sports
+    field_type: select
+    options:
+      - Running only: 'running'
+      - All sports: 'all'
+    description: Which sessions the week calendar shows. The form graph always counts all sports.
+    default: 'running'
+  - keyname: language
+    name: Language
+    field_type: select
+    options:
+      - Device language: 'device'
+      - English: 'en'
+      - Nederlands: 'nl'
+    description: Device language falls back to English when it is not supported.
+    default: 'device'
