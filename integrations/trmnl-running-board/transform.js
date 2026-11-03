@@ -845,16 +845,25 @@ const finiteOf = value => (typeof value === 'number' && Number.isFinite(value) ?
 
 // The fixed output for anything unexpected: no input-derived text, never an error's text
 function errorBoard(now) {
+  const at = Number.isFinite(now) ? now : Date.now();
+  let fetchedAtText;
+  try {
+    fetchedAtText = dayAndTime(at, 'UTC', STRINGS.en);
+  } catch {
+    fetchedAtText = '';
+  }
   return {
     v: BOARD_VERSION,
-    fetchedAt: new Date(Number.isFinite(now) ? now : Date.now()).toISOString(),
-    fetchedAtText: '',
+    lang: 'en',
+    fetchedAt: new Date(at).toISOString(),
+    fetchedAtText,
     tredict: { state: 'unavailable', message: STRINGS.en.tredictUnavailable },
     tredictAt: null,
     tredictAtText: '',
     week: null,
     form: null,
     run: { kind: 'error', heading: STRINGS.en.weatherUnavailable, lines: [] },
+    weatherRetryAt: null,
     attribution: ''
   };
 }
@@ -889,11 +898,16 @@ async function fetchWindow(fetchFn, url, timeoutMs) {
   }
 }
 
-function recentWeatherError(previous, now) {
-  if (!isObject(previous) || !isObject(previous.run) || previous.run.kind !== 'error') return false;
-  const age = now - Date.parse(previous.fetchedAt);
-  return age >= 0 && age < RETRY_PAUSE_MS;
+// The previous retry's time, when it is under 30 minutes old: anchored to the retry, so skipping doesn't renew it
+function recentWeatherRetry(previous, now) {
+  if (!isObject(previous) || typeof previous.weatherRetryAt !== 'string') return null;
+  const at = Date.parse(previous.weatherRetryAt);
+  const age = now - at;
+  return age >= 0 && age < RETRY_PAUSE_MS ? new Date(at).toISOString() : null;
 }
+
+const zoneOf = value =>
+  isObject(value) && isObject(value.location) && isZone(value.location.timezone) ? value.location.timezone : null;
 
 // A 2xx object without its list is an empty list (a new account); anything else is unreadable
 function embeddedList(result, key) {
@@ -991,21 +1005,29 @@ async function assembleBoard(input, { fetch: fetchFn, now, timeoutMs }) {
   const settings = readSettings(body);
   const lang = resolveLanguage(settings.language, user.locale);
   const text = STRINGS[lang];
-  const polledZone = isObject(body.location) ? body.location.timezone : null;
-  let tz = 'UTC';
-  if (isZone(user.time_zone_iana)) tz = user.time_zone_iana;
-  else if (isZone(polledZone)) tz = polledZone;
-
-  const urls = tredictUrls(tredictRange(now, tz));
-  const tredictCall = url => fetchJson(fetchFn, url, settings.token, timeoutMs);
+  const userZone = isZone(user.time_zone_iana) ? user.time_zone_iana : null;
   const polled = typeof body.generatedAt === 'string';
-  const retry = !polled && settings.hasLocation && !recentWeatherError(previous, now);
+  // The range has a day of margin on each side, so a retry body's zone (not known yet) can't move it out of the week
+  const rangeZone = userZone || zoneOf(body) || 'UTC';
+
+  const urls = tredictUrls(tredictRange(now, rangeZone));
+  const tredictCall = url => fetchJson(fetchFn, url, settings.token, timeoutMs);
+  const pausedRetryAt = recentWeatherRetry(previous, now);
+  const retry = !polled && settings.hasLocation && !pausedRetryAt;
   const [planResult, activityResult, effortResult, weather] = await Promise.all([
     tredictCall(urls.plan),
     tredictCall(urls.activities),
     tredictCall(urls.efforts),
     retry ? fetchWindow(fetchFn, windowUrl(settings), timeoutMs) : null
   ]);
+
+  const windowBody = polled ? body : weather && weather.body;
+  // Calendar and form: the user's zone, else the zone of the window body used; the run window: the API's zone
+  const tz = userZone || zoneOf(windowBody) || 'UTC';
+  const apiZone = zoneOf(windowBody) || tz;
+  let weatherRetryAt = null;
+  if (retry) weatherRetryAt = new Date(now).toISOString();
+  else if (!polled && settings.hasLocation) weatherRetryAt = pausedRetryAt;
 
   const fetchedAt = new Date(now).toISOString();
   const fetchedAtText = dayAndTime(now, tz, text);
@@ -1023,11 +1045,10 @@ async function assembleBoard(input, { fetch: fetchFn, now, timeoutMs }) {
     fetchedAtText
   });
 
-  const windowBody = polled ? body : weather && weather.body;
   const session = pickSession({
     plans: plan.ok ? plan.list : null,
     now,
-    tz,
+    tz: apiZone,
     avail: settings.availability,
     sport: settings.sport
   });
@@ -1056,6 +1077,7 @@ async function assembleBoard(input, { fetch: fetchFn, now, timeoutMs }) {
     week,
     form,
     run,
+    weatherRetryAt,
     attribution: attribution.filter(Boolean).join(ATTRIBUTION_SEPARATOR)
   };
 }
@@ -1075,6 +1097,7 @@ async function run(input) {
   } catch {
     return {
       v: 1,
+      lang: 'en',
       fetchedAt: new Date(Date.now()).toISOString(),
       fetchedAtText: '',
       tredict: { state: 'unavailable', message: 'Tredict unavailable' },
@@ -1083,6 +1106,7 @@ async function run(input) {
       week: null,
       form: null,
       run: { kind: 'error', heading: 'Weather unavailable', lines: [] },
+      weatherRetryAt: null,
       attribution: ''
     };
   }

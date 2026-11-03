@@ -290,23 +290,67 @@ describe('buildBoard: weather retry', () => {
     expect(calls.some(call => call.name === 'window')).toBe(false);
   });
 
-  it('does not retry within 30 minutes of a weather error', async () => {
-    const previous = { v: 1, fetchedAt: new Date(NOW - 20 * MINUTE).toISOString(), run: { kind: 'error' } };
-    const { output, calls } = await board({ body: {}, previous });
-    expect(calls.some(call => call.name === 'window')).toBe(false);
-    expect(output.run.kind).toBe('error');
+  it('anchors the 30-minute pause to the retry, not to each skipped run', async () => {
+    const first = await board({ body: {} }, { window: 503 });
+    expect(first.calls.filter(call => call.name === 'window')).toHaveLength(1);
+    expect(first.output.weatherRetryAt).toBe('2026-11-04T11:00:00.000Z');
+    expect(first.output.run.kind).toBe('error');
+
+    const second = await board({ body: {}, previous: first.output }, { window: 400 }, NOW + 10 * MINUTE);
+    expect(second.calls.some(call => call.name === 'window')).toBe(false);
+    expect(second.output.run.kind).toBe('error');
+    expect(second.output.weatherRetryAt).toBe(first.output.weatherRetryAt);
+
+    const third = await board({ body: {}, previous: second.output }, { window: 400 }, NOW + 31 * MINUTE);
+    expect(third.calls.filter(call => call.name === 'window')).toHaveLength(1);
+    expect(third.output.run).toEqual({ kind: 'badSettings', heading: 'Check your hours setting', lines: [] });
+    expect(third.output.weatherRetryAt).toBe(new Date(NOW + 31 * MINUTE).toISOString());
   });
 
-  it('retries again 30 minutes after a weather error', async () => {
-    const previous = { v: 1, fetchedAt: new Date(NOW - 31 * MINUTE).toISOString(), run: { kind: 'error' } };
+  it('no longer pauses on an old-style error output without weatherRetryAt', async () => {
+    const previous = { v: 1, fetchedAt: new Date(NOW - 5 * MINUTE).toISOString(), run: { kind: 'error' } };
     const { calls } = await board({ body: {}, previous });
     expect(calls.some(call => call.name === 'window')).toBe(true);
+  });
+
+  it('leaves weatherRetryAt null when no retry is needed or possible', async () => {
+    const previous = { v: 1, weatherRetryAt: new Date(NOW - 5 * MINUTE).toISOString() };
+    expect((await board({ previous })).output.weatherRetryAt).toBeNull();
+    expect((await board({ body: {}, fields: { lat_lon: '' }, previous })).output.weatherRetryAt).toBeNull();
+  });
+
+  it('dates the retry case by the location when the user has no zone', async () => {
+    const evening = Date.parse('2026-11-04T20:15:00Z');
+    const { output } = await board({ body: {}, user: { locale: 'en' } }, { plan: 503 }, evening);
+    expect(output.fetchedAtText).toBe('We 21:15');
+    expect(output.run.kind).toBe('window');
+    expect(output.run.heading).toBe('TOMORROW · 60 min');
   });
 
   it('does not retry without a location', async () => {
     const { output, calls } = await board({ body: {}, fields: { lat_lon: '' } });
     expect(calls.some(call => call.name === 'window')).toBe(false);
     expect(output.run.kind).toBe('noLocation');
+  });
+});
+
+describe('buildBoard: timezones', () => {
+  it("picks the run window by the location's hours, the calendar by the user's", async () => {
+    // 21:15 in Amsterdam (past 07-09,12-14,17-21), 09:15 on Thursday in Auckland
+    const evening = Date.parse('2026-11-04T20:15:00Z');
+    const user = { time_zone_iana: 'Pacific/Auckland', locale: 'en' };
+    const { output } = await board({ user }, { plan: 503 }, evening);
+    expect(output.fetchedAtText).toBe('Th 09:15');
+    expect(output.run.kind).toBe('window');
+    expect(output.run.heading).toBe('TOMORROW · 60 min');
+  });
+
+  it("uses the location's today while its hours remain, whatever the user's date", async () => {
+    // 12:00 on Wednesday in Amsterdam, 00:00 on Thursday in Auckland
+    const user = { time_zone_iana: 'Pacific/Auckland', locale: 'en' };
+    const { output } = await board({ user }, { plan: 503 });
+    expect(output.fetchedAtText).toBe('Th 00:00');
+    expect(output.run.heading).toBe('BEST TIME TODAY · 60 min');
   });
 });
 
@@ -375,14 +419,16 @@ describe('buildBoard: garbage input (Review Focus 5)', () => {
     const output = roundTrip(await buildBoard(input, { fetch: fakeFetch().fetch, now: NOW }));
     expect(output).toEqual({
       v: 1,
+      lang: 'en',
       fetchedAt: '2026-11-04T11:00:00.000Z',
-      fetchedAtText: '',
+      fetchedAtText: 'We 11:00',
       tredict: { state: 'unavailable', message: 'Tredict unavailable' },
       tredictAt: null,
       tredictAtText: '',
       week: null,
       form: null,
       run: { kind: 'error', heading: 'Weather unavailable', lines: [] },
+      weatherRetryAt: null,
       attribution: ''
     });
     expect(JSON.stringify(output)).not.toContain('boom');

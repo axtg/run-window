@@ -13,6 +13,7 @@ const RUN = `async function run(input) {
   } catch {
     return {
       v: 1,
+      lang: 'en',
       fetchedAt: new Date(Date.now()).toISOString(),
       fetchedAtText: '',
       tredict: { state: 'unavailable', message: 'Tredict unavailable' },
@@ -21,6 +22,7 @@ const RUN = `async function run(input) {
       week: null,
       form: null,
       run: { kind: 'error', heading: 'Weather unavailable', lines: [] },
+      weatherRetryAt: null,
       attribution: ''
     };
   }

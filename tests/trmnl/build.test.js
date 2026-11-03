@@ -13,6 +13,7 @@ const RUN_TEXT = `async function run(input) {
   } catch {
     return {
       v: 1,
+      lang: 'en',
       fetchedAt: new Date(Date.now()).toISOString(),
       fetchedAtText: '',
       tredict: { state: 'unavailable', message: 'Tredict unavailable' },
@@ -21,6 +22,7 @@ const RUN_TEXT = `async function run(input) {
       week: null,
       form: null,
       run: { kind: 'error', heading: 'Weather unavailable', lines: [] },
+      weatherRetryAt: null,
       attribution: ''
     };
   }
@@ -108,6 +110,7 @@ describe('harness', () => {
       const result = JSON.parse(JSON.stringify(await run({})));
       expect(result).toEqual({
         v: 1,
+        lang: 'en',
         fetchedAt: '2026-11-04T10:00:00.000Z',
         fetchedAtText: '',
         tredict: { state: 'unavailable', message: 'Tredict unavailable' },
@@ -116,6 +119,7 @@ describe('harness', () => {
         week: null,
         form: null,
         run: { kind: 'error', heading: 'Weather unavailable', lines: [] },
+        weatherRetryAt: null,
         attribution: ''
       });
       expect(JSON.stringify(result)).not.toContain('boom');
