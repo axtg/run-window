@@ -46,6 +46,11 @@ jobs:
           npm run build:css
           git diff --exit-code public/tailwind.css || (echo "Run npm run build:css and commit the result" && exit 1)
 
+      - name: Check the TRMNL transform is up to date
+        run: |
+          npm run build:trmnl
+          git diff --exit-code integrations/trmnl-running-board/transform.js || (echo "Run npm run build:trmnl and commit the result" && exit 1)
+
       - name: Run tests
         run: npm test
         env:
