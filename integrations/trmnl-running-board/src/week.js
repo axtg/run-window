@@ -202,4 +202,4 @@ function weekView(week, lang) {
   };
 }
 
-module.exports = { planDay, activityDay, buildWeek, weekView };
+module.exports = { planDay, activityDay, matchesSport, buildWeek, weekView };

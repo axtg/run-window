@@ -104,11 +104,16 @@ function fill(template, values) {
   return String(template).replace(/\{(\w+)\}/g, (_, key) => (values && values[key] !== undefined ? values[key] : ''));
 }
 
+function cardinalText(code, lang) {
+  const language = STRINGS[lang] ? lang : 'en';
+  return CARDINALS[language][code] || code;
+}
+
 function conditionsText(window, lang) {
   const language = STRINGS[lang] ? lang : 'en';
   const text = STRINGS[language];
   const dry = window.qualifies && window.precipProbMax <= DRY_MAX_PROBABILITY;
-  const cardinal = CARDINALS[language][window.windFromCardinal] || window.windFromCardinal;
+  const cardinal = cardinalText(window.windFromCardinal, language);
   const temp = Math.round(window.apparentTempAvg) || 0; // `|| 0` turns -0 into 0
   return {
     sky: dry ? text.dry : `${text.rain} ${window.precipProbMax}%`,
@@ -136,4 +141,13 @@ function formatPace(secondsPerKm) {
   return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, '0')}`;
 }
 
-module.exports = { STRINGS, resolveLanguage, fill, conditionsText, formatKm, formatDuration, formatPace };
+module.exports = {
+  STRINGS,
+  resolveLanguage,
+  fill,
+  cardinalText,
+  conditionsText,
+  formatKm,
+  formatDuration,
+  formatPace
+};

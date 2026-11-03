@@ -2,6 +2,7 @@ const {
   STRINGS,
   resolveLanguage,
   fill,
+  cardinalText,
   conditionsText,
   formatKm,
   formatDuration,
@@ -134,6 +135,15 @@ describe('conditionsText', () => {
   it('never prints -0', () => {
     expect(conditionsText({ ...base, apparentTempAvg: -0.4 }, 'en').temp).toBe('0°C');
     expect(conditionsText({ ...base, apparentTempAvg: -2.6 }, 'en').temp).toBe('-3°C');
+  });
+});
+
+describe('cardinalText', () => {
+  it('translates the nl cardinals that differ and keeps the rest', () => {
+    expect(cardinalText('SW', 'nl')).toBe('ZW');
+    expect(cardinalText('NW', 'nl')).toBe('NW');
+    expect(cardinalText('SW', 'en')).toBe('SW');
+    expect(cardinalText('SW', 'de')).toBe('SW');
   });
 });
 
