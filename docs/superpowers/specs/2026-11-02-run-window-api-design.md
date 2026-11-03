@@ -298,7 +298,7 @@ tests/
    - Better Stack shows the path and rounded coordinates only;
    - the nginx access log has no query string, also after a plain `http://` request, and neither that site's logs nor
      the host's global access log hold the coordinates;
-   - `curl http://127.0.0.1:3001/health/cache` on the host shows no coordinates (going through the public address gets
+   - `curl http://127.0.0.1:3003/health/cache` on the host shows no coordinates (going through the public address gets
      a 403).
 3. Only then publish the plugin that points at it.
 

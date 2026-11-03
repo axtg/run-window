@@ -44,7 +44,7 @@ describe('nginx config', () => {
     expect(locations.length).toBeGreaterThan(0);
     for (const location of locations) {
       expect(location.body).not.toMatch(/proxy_set_header/);
-      expect(location.body).toMatch(/proxy_pass http:\/\/127\.0\.0\.1:3001;/);
+      expect(location.body).toMatch(/proxy_pass http:\/\/127\.0\.0\.1:3003;/);
     }
   });
 
@@ -100,7 +100,7 @@ describe('docker compose', () => {
   test('uses host networking on loopback', () => {
     expect(compose).toMatch(/network_mode: host/);
     expect(compose).toMatch(/HOST=127\.0\.0\.1/);
-    expect(compose).toMatch(/PORT=3001/);
+    expect(compose).toMatch(/PORT=3003/);
   });
 });
 
@@ -109,10 +109,10 @@ describe('docker image', () => {
     expect(read('.dockerignore').split('\n')).toContain('.superpowers');
   });
 
-  test('exposes 3001 and checks health on loopback', () => {
-    expect(read('docker/Dockerfile')).toMatch(/EXPOSE 3001/);
+  test('exposes 3003 and checks health on loopback', () => {
+    expect(read('docker/Dockerfile')).toMatch(/EXPOSE 3003/);
     const healthcheck = read('docker/healthcheck.js');
     expect(healthcheck).toMatch(/127\.0\.0\.1/);
-    expect(healthcheck).toMatch(/process\.env\.PORT \|\| 3001/);
+    expect(healthcheck).toMatch(/process\.env\.PORT \|\| 3003/);
   });
 });

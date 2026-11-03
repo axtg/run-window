@@ -51,11 +51,11 @@ test approach. Read its `CLAUDE.md` first. Reuse rather than reinvent:
 
 ## Commands
 
-- `npm run dev` / `npm start`: run the API (`PORT` 3001, `HOST` 127.0.0.1 by default).
+- `npm run dev` / `npm start`: run the API (`PORT` 3003, `HOST` 127.0.0.1 by default).
 - `npm test`, `npm run test:coverage`: Jest. `tests/fixtures/private/` is optional and git-ignored.
 - `npm run lint`, `npm run lint:fix`, `npm run format`, `npm run format:check`.
 - `npm run validate-api`: validates `docs/openapi.yaml`.
 - `npm run build:css`: rebuilds `public/tailwind.css`; CI fails if the committed file is out of date.
-- `npm run docker:build`: builds the image. `docker-compose.yml` uses host networking bound to 127.0.0.1:3001, so
+- `npm run docker:build`: builds the image. `docker-compose.yml` uses host networking bound to 127.0.0.1:3003, so
   nginx reaches it over loopback (`trust proxy` is `loopback`). `docker/nginx-run.xadi.eu.conf` is the nginx site: it
   logs a fixed list of paths only, strips `Authorization` and `Cookie`, and allows `/health/cache` from the host only.

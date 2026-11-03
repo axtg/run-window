@@ -89,8 +89,8 @@ test('documents the other routes', () => {
 });
 
 test('the development server is on the port the app defaults to', () => {
-  expect(spec.servers[0].url).toBe('http://localhost:3001');
-  expect(fs.readFileSync(path.join(__dirname, '..', 'index.js'), 'utf8')).toContain('process.env.PORT || 3001');
+  expect(spec.servers[0].url).toBe('http://localhost:3003');
+  expect(fs.readFileSync(path.join(__dirname, '..', 'index.js'), 'utf8')).toContain('process.env.PORT || 3003');
 });
 
 test('the 400 example is the message the app really sends', async () => {

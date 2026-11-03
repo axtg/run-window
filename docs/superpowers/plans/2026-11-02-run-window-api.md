@@ -33,7 +33,7 @@ Checked against the live API on 2026-11-02 where marked.
 - **`windFrom`:** vector mean of the slots' directions, rounded, with 360 reported as 0.
 - **`precipSum`:** sum of each slot's `precip / 4`, 1 decimal. Other rounding: `score`, `apparentTempAvg` 1 decimal; `windAvg`, `gustMax`, `precipProbMax`, `windFrom` integers.
 - **Rate limit:** default 20 requests/s per IP (`RATE_LIMIT_RPS`), with no TRMNL IP list. The upstream budget protects the quota, so the per-IP limit only has to allow bursts.
-- **Docker networking:** `trust proxy` = `loopback` only works if nginx connects over loopback. In a bridged container the peer is the Docker gateway, and every client would share one rate-limit bucket. Use `network_mode: host`, binding `127.0.0.1:3001`.
+- **Docker networking:** `trust proxy` = `loopback` only works if nginx connects over loopback. In a bridged container the peer is the Docker gateway, and every client would share one rate-limit bucket. Use `network_mode: host`, binding `127.0.0.1:3003`.
 
 ## Review Focus
 
@@ -64,7 +64,7 @@ Expected: `feature/run-window-api`, which already holds the approved spec and th
 
 - [ ] **Step 2: Copy the config from eu-dayahead**
 
-Copy `eslint.config.js`, `.prettierrc`, `tests/setup.js`, `utils/httpClient.js` and `tests/httpClient.test.js` unchanged, and `.dockerignore`, with `docs/` left in the image. In `package.json` keep only `cors`, `date-fns`, `date-fns-tz`, `dotenv`, `express` as dependencies and `@apidevtools/swagger-parser`, `@eslint/js`, `eslint`, `globals`, `jest`, `nodemon`, `prettier`, `supertest`, `tailwindcss@3.4.17` as dev dependencies; name `run-window`, license `MIT`, engines `node >=22`. Set `collectCoverageFrom` to `app.js`, `lib/`, `routes/`, `middleware/`, `utils/`. `.env.example`: `PORT=3001`, `HOST=127.0.0.1`, `NODE_ENV`, `LOGTAIL_TOKEN`, `LOGTAIL_ENDPOINT`, `RATE_LIMIT_RPS=20`, `CORS_ORIGIN=*`.
+Copy `eslint.config.js`, `.prettierrc`, `tests/setup.js`, `utils/httpClient.js` and `tests/httpClient.test.js` unchanged, and `.dockerignore`, with `docs/` left in the image. In `package.json` keep only `cors`, `date-fns`, `date-fns-tz`, `dotenv`, `express` as dependencies and `@apidevtools/swagger-parser`, `@eslint/js`, `eslint`, `globals`, `jest`, `nodemon`, `prettier`, `supertest`, `tailwindcss@3.4.17` as dev dependencies; name `run-window`, license `MIT`, engines `node >=22`. Set `collectCoverageFrom` to `app.js`, `lib/`, `routes/`, `middleware/`, `utils/`. `.env.example`: `PORT=3003`, `HOST=127.0.0.1`, `NODE_ENV`, `LOGTAIL_TOKEN`, `LOGTAIL_ENDPOINT`, `RATE_LIMIT_RPS=20`, `CORS_ORIGIN=*`.
 
 - [ ] **Step 3: Capture the fixtures**
 
@@ -716,7 +716,7 @@ test('nginx config removes credentials and logs no query strings', () => {
 test('compose uses host networking on loopback', () => {
   expect(compose).toMatch(/network_mode: host/);
   expect(compose).toMatch(/HOST=127\.0\.0\.1/);
-  expect(compose).toMatch(/PORT=3001/);
+  expect(compose).toMatch(/PORT=3003/);
 });
 ```
 
@@ -729,11 +729,11 @@ Expected: FAIL.
 
 - [ ] **Step 3: Write the files**
 
-Dockerfile as in eu-dayahead, with `EXPOSE 3001`. Healthcheck connects to `127.0.0.1:${PORT}`. CI: copy eu-dayahead's `test` and `security` jobs with their pinned actions, add `npm run validate-api` and the out-of-date `public/tailwind.css` check. Nginx: `listen`, `server_name run.xadi.eu`, `proxy_pass http://127.0.0.1:3001`, `X-Forwarded-For $proxy_add_x_forwarded_for`; leave TLS to the host's existing certbot setup. In `CLAUDE.md`, replace "Status" and "Commands" with the real commands, and mark the API built. In `readme.md`, update the status line.
+Dockerfile as in eu-dayahead, with `EXPOSE 3003`. Healthcheck connects to `127.0.0.1:${PORT}`. CI: copy eu-dayahead's `test` and `security` jobs with their pinned actions, add `npm run validate-api` and the out-of-date `public/tailwind.css` check. Nginx: `listen`, `server_name run.xadi.eu`, `proxy_pass http://127.0.0.1:3003`, `X-Forwarded-For $proxy_add_x_forwarded_for`; leave TLS to the host's existing certbot setup. In `CLAUDE.md`, replace "Status" and "Commands" with the real commands, and mark the API built. In `readme.md`, update the status line.
 
 - [ ] **Step 4: Verify the image**
 
-Run: `npm run docker:build && docker run -d --rm --name rw-test --network host -e PORT=3001 -e HOST=127.0.0.1 run-window && sleep 8 && docker inspect --format '{{.State.Health.Status}}' rw-test; curl -s 'http://127.0.0.1:3001/api/window?lat=52.37&lon=4.89' | head -c 300; docker stop rw-test`
+Run: `npm run docker:build && docker run -d --rm --name rw-test --network host -e PORT=3003 -e HOST=127.0.0.1 run-window && sleep 8 && docker inspect --format '{{.State.Health.Status}}' rw-test; curl -s 'http://127.0.0.1:3003/api/window?lat=52.37&lon=4.89' | head -c 300; docker stop rw-test`
 Expected: `healthy` or `starting`, then JSON containing `Europe/Amsterdam`. If Docker isn't available, say so; don't mark this step done.
 
 - [ ] **Step 5: Run everything and commit**
@@ -752,7 +752,7 @@ git add -A && git commit -m "chore: add Docker, nginx and CI configuration"
 Needs host access and approval, so no agent does this unprompted. The API stays unlinked from the plugin until every check passes.
 
 - [ ] **Step 1: Merge the branch**, using superpowers:finishing-a-development-branch.
-- [ ] **Step 2: Deploy** next to eu-dayahead, with the nginx config and a `run.xadi.eu` DNS record and certificate. First confirm ports 3001 and 3081 are free on `127.0.0.1` on the host (`docker/nginx-run.xadi.eu.conf` uses 3081 as a placeholder listen). Then:
+- [ ] **Step 2: Deploy** next to eu-dayahead, with the nginx config and a `run.xadi.eu` DNS record and certificate. First confirm ports 3003 and 3081 are free on `127.0.0.1` on the host (`docker/nginx-run.xadi.eu.conf` uses 3081 as a placeholder listen). The signed GitHub deploy webhook listens on `127.0.0.1:9003`; it lives on the host, not in this repo. Then:
   - Run certbot as the conf comment says: `certbot --nginx --no-redirect -d run.xadi.eu`.
   - Delete the `listen 127.0.0.1:3081;` line from the installed conf, reload nginx and re-run `nginx -t`.
   - This certbot flow has not been tested against a real ACME server: only its installer step was run, with a self-signed certificate. Check the result by hand.
@@ -762,7 +762,7 @@ Run: `curl -s -H 'Authorization: Bearer canary-123' 'https://run.xadi.eu/api/win
 Expected, each checked separately:
   - Better Stack shows the path, `lat: 52.4`, `lon: 4.9`, and no `canary-123`, `3731` or `8922`.
   - Send the same request once more to the plain `http://` address, then `grep -E 'canary|3731|lat=' <this site's nginx logs> /var/log/nginx/access.log` finds nothing.
-  - `curl http://127.0.0.1:3001/health/cache` on the host shows no coordinates (going through the public address gets a 403).
+  - `curl http://127.0.0.1:3003/health/cache` on the host shows no coordinates (going through the public address gets a 403).
 - [ ] **Step 4: Check the rate limiter sees real clients.** Requests from two different networks produce different `clientId`s in Better Stack. If they match, `trust proxy` and the network mode are wrong.
 - [ ] **Step 5: Check a real TRMNL request**, from a private plugin that sends a throwaway header, with the same checks as Step 3.
 - [ ] **Step 6: Run the week-long sanity check** from the spec: compare the answers with how the runs felt, and check the nl labels.
