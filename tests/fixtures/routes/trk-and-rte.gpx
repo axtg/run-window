@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.1" creator="synthetic" xmlns="http://www.topografix.com/GPX/1/1">
+  <trk>
+    <name>Track wins</name>
+    <trkseg>
+      <trkpt lat="52.37" lon="4.89"><ele>1</ele></trkpt>
+      <trkpt lat="52.37" lon="4.891473"><ele>1</ele></trkpt>
+      <trkpt lat="52.37" lon="4.892946"><ele>1</ele></trkpt>
+      <trkpt lat="52.37" lon="4.894419"><ele>1</ele></trkpt>
+      <trkpt lat="52.37" lon="4.895892"><ele>1</ele></trkpt>
+      <trkpt lat="52.37" lon="4.897365"><ele>1</ele></trkpt>
+      <trkpt lat="52.37" lon="4.898838"><ele>1</ele></trkpt>
+      <trkpt lat="52.37" lon="4.900311"><ele>1</ele></trkpt>
+      <trkpt lat="52.37" lon="4.901784"><ele>1</ele></trkpt>
+      <trkpt lat="52.37" lon="4.903257"><ele>1</ele></trkpt>
+    </trkseg>
+  </trk>
+  <rte>
+    <name>Route loses</name>
+      <rtept lat="52.371799" lon="4.89"><ele>1</ele></rtept>
+      <rtept lat="52.371799" lon="4.890884"><ele>1</ele></rtept>
+      <rtept lat="52.371799" lon="4.891768"><ele>1</ele></rtept>
+      <rtept lat="52.371799" lon="4.892651"><ele>1</ele></rtept>
+      <rtept lat="52.371799" lon="4.893535"><ele>1</ele></rtept>
+      <rtept lat="52.371799" lon="4.894419"><ele>1</ele></rtept>
+  </rte>
+</gpx>

@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.1" creator="synthetic" xmlns="http://www.topografix.com/GPX/1/1">
+  <trk>
+    <trkseg>
+      <trkpt lat="52.37" lon="4.89"><ele>1</ele></trkpt>
+      <trkpt lat="52.370899" lon="4.89"><ele>1</ele></trkpt>
+      <trkpt lat="52.371799" lon="4.89"><ele>1</ele></trkpt>
+      <trkpt lat="52.372698" lon="4.89"><ele>1</ele></trkpt>
+      <trkpt lat="52.373597" lon="4.89"><ele>1</ele></trkpt>
+      <trkpt lat="52.374497" lon="4.89"><ele>1</ele></trkpt>
+      <trkpt lat="52.375396" lon="4.89"><ele>1</ele></trkpt>
+      <trkpt lat="52.376295" lon="4.89"><ele>1</ele></trkpt>
+      <trkpt lat="52.377195" lon="4.89"><ele>1</ele></trkpt>
+      <trkpt lat="52.378094" lon="4.89"><ele>1</ele></trkpt>
+      <trkpt lat="52.378993" lon="4.89"><ele>1</ele></trkpt>
+      <trkpt lat="52.379893" lon="4.89"><ele>1</ele></trkpt>
+      <trkpt lat="52.380792" lon="4.89"><ele>1</ele></trkpt>
+      <trkpt lat="52.381691" lon="4.89"><ele>1</ele></trkpt>
+      <trkpt lat="52.38259" lon="4.89"><ele>1</ele></trkpt>
+      <trkpt lat="52.38349" lon="4.89"><ele>1</ele></trkpt>
+      <trkpt lat="52.38259" lon="4.89"><ele>1</ele></trkpt>
+      <trkpt lat="52.381691" lon="4.89"><ele>1</ele></trkpt>
+      <trkpt lat="52.380792" lon="4.89"><ele>1</ele></trkpt>
+      <trkpt lat="52.379893" lon="4.89"><ele>1</ele></trkpt>
+      <trkpt lat="52.378993" lon="4.89"><ele>1</ele></trkpt>
+      <trkpt lat="52.378094" lon="4.89"><ele>1</ele></trkpt>
+      <trkpt lat="52.377195" lon="4.89"><ele>1</ele></trkpt>
+      <trkpt lat="52.376295" lon="4.89"><ele>1</ele></trkpt>
+      <trkpt lat="52.375396" lon="4.89"><ele>1</ele></trkpt>
+      <trkpt lat="52.374497" lon="4.89"><ele>1</ele></trkpt>
+      <trkpt lat="52.373597" lon="4.89"><ele>1</ele></trkpt>
+      <trkpt lat="52.372698" lon="4.89"><ele>1</ele></trkpt>
+      <trkpt lat="52.371799" lon="4.89"><ele>1</ele></trkpt>
+      <trkpt lat="52.370899" lon="4.89"><ele>1</ele></trkpt>
+      <trkpt lat="52.37" lon="4.89"><ele>1</ele></trkpt>
+    </trkseg>
+  </trk>
+</gpx>

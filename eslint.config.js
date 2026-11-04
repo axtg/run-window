@@ -30,7 +30,7 @@ module.exports = [
     files: ['public/**/*.js'],
     languageOptions: {
       sourceType: 'script',
-      globals: { ...globals.browser }
+      globals: { ...globals.browser, module: 'readonly', require: 'readonly' }
     }
   }
 ];

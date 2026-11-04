@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.1" creator="synthetic" xmlns="http://www.topografix.com/GPX/1/1">
+  <trk>
+    <name>Two segments test</name>
+    <trkseg>
+      <trkpt lat="52.37" lon="4.89"><ele>1</ele></trkpt>
+      <trkpt lat="52.37" lon="4.891178"><ele>1</ele></trkpt>
+      <trkpt lat="52.37" lon="4.892357"><ele>1</ele></trkpt>
+      <trkpt lat="52.37" lon="4.893535"><ele>1</ele></trkpt>
+      <trkpt lat="52.37" lon="4.894713"><ele>1</ele></trkpt>
+      <trkpt lat="52.37" lon="4.895892"><ele>1</ele></trkpt>
+    </trkseg>
+    <trkseg>
+      <trkpt lat="52.37" lon="4.897365"><ele>1</ele></trkpt>
+      <trkpt lat="52.37" lon="4.898543"><ele>1</ele></trkpt>
+      <trkpt lat="52.37" lon="4.899721"><ele>1</ele></trkpt>
+      <trkpt lat="52.37" lon="4.9009"><ele>1</ele></trkpt>
+      <trkpt lat="52.37" lon="4.902078"><ele>1</ele></trkpt>
+      <trkpt lat="52.37" lon="4.903257"><ele>1</ele></trkpt>
+    </trkseg>
+  </trk>
+</gpx>

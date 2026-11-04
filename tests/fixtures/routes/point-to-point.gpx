@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.1" creator="synthetic" xmlns="http://www.topografix.com/GPX/1/1">
+  <trk>
+    <name>Point to point test</name>
+    <trkseg>
+      <trkpt lat="52.37" lon="4.89"><ele>1</ele></trkpt>
+      <trkpt lat="52.370142" lon="4.891395"><ele>1</ele></trkpt>
+      <trkpt lat="52.370284" lon="4.892791"><ele>1</ele></trkpt>
+      <trkpt lat="52.370426" lon="4.894186"><ele>1</ele></trkpt>
+      <trkpt lat="52.370568" lon="4.895582"><ele>1</ele></trkpt>
+      <trkpt lat="52.37071" lon="4.896977"><ele>1</ele></trkpt>
+      <trkpt lat="52.370852" lon="4.898373"><ele>1</ele></trkpt>
+      <trkpt lat="52.370994" lon="4.899768"><ele>1</ele></trkpt>
+      <trkpt lat="52.371136" lon="4.901163"><ele>1</ele></trkpt>
+      <trkpt lat="52.371278" lon="4.902559"><ele>1</ele></trkpt>
+      <trkpt lat="52.37142" lon="4.903954"><ele>1</ele></trkpt>
+      <trkpt lat="52.371562" lon="4.90535"><ele>1</ele></trkpt>
+      <trkpt lat="52.371704" lon="4.906745"><ele>1</ele></trkpt>
+      <trkpt lat="52.371846" lon="4.90814"><ele>1</ele></trkpt>
+      <trkpt lat="52.371988" lon="4.909536"><ele>1</ele></trkpt>
+      <trkpt lat="52.37213" lon="4.910931"><ele>1</ele></trkpt>
+      <trkpt lat="52.372272" lon="4.912327"><ele>1</ele></trkpt>
+      <trkpt lat="52.372414" lon="4.913722"><ele>1</ele></trkpt>
+      <trkpt lat="52.372556" lon="4.915118"><ele>1</ele></trkpt>
+      <trkpt lat="52.372698" lon="4.916513"><ele>1</ele></trkpt>
+    </trkseg>
+  </trk>
+</gpx>

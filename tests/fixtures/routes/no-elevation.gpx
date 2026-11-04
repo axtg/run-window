@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.1" creator="synthetic" xmlns="http://www.topografix.com/GPX/1/1">
+  <trk>
+    <name>No elevation test</name>
+    <trkseg>
+      <trkpt lat="52.37" lon="4.895892"></trkpt>
+      <trkpt lat="52.370748" lon="4.895763"></trkpt>
+      <trkpt lat="52.371463" lon="4.895382"></trkpt>
+      <trkpt lat="52.372114" lon="4.894767"></trkpt>
+      <trkpt lat="52.372673" lon="4.893942"></trkpt>
+      <trkpt lat="52.373115" lon="4.892946"></trkpt>
+      <trkpt lat="52.373421" lon="4.891821"></trkpt>
+      <trkpt lat="52.373578" lon="4.890616"></trkpt>
+      <trkpt lat="52.373578" lon="4.889384"></trkpt>
+      <trkpt lat="52.373421" lon="4.888179"></trkpt>
+      <trkpt lat="52.373115" lon="4.887054"></trkpt>
+      <trkpt lat="52.372673" lon="4.886058"></trkpt>
+      <trkpt lat="52.372114" lon="4.885233"></trkpt>
+      <trkpt lat="52.371463" lon="4.884618"></trkpt>
+      <trkpt lat="52.370748" lon="4.884237"></trkpt>
+      <trkpt lat="52.37" lon="4.884108"></trkpt>
+      <trkpt lat="52.369252" lon="4.884237"></trkpt>
+      <trkpt lat="52.368537" lon="4.884618"></trkpt>
+      <trkpt lat="52.367886" lon="4.885233"></trkpt>
+      <trkpt lat="52.367327" lon="4.886058"></trkpt>
+      <trkpt lat="52.366885" lon="4.887054"></trkpt>
+      <trkpt lat="52.366579" lon="4.888179"></trkpt>
+      <trkpt lat="52.366422" lon="4.889384"></trkpt>
+      <trkpt lat="52.366422" lon="4.890616"></trkpt>
+      <trkpt lat="52.366579" lon="4.891821"></trkpt>
+      <trkpt lat="52.366885" lon="4.892946"></trkpt>
+      <trkpt lat="52.367327" lon="4.893942"></trkpt>
+      <trkpt lat="52.367886" lon="4.894767"></trkpt>
+      <trkpt lat="52.368537" lon="4.895382"></trkpt>
+      <trkpt lat="52.369252" lon="4.895763"></trkpt>
+      <trkpt lat="52.37" lon="4.895892"></trkpt>
+    </trkseg>
+  </trk>
+</gpx>
