@@ -24,7 +24,9 @@
   .rb-form__labels { display: flex; justify-content: space-between; font-size: 16px; line-height: 20px; }
   .rb-form__graphbox { position: relative; }
   .rb-form__today { position: absolute; bottom: 4px; transform: translateX(-100%); padding-right: 5px; font-size: 16px; line-height: 16px; }
-  .rb-form--intensity svg.rb-form__graph { height: 84px; }
+  /* With the bar, the graph takes whatever height the run panel leaves, never under 84px */
+  .rb-form--intensity .rb-form__graphbox { flex: 1 1 84px; min-height: 84px; }
+  .rb-form--intensity svg.rb-form__graph { position: absolute; top: 0; left: 0; height: 100%; }
   .rb-intensity__heading { font-size: 17px; font-weight: 700; line-height: 21px; padding-top: 4px; }
   .rb-intensity__labels { display: flex; justify-content: space-between; font-size: 15px; line-height: 19px; }
   .rb-run { padding-top: 8px; }

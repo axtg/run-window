@@ -108,10 +108,15 @@ describe('full.liquid: intensity bar', () => {
     expect(html).toMatch(/vector-effect="non-scaling-stroke"[^>]*>|<rect[^>]*vector-effect="non-scaling-stroke"/);
   });
 
-  it('stretches the graph to the column width and shortens it when the bar is present', async () => {
+  it('stretches the graph to the column width and lets it fill the height the bar leaves, at least 84px', async () => {
     const { html } = await rendered();
     expect(html).toMatch(/<svg class="rb-form__graph" viewBox="0 0 360 150" preserveAspectRatio="none"/);
-    expect(template).toMatch(/\.rb-form--intensity svg\.rb-form__graph\s*\{[^}]*height:\s*\d+px/);
+    expect(template).toMatch(
+      /\.rb-form--intensity \.rb-form__graphbox\s*\{[^}]*flex:\s*1 1 84px;[^}]*min-height:\s*84px/
+    );
+    expect(template).toMatch(
+      /\.rb-form--intensity svg\.rb-form__graph\s*\{[^}]*position:\s*absolute;[^}]*height:\s*100%/
+    );
   });
 
   it('centres the 2px stripe in its tile', async () => {
