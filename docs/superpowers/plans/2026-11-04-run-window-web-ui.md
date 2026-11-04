@@ -64,6 +64,13 @@ Web App Manifest + Service Worker, `@xmldom/xmldom` (dev only, for parsing tests
 - [ ] Optional: copy `../run-window/tests/fixtures/private/trailrouter-loop.gpx` into this worktree's
   `tests/fixtures/private/` (git-ignored). Never print its coordinates.
 - [ ] Check roborev's post-commit hook fires here (`roborev` status after the first commit).
+- [ ] **Pin today's response** before any code changes: a one-off script (scratchpad, not committed) requests
+  `/api/window?lat=52.37&lon=4.89&avail=07-09,12-14,17-21` from `createApp` with the Amsterdam fixture and
+  `now: () => Date.UTC(2026, 10, 2, 9)` and writes the response text to `tests/fixtures/window-response-amsterdam.json`;
+  the same with the wet forecast from `window.route.test.js` (fallback present) to
+  `window-response-amsterdam-wet.json`. Add `without slots the response is byte-for-byte the golden one` to
+  `tests/window.route.test.js` (`response.text` equals each file's text). Commit
+  `test(api): pin the current /api/window response`. It stays green through Tasks 1 and 2.
 
 ---
 
@@ -126,8 +133,6 @@ Web App Manifest + Service Worker, `@xmldom/xmldom` (dev only, for parsing tests
 **Files:**
 - Modify: `lib/params.js`, `routes/window.js`, `docs/openapi.yaml`, `readme.md` (one line on `slots=1` is optional;
   the page's API section is Task 7)
-- Create: `tests/fixtures/window-response-amsterdam.json` (golden, generated in Step 1 from the code **before** this
-  task's changes)
 - Test: `tests/params.test.js`, `tests/window.route.test.js`, `tests/openapi.test.js`
 
 **Interfaces:**
@@ -136,18 +141,11 @@ Web App Manifest + Service Worker, `@xmldom/xmldom` (dev only, for parsing tests
   else → 400 `Invalid slots: must be 1 or empty`). The response's `params` object is unchanged (no `slots` key).
   With `slots=1`, each `days[i]` has `slots: Slot[]` as its last key (shape from Task 1's `serializeSlot`).
 
-- [ ] **Step 1: Capture the golden response** before touching the route: a one-off script (in the scratchpad, not
-  committed) that requests `/api/window?lat=52.37&lon=4.89&avail=07-09,12-14,17-21` from `createApp` with the
-  Amsterdam fixture and `now: () => Date.UTC(2026, 10, 2, 9)`, and writes the response text to
-  `tests/fixtures/window-response-amsterdam.json`. Also capture the same with the wet forecast used in
-  `window.route.test.js` (fallback present) as `window-response-amsterdam-wet.json`.
-
-- [ ] **Step 2: Write the failing tests:**
+- [ ] **Step 1: Write the failing tests** (the golden files come from "Before Task 1"):
   - `params.test.js`: `slots` `'1'` → true, absent/`''` → false, `'true'`, `'0'`, `['1','1']` → 400 whose message
     contains `slots` and not the value.
   - `window.route.test.js`:
-    - `without slots the response is byte-for-byte the golden one`: `response.text` equals the fixture file's text
-      (both fixtures), and with `&slots=` too.
+    - the golden test also holds with `&slots=` (empty).
     - `slots=1 adds slots to both days and nothing else`: removing `slots` from each day gives the golden body;
       `params` has no `slots`; each day's last key is `slots`.
     - `slots=1 on the default avail lists 64 slots tomorrow`.
@@ -155,17 +153,17 @@ Web App Manifest + Service Worker, `@xmldom/xmldom` (dev only, for parsing tests
   - `openapi.test.js`: a `slots=1` response validates against the schema (follow the file's existing validation
     helper), and the `slots` parameter is documented.
 
-- [ ] **Step 3: Run** `npx jest tests/params.test.js tests/window.route.test.js tests/openapi.test.js` — Expected: FAIL.
+- [ ] **Step 2: Run** `npx jest tests/params.test.js tests/window.route.test.js tests/openapi.test.js` — Expected: FAIL.
 
-- [ ] **Step 4: Implement:** `parseSlots` in `lib/params.js`; pass `includeSlots: query.slots` in `routes/window.js`;
+- [ ] **Step 3: Implement:** `parseSlots` in `lib/params.js`; pass `includeSlots: query.slots` in `routes/window.js`;
   in `docs/openapi.yaml` add the `slots` parameter (`type: string, enum: ['1']`, description: "`1` adds a `slots`
   list to each day: every 15-minute slot inside `avail`, with its status and weather. For drawing the day; the
   windows are unchanged.") and a `Slot` schema (`status` enum `ok, past, dark, missing, rain`; nullable numbers) and
   optional `WindowDay.slots`.
 
-- [ ] **Step 5: Run** `npx jest && npm run validate-api` — Expected: PASS, "✅ OpenAPI spec is valid".
+- [ ] **Step 4: Run** `npx jest && npm run validate-api` — Expected: PASS, "✅ OpenAPI spec is valid".
 
-- [ ] **Step 6: Commit** `feat(api): opt-in slots=1 lists the day's slots`. Then message the other session
+- [ ] **Step 5: Commit** `feat(api): opt-in slots=1 lists the day's slots`. Then message the other session
   (`run-window-2d`, via SendMessage/ListAgents) one line: "slots=1 is on feat/web-ui; default response proven
   unchanged by a golden test."
 
@@ -178,7 +176,7 @@ Web App Manifest + Service Worker, `@xmldom/xmldom` (dev only, for parsing tests
   `flat-loop.gpx`, `hill-loop.gpx`, `out-and-back.gpx`, `point-to-point.gpx`, `no-elevation.gpx`, `two-segments.gpx`,
   `waypoints-only.gpx`, `trk-and-rte.gpx`, `loop.kml`, `zero-alt.kml`, `not-xml.gpx`
   (all around 52.37, 4.89; a few dozen points each; written by hand or by a committed `scripts/make-route-fixtures.js`)
-- Modify: `package.json` (devDependency `@xmldom/xmldom`), `eslint.config.js` (public block: `module: 'readonly'`)
+- Modify: `package.json` (devDependency `@xmldom/xmldom`), `eslint.config.js` (public block: `module: 'readonly'`, `require: 'readonly'`)
 
 **Interfaces:**
 - Produces `globalThis.RouteFile` / `module.exports`:
@@ -315,14 +313,14 @@ Web App Manifest + Service Worker, `@xmldom/xmldom` (dev only, for parsing tests
   - `whySentence(slots, range, { timeZone, sunsetIso }) → string`. Rule: compare the range's mean feels-like and mean
     wind with the mean of all `ok` slots outside it. Clauses: `Warmer` when ≥ 1 °C warmer, `less windy` when ≥ 3 km/h
     calmer. First sentence: `Warmer and less windy than the rest of the day.` / one clause / `Similar all day; this is
-    the earliest good time.`. Then `Rain from 18:00.` for the first `rain` slot after the range, and `Dark from
+    the earliest good time.`; with no `ok` slots outside the range, `The only dry stretch of the day.`. Then `Rain from 18:00.` for the first `rain` slot after the range, and `Dark from
     17:08.` when `sunsetIso` falls inside the span after the range (both optional, joined: `Rain from 18:00, dark from
     17:08.`).
 
 - [ ] **Step 1: Write the failing tests** with small hand-built slot arrays: shading extremes and equal scores; grey
   and red classes; `rangeIndices` edges (end exclusive); `ticks` across a DST day (labels follow local time);
   `slotLine` for every status; `chartModel` breaks at missing slots and counts dark runs; `whySentence` for warmer,
-  less windy, both, neither, with and without rain/sunset after.
+  less windy, both, neither, no `ok` slots outside the range, with and without rain/sunset after.
 
 - [ ] **Step 2: Run** `npx jest tests/web/strip.test.js` — Expected: FAIL.
 
