@@ -12,7 +12,7 @@
   .rb-days { flex: 1 1 auto; display: flex; flex-direction: column; }
   .rb-day { display: flex; align-items: center; flex: 1 1 0; min-height: 0; padding: 0 6px; border-bottom: 1px solid #000; }
   .rb-day--today, .rb-day--today * { background: #000; color: #fff; }
-  .rb-day__label { width: 42px; flex: 0 0 42px; font-size: 26px; font-weight: 700; }
+  .rb-day__label { min-width: 42px; flex: 0 0 auto; padding-right: 6px; font-size: 26px; font-weight: 700; }
   .rb-day__items { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; }
   .rb-item { font-size: 19px; line-height: 23px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .rb-item--done, .rb-item--unplanned { font-weight: 700; }

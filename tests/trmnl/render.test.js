@@ -87,6 +87,16 @@ describe('full.liquid: normal case', () => {
   });
 });
 
+describe('full.liquid: day rows', () => {
+  it('keeps the day label apart from its first item whatever the label width', () => {
+    const rule = template.match(/\.rb-day__label\s*\{([^}]*)\}/)[1];
+    expect(rule).toMatch(/min-width:\s*42px/);
+    expect(rule).toMatch(/flex:\s*0 0 auto/);
+    expect(rule).toMatch(/padding-right:\s*6px/);
+    expect(rule).not.toMatch(/(^|[^-])width:\s*42px/);
+  });
+});
+
 describe('full.liquid: theme', () => {
   it('marks the board dark only for the dark theme', async () => {
     expect((await rendered({ fields: { theme: 'dark' } })).html).toContain('<div class="rb rb--dark">');
