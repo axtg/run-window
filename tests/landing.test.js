@@ -76,6 +76,8 @@ test('the page makes no external requests and has no inline style', () => {
 test('privacy text says the route file stays in the browser and the location is rounded', () => {
   expect(text).toContain('read in your browser');
   expect(text).toContain('never sent');
+  expect(text).toContain('waits briefly in your browser');
+  expect(text).toContain('deleted as soon as the page opens it');
   expect(text).toContain('rounded to 2 decimals before');
 });
 

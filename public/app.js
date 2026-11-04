@@ -322,6 +322,7 @@
       }
       await deleteSharedRoute(); // read once, gone
     }
+    if (share === 'too-large') return setStatus(MESSAGES['too-large']);
     if (!shared) return setStatus(MESSAGES.shareFailed);
     return openRouteText(shared.text, shared.fileName);
   }

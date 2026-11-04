@@ -3,6 +3,7 @@
 // never calls fetch and leaves every other request to the browser: no API caching, no offline copy.
 (function () {
   const SHARE_PATH = '/share-target';
+  const SHARE_FIELD = 'route'; // the manifest's share_target files param name
   const SHARE_CACHE = 'shared-route';
   const SHARE_KEY = '/shared-route';
   const MAX_FILE_BYTES = 5 * 1024 * 1024;
@@ -16,10 +17,11 @@
   async function handleShare(request, caches) {
     try {
       const form = await request.formData();
-      const file = form.get('route');
-      if (!file || typeof file === 'string' || typeof file.size !== 'number' || file.size > MAX_FILE_BYTES) {
+      const file = form.get(SHARE_FIELD);
+      if (!file || typeof file === 'string' || typeof file.size !== 'number') {
         return redirect(request, '/?share=failed');
       }
+      if (file.size > MAX_FILE_BYTES) return redirect(request, '/?share=too-large');
       const cache = await caches.open(SHARE_CACHE);
       const headers = { 'X-File-Name': encodeURIComponent(String(file.name || '')) };
       await cache.put(SHARE_KEY, new Response(file, { headers }));
@@ -29,7 +31,7 @@
     }
   }
 
-  const api = { SHARE_PATH, SHARE_CACHE, SHARE_KEY, handleShare };
+  const api = { SHARE_PATH, SHARE_FIELD, SHARE_CACHE, SHARE_KEY, handleShare };
 
   if (typeof module !== 'undefined') {
     module.exports = api;

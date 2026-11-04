@@ -2,7 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const vm = require('vm');
 
-const { SHARE_PATH, SHARE_CACHE, SHARE_KEY, handleShare } = require('../../public/sw');
+const { SHARE_PATH, SHARE_FIELD, SHARE_CACHE, SHARE_KEY, handleShare } = require('../../public/sw');
 
 const SW_FILE = path.join(__dirname, '..', '..', 'public', 'sw.js');
 const ORIGIN = 'https://run.xadi.eu';
@@ -47,6 +47,7 @@ describe('service worker share hand-off', () => {
 
   test('uses the fixed path, cache and key', () => {
     expect(SHARE_PATH).toBe('/share-target');
+    expect(SHARE_FIELD).toBe('route');
     expect(SHARE_CACHE).toBe('shared-route');
     expect(SHARE_KEY).toBe('/shared-route');
   });
@@ -64,15 +65,23 @@ describe('service worker share hand-off', () => {
     expect(global.fetch).not.toHaveBeenCalled();
   });
 
-  test.each([
-    ['no file', null],
-    ['a 6 MB file', new File([new Uint8Array(6 * 1024 * 1024)], 'huge.gpx')]
-  ])('%s answers ?share=failed and caches nothing', async (_, file) => {
+  test('no file answers ?share=failed and caches nothing', async () => {
     const caches = fakeCaches();
-    const response = await handleShare(sharePost(file), caches);
+    const response = await handleShare(sharePost(null), caches);
 
     expect(response.status).toBe(303);
     expect(target(response)).toBe('/?share=failed');
+    expect(caches.stores.size).toBe(0);
+    expect(global.fetch).not.toHaveBeenCalled();
+  });
+
+  test('a 6 MB file answers ?share=too-large and caches nothing', async () => {
+    const caches = fakeCaches();
+    const file = new File([new Uint8Array(6 * 1024 * 1024)], 'huge.gpx');
+    const response = await handleShare(sharePost(file), caches);
+
+    expect(response.status).toBe(303);
+    expect(target(response)).toBe('/?share=too-large');
     expect(caches.stores.size).toBe(0);
     expect(global.fetch).not.toHaveBeenCalled();
   });

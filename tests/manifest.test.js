@@ -4,6 +4,7 @@ const request = require('supertest');
 
 const { createApp } = require('../app');
 const { LOGGABLE_PATHS } = require('../middleware/logging');
+const { SHARE_PATH, SHARE_FIELD } = require('../public/sw');
 
 const PUBLIC_DIR = path.join(__dirname, '..', 'public');
 const html = fs.readFileSync(path.join(PUBLIC_DIR, 'index.html'), 'utf8');
@@ -35,8 +36,30 @@ describe('web app manifest', () => {
     expect(manifest.display).toBe('standalone');
   });
 
-  test('has no share_target until nginx answers /share-target (release 2)', () => {
-    expect(manifest.share_target).toBeUndefined();
+  test('lists the page in the share sheet for route files, posting to the worker path and form field', () => {
+    expect(manifest.share_target).toEqual({
+      action: SHARE_PATH,
+      method: 'POST',
+      enctype: 'multipart/form-data',
+      params: {
+        files: [
+          {
+            name: SHARE_FIELD,
+            accept: [
+              'application/gpx+xml',
+              'application/vnd.google-earth.kml+xml',
+              'application/xml',
+              'text/xml',
+              'application/octet-stream',
+              '.gpx',
+              '.kml'
+            ]
+          }
+        ]
+      }
+    });
+    expect(manifest.share_target.action).toBe('/share-target');
+    expect(manifest.share_target.params.files[0].name).toBe('route');
   });
 
   test('lists same-origin 192 and 512 PNG icons whose files have those sizes, and the SVG icon', async () => {

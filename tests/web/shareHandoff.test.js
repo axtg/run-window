@@ -44,4 +44,11 @@ describe('share hand-off between sw.js and app.js', () => {
     // app.js clears and reports any share value other than 1; it never treats "failed" as a stored file.
     expect(APP_SOURCE).toContain("if (share !== '1')");
   });
+
+  it('shows the too-large message for the too-large value, not the "didn\'t arrive" one', async () => {
+    const query = await redirectQuery(shareRequest(new File([new Uint8Array(6 * 1024 * 1024)], 'huge.gpx')));
+    expect(query.get('share')).toBe('too-large');
+    expect(APP_SOURCE).toContain(`share === '${query.get('share')}'`);
+    expect(APP_SOURCE).toContain("'too-large': 'That file is too large for a route.'");
+  });
 });
