@@ -271,6 +271,51 @@ describe('app.js privacy smoke test', () => {
     expect(JSON.parse(store.get(sandbox.RunSettings.STORAGE_KEY)).hours).toBe('10-20');
   });
 
+  it('keeps pace in the Run row without a route: an estimate under it, pace edits redraw without asking', async () => {
+    const geolocation = { getCurrentPosition: onOk => onOk({ coords: { latitude: 52.3702, longitude: 4.8952 } }) };
+    const { elements, record } = loadPage({ navigator: { geolocation }, stored: JSON.stringify({ paceSec: 390 }) });
+    elements.get('use-location').listeners.click();
+    await flush();
+    expect(rejections).toEqual([]);
+    expect(record.fetches).toHaveLength(1);
+    expect(elements.get('duration-group').hidden).toBe(false);
+    expect(elements.get('run-distance').hidden).toBe(true);
+    expect(elements.get('run-minutes').hidden).toBe(true);
+    expect(elements.get('pace-input').value).toBe('6:30');
+    expect(elements.get('run-estimate').hidden).toBe(false);
+    expect(elements.get('run-estimate').textContent).toBe('≈ 9.2 km');
+
+    elements.get('pace-down').listeners.click();
+    await flush();
+    expect(elements.get('pace-input').value).toBe('6:25');
+    expect(elements.get('run-estimate').textContent).toBe('≈ 9.4 km');
+    elements.get('pace-input').value = '5:00';
+    elements.get('pace-input').listeners.change();
+    expect(elements.get('run-estimate').textContent).toBe('≈ 12.0 km');
+    elements.get('duration-up').listeners.click();
+    expect(elements.get('run-estimate').textContent).toBe('≈ 15.0 km');
+    await flush();
+    expect(record.fetches).toHaveLength(1);
+  });
+
+  it('shows the route distance and the run minutes in the same Run row with a route', async () => {
+    const { sandbox, elements } = loadPage({ stored: JSON.stringify({ paceSec: 390 }) });
+    await sandbox.RunApp.openRouteText(GPX, FILE_NAME);
+    await flush();
+    const summary = sandbox.RouteFile.summarizeRoute(
+      sandbox.RouteFile.parseRoute(GPX, FILE_NAME, QuietDOMParser).route
+    );
+    expect(elements.get('duration-group').hidden).toBe(true);
+    expect(elements.get('run-estimate').hidden).toBe(true);
+    expect(elements.get('run-distance').hidden).toBe(false);
+    expect(elements.get('run-distance').textContent).toBe(`${summary.distanceKm.toFixed(1)} km`);
+    const minutes = Math.max(1, sandbox.RunPlan.runMinutes(summary.distanceKm, 390));
+    expect(elements.get('run-minutes').textContent).toBe(`= ${minutes} min`);
+    elements.get('pace-up').listeners.click();
+    const slower = Math.max(1, sandbox.RunPlan.runMinutes(summary.distanceKm, 395));
+    expect(elements.get('run-minutes').textContent).toBe(`= ${slower} min`);
+  });
+
   it('says the location is off and asks nothing when location is denied', async () => {
     const geolocation = { getCurrentPosition: (onOk, onError) => onError({ code: 1 }) };
     const { elements, record } = loadPage({ navigator: { geolocation } });

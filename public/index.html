@@ -127,61 +127,69 @@
             </div>
           </div>
 
-          <div id="pace-row" class="[&[hidden]]:hidden flex items-center gap-3 border-t border-gray-200 py-2" hidden>
-            <label
-              for="pace-input"
-              class="w-14 flex-none text-[11px] font-medium uppercase tracking-wide text-secondary"
-              >Pace</label
+          <div id="run-row" class="flex items-start gap-3 border-t border-gray-200 py-2">
+            <span class="w-14 flex-none text-[11px] font-medium uppercase leading-7 tracking-wide text-secondary"
+              >Run</span
             >
-            <span class="flex-1"></span>
-            <div class="flex items-center gap-1.5">
-              <button
-                id="pace-down"
-                type="button"
-                class="flex h-7 w-7 items-center justify-center rounded-full border border-gray-300 bg-white hover:border-gray-400"
-                aria-label="Pace 5 seconds faster"
-              >
-                −
-              </button>
-              <input
-                id="pace-input"
-                class="w-12 rounded border border-transparent bg-transparent px-1 text-right font-semibold hover:border-gray-300 focus:border-gray-400 focus:bg-white focus:outline-none"
-                inputmode="text"
-                autocomplete="off"
-              />
-              <span class="text-xs text-secondary">/km</span>
-              <button
-                id="pace-up"
-                type="button"
-                class="flex h-7 w-7 items-center justify-center rounded-full border border-gray-300 bg-white hover:border-gray-400"
-                aria-label="Pace 5 seconds slower"
-              >
-                +
-              </button>
-            </div>
-          </div>
-
-          <div id="duration-row" class="[&[hidden]]:hidden flex items-center gap-3 border-t border-gray-200 py-2">
-            <span class="w-14 flex-none text-[11px] font-medium uppercase tracking-wide text-secondary">Run</span>
-            <span class="flex-1"></span>
-            <div class="flex items-center gap-1.5">
-              <button
-                id="duration-down"
-                type="button"
-                class="flex h-7 w-7 items-center justify-center rounded-full border border-gray-300 bg-white hover:border-gray-400"
-                aria-label="Run 15 minutes shorter"
-              >
-                −
-              </button>
-              <output id="duration-value" class="min-w-16 text-center font-semibold" aria-live="polite">60 min</output>
-              <button
-                id="duration-up"
-                type="button"
-                class="flex h-7 w-7 items-center justify-center rounded-full border border-gray-300 bg-white hover:border-gray-400"
-                aria-label="Run 15 minutes longer"
-              >
-                +
-              </button>
+            <div class="min-w-0 flex-1">
+              <div class="flex flex-wrap items-center gap-x-2 gap-y-1">
+                <div id="duration-group" class="[&[hidden]]:hidden flex items-center gap-1.5">
+                  <button
+                    id="duration-down"
+                    type="button"
+                    class="flex h-7 w-7 flex-none items-center justify-center rounded-full border border-gray-300 bg-white hover:border-gray-400"
+                    aria-label="Run 15 minutes shorter"
+                  >
+                    −
+                  </button>
+                  <output id="duration-value" class="min-w-14 text-center font-semibold" aria-live="polite"
+                    >60 min</output
+                  >
+                  <button
+                    id="duration-up"
+                    type="button"
+                    class="flex h-7 w-7 flex-none items-center justify-center rounded-full border border-gray-300 bg-white hover:border-gray-400"
+                    aria-label="Run 15 minutes longer"
+                  >
+                    +
+                  </button>
+                </div>
+                <span id="run-distance" class="whitespace-nowrap font-semibold" hidden></span>
+                <div class="flex items-center gap-1.5">
+                  <span class="text-xs text-secondary">at</span>
+                  <label for="pace-input" class="sr-only">Pace per km</label>
+                  <button
+                    id="pace-down"
+                    type="button"
+                    class="flex h-7 w-7 flex-none items-center justify-center rounded-full border border-gray-300 bg-white hover:border-gray-400"
+                    aria-label="Pace 5 seconds faster"
+                  >
+                    −
+                  </button>
+                  <input
+                    id="pace-input"
+                    class="w-12 rounded border border-transparent bg-transparent px-1 text-center font-semibold hover:border-gray-300 focus:border-gray-400 focus:bg-white focus:outline-none"
+                    inputmode="text"
+                    autocomplete="off"
+                  />
+                  <button
+                    id="pace-up"
+                    type="button"
+                    class="flex h-7 w-7 flex-none items-center justify-center rounded-full border border-gray-300 bg-white hover:border-gray-400"
+                    aria-label="Pace 5 seconds slower"
+                  >
+                    +
+                  </button>
+                  <span class="text-xs text-secondary">/km</span>
+                </div>
+                <span
+                  id="run-minutes"
+                  class="whitespace-nowrap text-xs text-secondary"
+                  aria-live="polite"
+                  hidden
+                ></span>
+              </div>
+              <p id="run-estimate" class="mt-0.5 text-xs text-secondary" aria-live="polite"></p>
             </div>
           </div>
 

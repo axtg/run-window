@@ -165,7 +165,7 @@ test('an element with a display class still hides with the hidden attribute', ()
     if (/(^|\s)(flex|inline-flex|grid|block|inline-block)(\s|$)/.test(classes))
       expect(classes).toContain('[&[hidden]]:hidden');
   }
-  for (const id of ['source-set', 'source-pick', 'pace-row', 'duration-row', 'key-numbers']) {
+  for (const id of ['source-set', 'source-pick', 'duration-group', 'key-numbers']) {
     const tag = html.match(new RegExp(`<[a-z]+\\b[^>]*id="${id}"[^>]*>`));
     expect(tag[0]).toContain('[&[hidden]]:hidden');
   }
@@ -183,6 +183,15 @@ test("the legend's dark swatch is the graph's dark shade", () => {
   const shade = app.match(/height: PLOT_HEIGHT, class: 'fill-(gray-\d+)' \}\)\);\n\s*\}\);/);
   expect(shade).not.toBeNull();
   expect(html).toMatch(new RegExp(`<span class="text-${shade[1]}">▮</span> dark`));
+});
+
+test('pace sits in the one Run row, with or without a route', () => {
+  expect(html).not.toContain('id="pace-row"');
+  expect(html).not.toContain('id="duration-row"');
+  const row = html.match(/<div\b[^>]*id="run-row"[^>]*>([\s\S]*?)<p\b[^>]*id="run-estimate"/);
+  expect(row).not.toBeNull();
+  for (const id of ['duration-group', 'run-distance', 'pace-down', 'pace-input', 'pace-up', 'run-minutes'])
+    expect(row[1]).toContain(`id="${id}"`);
 });
 
 test('the pace field brings up a keyboard with a colon', () => {

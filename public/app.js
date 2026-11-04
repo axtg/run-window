@@ -53,11 +53,11 @@
   // Every element app.js uses, by id; el.sourceSet is #source-set.
   const IDS = (
     'source source-distance source-set source-pick clear-source day-today day-tomorrow zone-note ' +
-    'route-input use-location pace-row pace-down pace-input pace-up duration-row duration-down ' +
-    'duration-value duration-up hours-rows add-hours dark-times dark-ok rain-input rain-fill rain-value ' +
-    'prompt answer answer-label answer-time key-numbers wind-line stale-note status result timeline ' +
-    'tap-line why-sentence copy-link open-api open-privacy api-dialog privacy-dialog close-api ' +
-    'close-privacy'
+    'route-input use-location duration-group run-distance run-minutes run-estimate pace-down pace-input ' +
+    'pace-up duration-down duration-value duration-up hours-rows add-hours dark-times dark-ok rain-input ' +
+    'rain-fill rain-value prompt answer answer-label answer-time key-numbers wind-line stale-note status ' +
+    'result timeline tap-line why-sentence copy-link open-api open-privacy api-dialog privacy-dialog ' +
+    'close-api close-privacy'
   ).split(' ');
   const camel = id => id.replace(/-(\w)/g, (_, letter) => letter.toUpperCase());
   const el = Object.fromEntries(IDS.map(id => [camel(id), document.getElementById(id)]));
@@ -139,12 +139,20 @@
 
   // ---- Settings rows
 
+  // One Run row: the duration (with a distance estimate under it) without a route, the route's distance and the
+  // run's minutes with one. The pace is in both.
   function renderRunRow() {
     const withRoute = Boolean(state.summary);
-    el.paceRow.hidden = !withRoute;
-    el.durationRow.hidden = withRoute;
-    el.paceInput.value = Plan.formatPace(state.settings.paceSec);
-    el.durationValue.textContent = `${state.settings.durationMin} min`;
+    const { paceSec, durationMin } = state.settings;
+    el.durationGroup.hidden = withRoute;
+    el.runEstimate.hidden = withRoute;
+    el.runDistance.hidden = !withRoute;
+    el.runMinutes.hidden = !withRoute;
+    el.paceInput.value = Plan.formatPace(paceSec);
+    el.durationValue.textContent = `${durationMin} min`;
+    el.runEstimate.textContent = withRoute ? '' : Plan.distanceEstimate(durationMin, paceSec);
+    el.runDistance.textContent = withRoute ? `${state.summary.distanceKm.toFixed(1)} km` : '';
+    el.runMinutes.textContent = withRoute ? `= ${runMinutes()} min` : '';
   }
 
   function stepPace(delta) {
