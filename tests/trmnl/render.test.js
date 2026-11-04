@@ -99,8 +99,8 @@ describe('full.liquid: day rows', () => {
 
 describe('full.liquid: theme', () => {
   it('marks the board dark only for the dark theme', async () => {
-    expect((await rendered({ fields: { theme: 'dark' } })).html).toContain('<div class="rb rb--dark">');
-    expect((await rendered()).html).toContain('<div class="rb">');
+    expect((await rendered({ fields: { theme: 'dark' } })).html).toContain('<div class="rb rb--dark rb--full">');
+    expect((await rendered()).html).toContain('<div class="rb rb--full">');
   });
 
   it("inverts the board in TRMNL's dark mode, or for the dark theme outside it, never twice", () => {
@@ -221,41 +221,43 @@ describe('full.liquid: portrait', () => {
   };
 
   it('stacks the full layout in portrait', () => {
-    expect(bodyOf('.screen--portrait .rb-main')).toMatch(/flex-direction:\s*column/);
-    const left = bodyOf('.screen--portrait .rb-left');
+    expect(bodyOf('.screen--portrait .rb--full .rb-main')).toMatch(/flex-direction:\s*column/);
+    const left = bodyOf('.screen--portrait .rb--full .rb-left');
     expect(left).toMatch(/border-right:\s*0/);
     expect(left).toMatch(/border-bottom:\s*2px solid #000/);
     expect(left).toMatch(/padding-right:\s*0/);
     expect(left).toMatch(/flex:\s*0 0 \d+%/);
-    expect(bodyOf('.screen--portrait .rb-right')).toMatch(/padding-left:\s*0/);
+    expect(bodyOf('.screen--portrait .rb--full .rb-right')).toMatch(/padding-left:\s*0/);
   });
 
   it('puts form and run window side by side only on the X, and stacks them on an OG turned to portrait', () => {
-    expect(bodyOf('.screen--lg.screen--portrait .rb-right')).toMatch(/flex-direction:\s*row/);
-    expect(bodyOf('.screen--portrait .rb-right')).not.toMatch(/flex-direction/);
+    expect(bodyOf('.screen--lg.screen--portrait .rb--full .rb-right')).toMatch(/flex-direction:\s*row/);
+    expect(bodyOf('.screen--portrait .rb--full .rb-right')).not.toMatch(/flex-direction/);
     expect(bodyOf('.rb-right')).toMatch(/flex-direction:\s*column/);
-    const unscoped = [...style.matchAll(/(?:^|[}\s])\.screen--portrait\s+\.rb-(?:form|run|right)\s*\{([^}]*)\}/g)];
+    const unscoped = [
+      ...style.matchAll(/(?:^|[}\s])\.screen--portrait\s+\.rb--full\s+\.rb-(?:form|run|right)\s*\{([^}]*)\}/g)
+    ];
     for (const rule of unscoped) expect(rule[1]).not.toMatch(/flex-direction:\s*row|flex:\s*1 1 0/);
     for (const selector of ['.rb-form', '.rb-run'])
-      expect(bodyOf(`.screen--lg.screen--portrait ${selector}`)).toMatch(/flex:\s*1 1 0/);
+      expect(bodyOf(`.screen--lg.screen--portrait .rb--full ${selector}`)).toMatch(/flex:\s*1 1 0/);
   });
 
   it('gives the week a share of the height that holds seven rows plus the footer totals', () => {
     // 1020 px of view: seven rows of at least 2 lines at 28 px, the title and the totals need about 520 px
-    const share = Number(bodyOf('.screen--lg.screen--portrait .rb-left').match(/flex-basis:\s*(\d+)%/)[1]);
+    const share = Number(bodyOf('.screen--lg.screen--portrait .rb--full .rb-left').match(/flex-basis:\s*(\d+)%/)[1]);
     expect(share * 10.2).toBeGreaterThanOrEqual(520);
     expect(share).toBeLessThanOrEqual(60);
   });
 
   it('on an OG turned to portrait hides the intensity block and gives the week 52%', () => {
-    expect(bodyOf('.screen--portrait:not(.screen--lg) .rb-left')).toMatch(/flex-basis:\s*52%/);
-    expect(bodyOf('.screen--portrait:not(.screen--lg) .rb-intensity')).toMatch(/display:\s*none/);
+    expect(bodyOf('.screen--portrait:not(.screen--lg) .rb--full .rb-left')).toMatch(/flex-basis:\s*52%/);
+    expect(bodyOf('.screen--portrait:not(.screen--lg) .rb--full .rb-intensity')).toMatch(/display:\s*none/);
     // the X keeps its own share and the bar, and nothing hides it in landscape
-    expect(bodyOf('.screen--lg.screen--portrait .rb-left')).toMatch(/flex-basis:\s*52%/);
-    expect(bodyOf('.screen--lg.screen--portrait .rb-intensity')).toBe('');
+    expect(bodyOf('.screen--lg.screen--portrait .rb--full .rb-left')).toMatch(/flex-basis:\s*52%/);
+    expect(bodyOf('.screen--lg.screen--portrait .rb--full .rb-intensity')).toBe('');
     const hiding = [...style.matchAll(/([^{}]*)\{[^}]*display:\s*none/g)].map(match => match[1].trim());
     expect(hiding.filter(selector => selector.includes('.rb-intensity'))).toEqual([
-      '.screen--portrait:not(.screen--lg) .rb-intensity'
+      '.screen--portrait:not(.screen--lg) .rb--full .rb-intensity'
     ]);
     expect(bodyOf('.rb-left')).toMatch(/flex:\s*0 0 45%/);
   });
@@ -271,8 +273,19 @@ describe('full.liquid: portrait', () => {
     expect(block[1]).toContain('rb-intensity__bar');
   });
 
-  it('keeps a gap above the run panel in half_vertical on the X in portrait', () => {
-    expect(bodyOf('.screen--lg.screen--portrait .view--half_vertical .rb-run')).toMatch(/padding-top:\s*8px/);
+  it('scopes every portrait rule to the full view', () => {
+    const selectors = [...style.matchAll(/([^{}]+)\{/g)].map(match => match[1].trim());
+    const portrait = selectors.filter(selector => selector.includes('.screen--portrait'));
+    expect(portrait.length).toBeGreaterThan(0);
+    for (const selector of portrait) expect(selector).toContain('.rb--full');
+  });
+
+  it('marks only the full root with rb--full', () => {
+    const root = layout => layoutTemplate(layout).match(/<div class="(rb[ {][^"]*)">/)[1];
+    expect(root('full')).toMatch(/\brb--full\b/);
+    expect(root('full')).toContain("{% if theme == 'dark' %} rb--dark{% endif %}");
+    for (const layout of ['half_horizontal', 'half_vertical', 'quadrant'])
+      expect(root(layout)).not.toContain('rb--full');
   });
 
   it('leaves landscape as it is', () => {
@@ -530,7 +543,9 @@ describe('smaller layouts', () => {
     expect(shown).toContain(output.run.heading);
     for (const line of output.run.lines) expect(shown).toContain(line);
     expect(shown).toContain(output.attribution);
-    expect(await renderLayout(layout, { ...output, theme: 'dark' })).toContain('<div class="rb rb--dark">');
+    expect(await renderLayout(layout, { ...output, theme: 'dark' })).toContain(
+      layout === 'full' ? '<div class="rb rb--dark rb--full">' : '<div class="rb rb--dark">'
+    );
   });
 
   it('half vertical shows the form graph and the intensity bar, not the week', async () => {

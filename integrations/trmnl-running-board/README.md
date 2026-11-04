@@ -7,7 +7,7 @@ the best run window today from the [run-window API](https://run.xadi.eu). Englis
 It draws on the TRMNL OG (800x480) and the TRMNL X (1040x780), each in landscape or portrait. All text uses the
 framework's text classes, so the sizes follow the device: the X steps up on the framework's `lg:` sizes, and day items
 may take two lines there. In portrait the week sits on top. On the X the form and the run window sit side by side below
-it. On an OG turned to portrait they are stacked, and the intensity bar is left out to make room.
+it. On an OG turned to portrait they are stacked, and the intensity bar is left out to make room. Any other portrait screen that is not the X behaves the same: stacked, without the intensity bar. The half and quadrant views keep their content as in landscape and only scale their text.
 
 ## Install as a private plugin
 
