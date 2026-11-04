@@ -43,6 +43,18 @@ async function longAttributionOutput() {
   return { ...output, week: { ...output.week, garmin }, attribution };
 }
 
+async function longRunOutput() {
+  const { output } = await board();
+  const lines = [
+    '07:00–08:00',
+    'dry · 12 km/h SW · 9°C',
+    'start into the wind (SW)',
+    'dark after 17:05',
+    'weather may be out of date'
+  ];
+  return { ...output, run: { ...output.run, heading: 'TOMORROW · 60 min', lines } };
+}
+
 // Every case as { name, output }
 async function renderCases() {
   const first = (await board({}, {}, NOW - 2 * 60 * MINUTE)).output;
@@ -52,6 +64,7 @@ async function renderCases() {
     stale: (await board({ previous: first }, { efforts: 503 })).output,
     empty: (await board({ previous: null }, EMPTY_ACCOUNT_OVERRIDES)).output,
     'long-attribution': await longAttributionOutput(),
+    'long-run': await longRunOutput(),
     'no-intensity': { ...(await board()).output, intensity: null },
     error: ERROR_OUTPUT
   };
@@ -68,5 +81,6 @@ module.exports = {
   GARMIN_NOTICE,
   STATE_CASES,
   longAttributionOutput,
+  longRunOutput,
   renderCases
 };

@@ -65,6 +65,8 @@ describe('full.liquid: normal case', () => {
     expect(html).toMatch(/<path class="rb-future"[^>]*stroke-dasharray=/);
     expect(html).toContain(`y1="${output.form.zeroY}" x2="360" y2="${output.form.zeroY}"`);
     expect(html).toContain(`x1="${output.form.todayX}"`);
+    expect(html).toMatch(/<span class="rb-form__today" style="left: [\d.]+%">today<\/span>/);
+    expect(html).not.toContain('<text');
   });
 
   it('shows "—" for a day with no items', () => {
@@ -104,6 +106,17 @@ describe('full.liquid: intensity bar', () => {
     expect(spans.slice(0, 3)).toEqual(intensity.labels);
     expect(html).toContain('rb-form--intensity');
     expect(html).toMatch(/vector-effect="non-scaling-stroke"[^>]*>|<rect[^>]*vector-effect="non-scaling-stroke"/);
+  });
+
+  it('stretches the graph to the column width and shortens it when the bar is present', async () => {
+    const { html } = await rendered();
+    expect(html).toMatch(/<svg class="rb-form__graph" viewBox="0 0 360 150" preserveAspectRatio="none"/);
+    expect(template).toMatch(/\.rb-form--intensity svg\.rb-form__graph\s*\{[^}]*height:\s*\d+px/);
+  });
+
+  it('centres the 2px stripe in its tile', async () => {
+    const { html } = await rendered();
+    expect(html).toMatch(/<line x1="1" y1="0" x2="1" y2="4" stroke="#000" stroke-width="2"/);
   });
 
   it('makes the pattern id unique per render', () => {
@@ -180,6 +193,7 @@ describe('full.liquid: template rules', () => {
       'form.futurePath',
       'form.zeroY',
       'form.todayX',
+      'form.todayX | divided_by: 3.6',
       'segment.x | plus: 0',
       'segment.width | plus: 0',
       'patternId'

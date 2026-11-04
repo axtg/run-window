@@ -19,11 +19,13 @@
   .rb-form__head { display: flex; justify-content: space-between; align-items: flex-start; }
   .rb-form__heading { font-size: 24px; font-weight: 700; line-height: 30px; }
   .rb-form__value { font-size: 56px; font-weight: 700; line-height: 56px; }
-  .rb-form svg { display: block; width: 100%; height: auto; max-height: 160px; }
+  .rb-form svg { display: block; width: 100%; height: auto; }
+  .rb-form svg.rb-form__graph { height: 160px; }
   .rb-form__labels { display: flex; justify-content: space-between; font-size: 16px; line-height: 20px; }
-  .rb-form--intensity svg.rb-form__graph { max-height: 120px; }
+  .rb-form__graphbox { position: relative; }
+  .rb-form__today { position: absolute; bottom: 4px; transform: translateX(-100%); padding-right: 5px; font-size: 16px; line-height: 16px; }
+  .rb-form--intensity svg.rb-form__graph { height: 84px; }
   .rb-intensity__heading { font-size: 17px; font-weight: 700; line-height: 21px; padding-top: 4px; }
-  .rb-form .rb-intensity__bar { max-height: 22px; }
   .rb-intensity__labels { display: flex; justify-content: space-between; font-size: 15px; line-height: 19px; }
   .rb-run { padding-top: 8px; }
   .rb-run__heading { font-size: 24px; font-weight: 700; line-height: 30px; }
@@ -78,15 +80,17 @@
             {% if form.empty and form.empty != '' %}
               <div class="rb-message rb-message--big">{{ form.empty | escape }}</div>
             {% else %}
-              <svg class="rb-form__graph" viewBox="0 0 360 150" xmlns="http://www.w3.org/2000/svg">
+              <div class="rb-form__graphbox">
+              <svg class="rb-form__graph" viewBox="0 0 360 150" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
                 <line class="rb-zero" x1="0" y1="{{ form.zeroY }}" x2="360" y2="{{ form.zeroY }}" stroke="#000" stroke-width="1" shape-rendering="crispEdges" vector-effect="non-scaling-stroke" />
                 <line class="rb-today" x1="{{ form.todayX }}" y1="0" x2="{{ form.todayX }}" y2="150" stroke="#000" stroke-width="1" stroke-dasharray="2 4" shape-rendering="crispEdges" vector-effect="non-scaling-stroke" />
                 <path class="rb-past" d="{{ form.pastPath }}" fill="none" stroke="#000" stroke-width="3" stroke-linejoin="round" vector-effect="non-scaling-stroke" />
                 {% if form.futurePath and form.futurePath != '' %}
                   <path class="rb-future" d="{{ form.futurePath }}" fill="none" stroke="#000" stroke-width="3" stroke-dasharray="8 6" vector-effect="non-scaling-stroke" />
                 {% endif %}
-                <text x="{{ form.todayX }}" dx="-5" y="14" text-anchor="end" font-size="16" fill="#000">{{ form.labels.today | escape }}</text>
               </svg>
+              <span class="rb-form__today" style="left: {{ form.todayX | divided_by: 3.6 }}%">{{ form.labels.today | escape }}</span>
+              </div>
               <div class="rb-form__labels">
                 <span>{{ form.labels.back | escape }}</span>
                 <span>{{ form.labels.ahead | escape }}</span>
@@ -100,7 +104,7 @@
               <defs>
                 <pattern id="{{ patternId }}" width="4" height="4" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
                   <rect width="4" height="4" fill="#fff" />
-                  <line x1="0" y1="0" x2="0" y2="4" stroke="#000" stroke-width="2" />
+                  <line x1="1" y1="0" x2="1" y2="4" stroke="#000" stroke-width="2" />
                 </pattern>
               </defs>
               {% for segment in intensity.segments %}
