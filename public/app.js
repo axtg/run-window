@@ -335,10 +335,10 @@
     });
   }
 
-  function drawGaps(target, gaps, step, height, className) {
+  function drawGaps(target, gaps, step, height, attributes) {
     gaps.forEach(index => {
       const x = (index * step).toFixed(1);
-      target.appendChild(svg('line', { x1: x, x2: x, y1: 0, y2: height, class: className, 'stroke-width': 3 }));
+      target.appendChild(svg('line', { x1: x, x2: x, y1: 0, y2: height, ...attributes }));
     });
   }
 
@@ -359,7 +359,7 @@
         })
       );
     });
-    drawGaps(el.strip, gaps, step, CELL_TOP * 2 + CELL_HEIGHT, 'stroke-white');
+    drawGaps(el.strip, gaps, step, CELL_TOP * 2 + CELL_HEIGHT, { class: 'stroke-white', 'stroke-width': 3 });
     if (range) {
       const outline = {
         x: (range.first * step + 1.5).toFixed(1),
@@ -415,16 +415,25 @@
         svg('path', { d: model.wind, class: 'fill-none stroke-blue-700', 'stroke-width': 2, 'stroke-dasharray': '4 3' })
       );
     }
-    drawGaps(el.chart, model.gaps, step, PLOT_HEIGHT, 'stroke-white');
+    drawGaps(el.chart, model.gaps, step, PLOT_HEIGHT, {
+      class: 'stroke-gray-400',
+      'stroke-width': 1.5,
+      'stroke-dasharray': '3 3'
+    });
     drawTicks(el.chart, slots, step, timeZone, CHART_HEIGHT - 4);
   }
 
-  function renderTapLine(slots, timeZone) {
+  // The tap line is announced (aria-live) and the strip's label names the selected slot, so the cell is labelled
+  // when tapped or reached with the arrow keys. With nothing selected the label is the go line.
+  function renderTapLine(slots, timeZone, stripLabel) {
     if (state.selected === null || !slots[state.selected]) {
       el.tapLine.textContent = 'Tap the strip, or use the arrow keys, for each slot.';
+      el.strip.setAttribute('aria-label', stripLabel);
       return;
     }
-    el.tapLine.textContent = Strip.slotLine(slots[state.selected], timeZone);
+    const line = Strip.slotLine(slots[state.selected], timeZone);
+    el.tapLine.textContent = line;
+    el.strip.setAttribute('aria-label', line);
   }
 
   function render() {
@@ -456,7 +465,8 @@
     const stale = Plan.staleNote(state.body);
     el.staleNote.hidden = !stale;
     el.staleNote.textContent = stale || '';
-    el.strip.setAttribute('aria-label', `Day strip, ${dayLabel}: ${el.goLine.textContent}`);
+    const stripLabel = `Day strip, ${dayLabel}: ${el.goLine.textContent}`;
+    el.strip.setAttribute('aria-label', stripLabel);
 
     if (slots.length === 0) {
       el.strip.replaceChildren();
@@ -469,7 +479,7 @@
     drawStrip(slots, range, result.kind === 'fallback', timeZone, gaps);
     drawChart(slots, range, timeZone);
     el.whySentence.textContent = Strip.whySentence(slots, range, { timeZone, sunsetIso: day.sunset });
-    renderTapLine(slots, timeZone);
+    renderTapLine(slots, timeZone, stripLabel);
   }
 
   // ---- Exploring the strip: tap or arrow keys. It never moves the outline.

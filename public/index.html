@@ -21,7 +21,7 @@
         <header class="space-y-1">
           <h1 id="tool-title" class="text-3xl font-semibold">Run window</h1>
           <p class="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-secondary">
-            <span id="source">Near you</span>
+            <span id="source" class="min-w-0 [overflow-wrap:anywhere]">Near you</span>
             <span aria-hidden="true">·</span>
             <span class="inline-flex overflow-hidden rounded-full border border-gray-300" role="group" aria-label="Day">
               <button
@@ -178,7 +178,9 @@
               aria-label="Day strip"
               height="52"
             ></svg>
-            <p id="tap-line" class="text-sm text-secondary">Tap the strip, or use the arrow keys, for each slot.</p>
+            <p id="tap-line" class="text-sm text-secondary" aria-live="polite">
+              Tap the strip, or use the arrow keys, for each slot.
+            </p>
           </div>
 
           <div class="space-y-0.5 rounded-lg bg-surface-muted px-3 py-2">
@@ -194,8 +196,8 @@
               <svg id="chart" class="block w-full" height="112" aria-hidden="true"></svg>
               <p class="text-xs text-secondary">
                 <span class="text-red-600">— feels-like °C</span> · <span class="text-blue-700">- - wind km/h</span> ·
-                <span class="text-blue-400">▮ rain %</span> ·
-                <span class="text-gray-500">▮ dark</span>
+                <span><span class="text-blue-300">▮</span> rain %</span> ·
+                <span><span class="text-gray-200">▮</span> dark</span>
               </p>
               <p id="why-sentence" class="text-sm"></p>
             </div>

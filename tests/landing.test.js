@@ -87,6 +87,9 @@ test('the page has a route file input for GPX and KML and a polite status line',
   expect(accept).toContain('.gpx');
   expect(accept).toContain('.kml');
   expect(html).toMatch(/<[^>]*id="status"[^>]*aria-live="polite"|<[^>]*aria-live="polite"[^>]*id="status"/);
+  const tapLine = html.match(/<p\b[^>]*id="tap-line"[^>]*>/);
+  expect(tapLine).not.toBeNull();
+  expect(tapLine[0]).toMatch(/aria-live="polite"/);
 });
 
 test('the only stylesheet is /tailwind.css, which the logger allows', async () => {
