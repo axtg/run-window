@@ -31,6 +31,14 @@ function activityDay(activity, tz) {
   return localDate(Date.parse(activity.date), isZone(activity.timezone) ? activity.timezone : tz);
 }
 
+// The Garmin attribution text of an activity from the Garmin API, else null
+function garminText(activity) {
+  if (!activity || activity.isFromGarminApi !== true) return null;
+  return typeof activity.attribution === 'string' && activity.attribution.trim()
+    ? activity.attribution
+    : GARMIN_FALLBACK;
+}
+
 const matchesSport = (entry, sport) => sport === 'all' || entry.sportType === sport;
 
 // Copies only the fields the screen needs: never the summary (it holds start coordinates)
@@ -71,7 +79,9 @@ function buildWeek({ plans, activities, now, tz, sport = 'running' }) {
   const activityById = new Map(seen.filter(activity => activity.id).map(activity => [activity.id, activity]));
   const used = new Set();
 
+  const done = [];
   const addDone = (date, at, item, activity) => {
+    if (activity.id) done.push({ at, id: String(activity.id), garmin: garminText(activity) });
     byDate.get(date).push({ at, item, activity });
     totals.doneDistanceM += item.distanceM || 0;
     totals.doneDurationS += item.durationS || 0;
@@ -121,12 +131,8 @@ function buildWeek({ plans, activities, now, tz, sport = 'running' }) {
     const entries = byDate.get(date).sort((a, b) => a.at - b.at);
     const shown = entries.slice(0, ITEMS_PER_DAY);
     for (const { activity } of shown) {
-      if (!activity || activity.isFromGarminApi !== true) continue;
-      const text =
-        typeof activity.attribution === 'string' && activity.attribution.trim()
-          ? activity.attribution
-          : GARMIN_FALLBACK;
-      if (!garmin.includes(text)) garmin.push(text);
+      const text = garminText(activity);
+      if (text !== null && !garmin.includes(text)) garmin.push(text);
     }
     return {
       date,
@@ -141,7 +147,14 @@ function buildWeek({ plans, activities, now, tz, sport = 'running' }) {
     totals.plannedDistanceM = plannedDistanceM;
     totals.plannedDurationS = plannedDurationS;
   }
-  return { week: isoWeek(today), days, totals, garmin };
+  done.sort((a, b) => b.at - a.at);
+  return {
+    week: isoWeek(today),
+    days,
+    totals,
+    garmin,
+    done: done.map(({ id, garmin: text }) => ({ id, garmin: text }))
+  };
 }
 
 function itemTitle(item, text) {

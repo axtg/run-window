@@ -143,6 +143,47 @@ describe('buildWeek on Wednesday 2026-11-04 12:00', () => {
     expect(result.garmin).toEqual(['Synthetic Garmin attribution text']);
   });
 
+  it("lists this week's done runs newest first", () => {
+    expect(result.done.map(d => d.id)).toEqual([
+      'SynAct04xxxxxxxxxxxxxx',
+      'SynAct03xxxxxxxxxxxxxx',
+      'SynAct02xxxxxxxxxxxxxx'
+    ]);
+  });
+
+  it('marks Garmin activities', () => {
+    const garminOf = Object.fromEntries(result.done.map(d => [d.id, d.garmin]));
+    expect(garminOf.SynAct03xxxxxxxxxxxxxx).toBe('Synthetic Garmin attribution text');
+    expect(garminOf.SynAct04xxxxxxxxxxxxxx).toBeNull();
+    expect(garminOf.SynAct02xxxxxxxxxxxxxx).toBeNull();
+  });
+
+  it('includes runs beyond the two rows a day shows', () => {
+    const extras = [1, 2, 3].map(n => ({
+      ...activitiesWeek[3],
+      id: `SynExtra0${n}xxxxxxxxxxxxx`,
+      date: `2026-11-02T0${n + 3}:00:00.000Z`
+    }));
+    const busy = week(WEDNESDAY_NOON, 'running', plannedWeek, [...activitiesWeek, ...extras]);
+    expect(busy.days[0].more).toBeGreaterThan(0);
+    expect(busy.done.map(d => d.id)).toEqual(expect.arrayContaining(extras.map(e => e.id)));
+    expect(busy.done).toHaveLength(6);
+  });
+
+  it('leaves out an activity without an id', () => {
+    const noId = { ...activitiesWeek[3], id: undefined, date: '2026-11-03T08:00:00.000Z' };
+    const result2 = week(WEDNESDAY_NOON, 'running', plannedWeek, [...activitiesWeek, noId]);
+    expect(result2.totals.doneDistanceM).toBeGreaterThan(result.totals.doneDistanceM);
+    expect(result2.done.map(d => d.id)).toEqual(result.done.map(d => d.id));
+  });
+
+  it('follows the sport filter', () => {
+    const misc = { ...activitiesWeek[4], id: 'SynMiscxxxxxxxxxxxxxxx', date: '2026-11-03T08:00:00.000Z' };
+    const list = [...activitiesWeek, misc];
+    expect(week(WEDNESDAY_NOON, 'running', plannedWeek, list).done.map(d => d.id)).not.toContain(misc.id);
+    expect(week(WEDNESDAY_NOON, 'all', plannedWeek, list).done.map(d => d.id)).toContain(misc.id);
+  });
+
   it('drops the strength session with sport running and keeps it with all', () => {
     expect(titles(result.days[2])).not.toContain('Strength');
     const all = week(WEDNESDAY_NOON, 'all');
