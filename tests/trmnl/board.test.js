@@ -673,7 +673,8 @@ describe('buildBoard: intensity', () => {
       { kind: 'moderate', x: 280, width: 60 },
       { kind: 'high', x: 340, width: 20 }
     ],
-    labels: ['low 78%', 'moderate 17%', 'high 5%']
+    labels: ['low 78%', 'moderate 17%', 'high 5%'],
+    garmin: ['Synthetic Garmin attribution text']
   };
   const GARMIN = 'Synthetic Garmin attribution text';
   const detailIds = calls =>
@@ -820,22 +821,53 @@ describe('buildBoard: intensity', () => {
     expect(cold.output.attribution.endsWith(windowOk.attribution)).toBe(true);
   });
 
-  it('a Garmin run beyond the rows a day shows still adds its attribution', async () => {
+  // Two more Monday runs push the Garmin run (Act03) off its day's two rows, so only the bar shows it
+  const offRows = () => {
     const list = activitiesWeek._embedded.activityList;
-    // Two more Monday runs push the Garmin run off its day's two rows
     const more = [1, 2].map(n => ({
       ...list[3],
       id: `SynAct1${n}xxxxxxxxxxxxxx`,
       date: `2026-11-02T0${n}:00:00.000Z`
     }));
-    const activities = { _embedded: { activityList: [...list, ...more] } };
-    const previous = {
-      intensityCache: [ACT04, ACT03, ACT02, ...more.map(a => a.id)].map(id => [id, ...HR])
-    };
+    const ids = [ACT04, ACT03, ACT02, ...more.map(activity => activity.id)];
+    return { activities: { _embedded: { activityList: [...list, ...more] } }, ids };
+  };
+
+  it('a Garmin run beyond the rows a day shows still adds its attribution', async () => {
+    const { activities, ids } = offRows();
+    const previous = { intensityCache: ids.map(id => [id, ...HR]) };
     const { output } = await board({ previous }, { activities });
     expect(output.week.garmin).not.toContain(GARMIN);
     expect(count(output.attribution, GARMIN)).toBe(1);
-    expect(output.intensity).not.toBeNull();
+    expect(output.intensity.garmin).toEqual([GARMIN]);
+  });
+
+  it('stale panels keep the attribution of a Garmin run only the bar shows', async () => {
+    const { activities, ids } = offRows();
+    const previous = { intensityCache: ids.map(id => [id, ...HR]) };
+    const first = (await board({ previous }, { activities }, NOW - 2 * 60 * MINUTE)).output;
+    expect(first.week.garmin).not.toContain(GARMIN);
+    const { output } = await board({ previous: first }, { activities, efforts: 503 });
+    expect(output.tredict.state).toBe('stale');
+    expect(output.intensity).toEqual(first.intensity);
+    expect(count(output.attribution, GARMIN)).toBe(1);
+  });
+
+  it('a cached Garmin run adds no text while the bar is incomplete', async () => {
+    const { activities, ids } = offRows();
+    const previous = { intensityCache: ids.filter(id => id !== ACT02).map(id => [id, ...HR]) };
+    const { output } = await board({ previous }, { activities, details: { [ACT02]: 503 } });
+    expect(output.intensity).toBeNull();
+    expect(output.intensityCache.map(entry => entry[0])).toContain(ACT03);
+    expect(count(output.attribution, GARMIN)).toBe(0);
+  });
+
+  it('stale panels drop non-string Garmin texts of a reused bar', async () => {
+    const first = (await board({ previous: {} }, {}, NOW - 2 * 60 * MINUTE)).output;
+    const intensity = { ...first.intensity, garmin: [5, { x: 1 }, 'Kept text'] };
+    const { output } = await board({ previous: { ...first, intensity } }, { efforts: 503 });
+    expect(output.intensity.garmin).toEqual(['Kept text']);
+    expect(count(output.attribution, 'Kept text')).toBe(1);
   });
 
   it('stale panels keep the bar', async () => {

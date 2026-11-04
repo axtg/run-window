@@ -1028,6 +1028,7 @@ const isObject = value => Boolean(value) && typeof value === 'object' && !Array.
 const textOf = value => (typeof value === 'string' ? value : '');
 const finiteOf = value => (typeof value === 'number' && Number.isFinite(value) ? value : 0);
 const isFiniteNumber = value => typeof value === 'number' && Number.isFinite(value);
+const union = (...lists) => [...new Set(lists.flat())];
 
 // The fixed output for anything unexpected: no input-derived text, never an error's text. Only the Tredict pause and
 // the intensity cache carry over, from this run when it got that far, else from the previous output, so a throw can't
@@ -1219,7 +1220,8 @@ function reuseIntensity(intensity) {
   return {
     heading: intensity.heading,
     segments: segments.map(({ kind, x, width }) => ({ kind, x, width })),
-    labels: labels.slice()
+    labels: labels.slice(),
+    garmin: (Array.isArray(intensity.garmin) ? intensity.garmin : []).filter(name => typeof name === 'string')
   };
 }
 
@@ -1282,7 +1284,7 @@ function tredictPanels({ results, previous, now, tz, lang, fetchedAt, fetchedAtT
       message: fill(text.tredictDataFrom, { time: stale.tredictAtText }),
       ...empty,
       ...stale,
-      garmin: stale.week.garmin
+      garmin: union(stale.week.garmin, stale.intensity ? stale.intensity.garmin : [])
     };
   }
 
@@ -1291,14 +1293,12 @@ function tredictPanels({ results, previous, now, tz, lang, fetchedAt, fetchedAtT
   // The bar only once every run of this week is cached
   const complete = ids.every(id => cache.has(id));
   const entries = ids.map(id => cache.get(id));
-  const intensity = complete ? intensityView(entries, lang) : null;
-  // Garmin texts of the runs that add to the bar, after the calendar rows' own
-  const garmin = week.garmin.slice();
-  for (const entry of week.done) {
-    const seconds = cache.get(entry.id);
-    const adds = seconds && seconds.some(value => value > 0);
-    if (adds && entry.garmin !== null && !garmin.includes(entry.garmin)) garmin.push(entry.garmin);
-  }
+  const view = complete ? intensityView(entries, lang) : null;
+  // The bar keeps the Garmin texts of the runs that add to it, so stale panels can attribute them too
+  const adds = entry => entry.garmin !== null && cache.get(entry.id).some(value => value > 0);
+  const intensity = view && { ...view, garmin: union(week.done.filter(adds).map(entry => entry.garmin)) };
+  // The footer: the calendar rows' Garmin texts, then the bar's
+  const garmin = union(week.garmin, intensity ? intensity.garmin : []);
   return {
     state: 'ok',
     message: '',
