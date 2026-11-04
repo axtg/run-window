@@ -7,7 +7,7 @@ const STRINGS = {
   en: {
     week: 'WEEK',
     days: ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'],
-    formLabel: 'Form (est.)',
+    formLabel: 'Form',
     headingToday: 'BEST TIME TODAY',
     headingTomorrow: 'TOMORROW',
     minutes: '{n} min',
@@ -46,7 +46,7 @@ const STRINGS = {
   nl: {
     week: 'WEEK',
     days: ['ma', 'di', 'wo', 'do', 'vr', 'za', 'zo'],
-    formLabel: 'Vorm (schatting)',
+    formLabel: 'Vorm',
     headingToday: 'BESTE TIJD VANDAAG',
     headingTomorrow: 'MORGEN',
     minutes: '{n} min',
@@ -580,7 +580,8 @@ function weekView(week, lang) {
   };
 }
 
-const FORM_CONSTANTS = { fitnessDays: 42, fatigueDays: 7 };
+// Tredict's model: exponentially decaying sums, performance = 1.66 · fitness − 2 · fatigue
+const FORM_CONSTANTS = { fitnessDays: 14, fatigueDays: 9, fitnessWeight: 1.66, fatigueWeight: 2 };
 const DEFAULT_BACK_DAYS = 42;
 const DEFAULT_AHEAD_DAYS = 7;
 // The endpoint covers a year; older keys add nothing visible but loop time
@@ -609,7 +610,7 @@ function dayLoad(entries, countUnconfirmed) {
   return load;
 }
 
-// CTL/ATL from 0 on the first day with data; form = fitness − fatigue, after that day's load
+// Fitness and fatigue from 0 on the first day with data; the value is Tredict's performance after that day's load
 function formSeries({
   efforts,
   today,
@@ -628,14 +629,16 @@ function formSeries({
   const oldest = addDays(start, -MAX_WARMUP_DAYS);
   const first = earliest < oldest ? oldest : earliest;
   const end = addDays(today, ahead);
+  const fitnessDecay = Math.exp(-1 / constants.fitnessDays);
+  const fatigueDecay = Math.exp(-1 / constants.fatigueDays);
   const forms = new Map();
   let fitness = 0;
   let fatigue = 0;
   for (let date = first; date <= end; date = addDays(date, 1)) {
     const load = dayLoad(source[effortKey(date)], date >= today);
-    fitness += (load - fitness) / constants.fitnessDays;
-    fatigue += (load - fatigue) / constants.fatigueDays;
-    if (date >= start) forms.set(date, fitness - fatigue);
+    fitness = fitness * fitnessDecay + load;
+    fatigue = fatigue * fatigueDecay + load;
+    if (date >= start) forms.set(date, constants.fitnessWeight * fitness - constants.fatigueWeight * fatigue);
   }
 
   const points = [];
@@ -654,12 +657,10 @@ const coordinate = value => {
 const safePath = path => (SVG_PATH.test(path) ? path : '');
 const safeNumber = value => (Number.isFinite(value) ? value : 0);
 
-function signedForm(value) {
+function roundedForm(value) {
   if (!Number.isFinite(value)) return '';
   const rounded = Math.round(value) || 0;
-  if (rounded > 0) return `+${rounded}`;
-  if (rounded < 0) return `${MINUS}${-rounded}`;
-  return '0';
+  return rounded < 0 ? `${MINUS}${-rounded}` : String(rounded);
 }
 
 function chartPath(coordinates) {
@@ -707,7 +708,7 @@ function formChart(series, lang) {
 
   return {
     heading: text.formLabel,
-    today: signedForm(series.today),
+    today: roundedForm(series.today),
     pastPath: safePath(chartPath(past)),
     futurePath: future.length > 1 ? safePath(chartPath(future)) : '',
     zeroY: safeNumber(Number(coordinate(yOf(0)))),

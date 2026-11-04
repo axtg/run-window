@@ -43,7 +43,7 @@ describe('full.liquid: normal case', () => {
     expect(text).toContain('WEEK 45');
     expect(text).toContain(output.week.footer);
     expect(text).toContain('+1');
-    expect(text).toContain('Form (est.)');
+    expect(text).toContain('Form');
     expect(text).toContain(output.form.today);
     expect(text).toContain('6 weeks back');
     expect(text).toContain('7 days ahead');
@@ -220,7 +220,7 @@ describe('full.liquid: Dutch', () => {
   it('shows the Dutch text', async () => {
     const { html } = await rendered({ user: { time_zone_iana: 'Europe/Amsterdam', locale: 'nl-NL' } });
     const text = textOf(html);
-    expect(text).toContain('Vorm (schatting)');
+    expect(text).toContain('Vorm');
     expect(text).toContain('MORGEN · 60 min');
     expect(text).toContain('data wo 12:00');
     expect(text).toContain('droog');

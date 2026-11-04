@@ -68,8 +68,8 @@ describe('STRINGS', () => {
     expect(STRINGS.nl.headingToday).toBe('BESTE TIJD VANDAAG');
     expect(STRINGS.en.headingTomorrow).toBe('TOMORROW');
     expect(STRINGS.nl.headingTomorrow).toBe('MORGEN');
-    expect(STRINGS.en.formLabel).toBe('Form (est.)');
-    expect(STRINGS.nl.formLabel).toBe('Vorm (schatting)');
+    expect(STRINGS.en.formLabel).toBe('Form');
+    expect(STRINGS.nl.formLabel).toBe('Vorm');
   });
 
   it('uses the same placeholders in both languages', () => {

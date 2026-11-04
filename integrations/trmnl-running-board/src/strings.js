@@ -5,7 +5,7 @@ const STRINGS = {
   en: {
     week: 'WEEK',
     days: ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'],
-    formLabel: 'Form (est.)',
+    formLabel: 'Form',
     headingToday: 'BEST TIME TODAY',
     headingTomorrow: 'TOMORROW',
     minutes: '{n} min',
@@ -44,7 +44,7 @@ const STRINGS = {
   nl: {
     week: 'WEEK',
     days: ['ma', 'di', 'wo', 'do', 'vr', 'za', 'zo'],
-    formLabel: 'Vorm (schatting)',
+    formLabel: 'Vorm',
     headingToday: 'BESTE TIJD VANDAAG',
     headingTomorrow: 'MORGEN',
     minutes: '{n} min',

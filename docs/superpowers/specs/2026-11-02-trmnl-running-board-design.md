@@ -40,7 +40,7 @@ only if Tredict agrees (see "Tredict's terms"). Either way, no backend holds any
 - The Tredict token is sent anywhere it doesn't have to go, or logged by the run-window service (see "Privacy").
 - The screen recommends a window, or words its conditions, in a way that contradicts the run-window API. The plugin does
   no weather logic of its own.
-- The form graph is presented as Tredict's own number when it is our estimate (see "Form").
+- The form graph shows Tredict's performance number, computed with Tredict's own model (see "Form").
 
 ## Verify first
 
@@ -152,7 +152,7 @@ Quote every select value in YAML (eu-dayahead's lesson: TRMNL's Ruby YAML reads 
 
 ```
 ┌────────────────────────────┬───────────────────────────────────┐
-│ WEEK 45                    │ FORM (est.)                  +4   │
+│ WEEK 45                    │ FORM                         4    │
 │ Mo ✓ 8.2 km · 5:41 · 142   │  ╭─╮    ╭──╮                       │
 │ Tu ✓ Strength (if "all")   │ ─╯ ╰────╯  ╰──╮- - - (planned)     │
 │ We ▶ 10 km Z2 · 60 min     │ 6 weeks back | today | 7 days ahead│
@@ -224,12 +224,12 @@ Tredict exposes daily efforts, not a form value. Compute in the transform script
 
 - Daily load = sum of that day's efforts: confirmed ones for past days, all of them for today and later (a done
   session's planned entry is already gone, so nothing counts twice).
-- Fitness = 42-day exponentially weighted average, fatigue = 7-day, form = fitness − fatigue (the common
-  CTL/ATL/TSB model; design call).
+- Fitness(d) = fitness(d−1) · e^(−1/14) + load(d); fatigue(d) = fatigue(d−1) · e^(−1/9) + load(d), both from 0 on the
+  first day with data. Form = Tredict's performance = 1.66 · fitness − 2 · fatigue, shown as a rounded integer. The
+  maintainer's 64 days of Tredict's own series match exactly (V10).
 - Warm up on the full year the endpoint returns, so the first displayed day is stable (V8).
-- Label it "Form (est.)" / "Vorm (schatting)". Check it against the form Tredict shows in its app for the maintainer's
-  data (V10). If they differ materially, try to match Tredict's constants (ask Tredict if needed) before publishing;
-  never imply it is Tredict's number until they match.
+- Label it "Form" / "Vorm". The model was fitted against the form Tredict shows in its app for the maintainer's data
+  and matches it on every day (V10).
 
 ## Errors and empty states
 
@@ -259,7 +259,7 @@ previous screen. Every output carries `fetchedAt`, printed small in the footer, 
 
 - en and nl in v1. Strings: day abbreviations, "week", headings, the panel messages above, "start into the wind",
   "dark after", "tomorrow", "no session planned", "no duration planned", the null-window lines, "weather may be out of
-  date", "Form (est.)".
+  date", "Form".
 - Day and month names from the plugin's own en/nl tables, because TRMNL's runtime has English locale data only.
   Timezone conversion uses `Intl.DateTimeFormat` with `timeZone`, which works there.
 
@@ -298,7 +298,7 @@ renders the templates from the script's output. Fixtures and cases:
 1. Run-window API live and its rollout checks done. Done 2026-11-03, apart from the TRMNL request check, which needs
    this plugin.
 2. Build as a private plugin on the maintainer's account, starting with "Verify first".
-3. Use it for two weeks. Tune the API's scoring on real runs and check the form estimate.
+3. Use it for two weeks. Tune the API's scoring on real runs and check the form graph.
 4. Publish as a recipe, only if Tredict has agreed (see "Tredict's terms").
 
 ## Left to the builder

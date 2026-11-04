@@ -3,7 +3,7 @@
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or
 > superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** A private TRMNL plugin that shows this week's Tredict training, an estimated form graph and today's run window
+**Goal:** A private TRMNL plugin that shows this week's Tredict training, a form graph and today's run window
 on one full 800x480 screen.
 
 **Architecture:** The plugin polls only the run-window API, with no headers. A transform script (`transform.js`, run
@@ -42,7 +42,7 @@ after Task 1). **Verify answers:** `docs/superpowers/specs/2026-11-03-trmnl-runn
 - Conditions wording mirrors the API's `lib/labels.js`: "dry" / "droog" only when `qualifies` is true and
   `precipProbMax <= 20`, otherwise "rain N%" / "regen N%"; speed `km/h` / `km/u`; nl compass points NO, O, ZO, Z, ZW
   for NE, E, SE, S, SW (others unchanged); temperature `Math.round(apparentTempAvg) || 0` then `°C`.
-- The form is always labelled "Form (est.)" / "Vorm (schatting)".
+- The form uses Tredict's model (see Decisions) and is labelled "Form" / "Vorm".
 - Every value the markup prints goes through `| escape`, except SVG path data and coordinates, which the script
   validates (`/^[ML0-9. -]*$/` for paths, finite numbers) before output and replaces with `''` / `0` otherwise.
 - Committed Tredict fixtures are synthetic: Tredict's structure (see the verify answers), invented ids, dates, titles,
@@ -104,8 +104,8 @@ Each has a test in the task that owns the code (marked "Review Focus N").
   `shared.liquid` and no `append_random` chart ids (no chart JS); the en headings are "BEST TIME TODAY" / "TOMORROW",
   nl "BESTE TIJD VANDAAG" / "MORGEN"; on `auth`, `payment` and `unavailable` the Tredict message shows once, in
   the left column.
-- **Form model:** CTL += (load − CTL)/42, ATL += (load − ATL)/7, form = CTL − ATL, both from 0 on the first day with
-  data. Load: confirmed efforts for past days; all entries for today and later (a done plan's `unconfirmed` entry is
+- **Form model:** fitness = fitness·e^(−1/14) + load, fatigue = fatigue·e^(−1/9) + load, form = 1.66·fitness −
+  2·fatigue (Tredict's performance, fitted exactly in V10), both from 0 on the first day with data. Load: confirmed efforts for past days; all entries for today and later (a done plan's `unconfirmed` entry is
   already gone). Constants exported for V10.
 - **Missed:** a plan on a past local day with no `executedTrainingId`. **Rest day:** no planned session of the filtered
   sport.
@@ -352,13 +352,13 @@ with two entries, and today (2026-11-04) holding one confirmed and one `unconfir
 - Produces: `weekView(week, lang) -> output.week` (strings per the contract: `title` "WEEK 45", day `label`, item
   `text` such as `✓ 8.2 km · 5:41 · 142`, `Tempo · 50 min`, missed with `✗ ` prefix, footer
   `18.2 / 42.0 km · 1:42 / 4:30` or done-only when nothing is planned; `garmin` passed through).
-- Produces: `FORM_CONSTANTS = { fitnessDays: 42, fatigueDays: 7 }`;
+- Produces: `FORM_CONSTANTS = { fitnessDays: 14, fatigueDays: 9, fitnessWeight: 1.66, fatigueWeight: 2 }`;
   `formSeries({ efforts, today, back: 42, ahead: 7 }) -> { points: { date, form, planned }[], today: number|null }`,
   where `efforts` is the response's `trainingEfforts` object and `today` a date string; it walks every calendar day
   from the earliest key (load 0 on days without entries) and returns the window from `today − back` to
   `today + ahead`;
   `formChart(series, lang) -> output.form` (360x150 box, `pastPath`/`futurePath` as `M x y L x y …` with numbers to 1
-  decimal, `zeroY`, `todayX`, `today` as a signed integer string like `+4` / `−3` / `0`, the y-scale always including
+  decimal, `zeroY`, `todayX`, `today` as a rounded integer string like `4` / `−3` / `0` (no plus sign), the y-scale always including
   0, `empty` set and paths `''` when there are no points).
 
 - [ ] **Step 1: Write the tests**
@@ -505,7 +505,7 @@ show `tredict.message` instead; `stale` shows the panels plus the message. Foote
 {fetchedAtText}". Only TRMNL framework classes plus a small `<style>`; black and white only.
 
 - [ ] **Step 1: Write `tests/trmnl/render.test.js`** (outputs from Task 8's cases, via `buildBoard`)
-  - Normal: 7 rows Monday first, today's row has the inverted class, "WEEK 45", the footer totals, "Form (est.)", the
+  - Normal: 7 rows Monday first, today's row has the inverted class, "WEEK 45", the footer totals, "Form", the
     run window lines, the attribution, `data 12:00`.
   - The `</script>` title appears as `&lt;/script&gt;` and `{{ x }}` / `{% raw %}` as text; the rendered HTML has no
     `<script` at all (Review Focus 1). Assertions on escaped quotes accept both `&quot;` and `&#34;` (Ruby Liquid and
@@ -570,7 +570,7 @@ Controller with the maintainer.
 - [ ] **Step 2:** `formCheck.js` reads `tests/fixtures/private/efforts.json` and
   `tests/fixtures/private/form-from-app.json` (`{ "YYYY-MM-DD": number }`, typed in by the maintainer) and prints the
   difference per date for the default constants, other starting values and a one-day offset. It exits 0 with a
-  message if the files are absent. Record V10 without values; if it differs materially, keep "(est.)" and note it.
+  message if the files are absent. Record V10 without values. (Result: the Tredict model constants match all days; see the verify doc.)
 - [ ] **Step 3:** API Task 13 Step 5: in Better Stack, a TRMNL request to `/api/window` shows a rounded location; no
   token is involved any more.
 - [ ] **Step 4:** Commit `docs(plugin): record the install checks`.

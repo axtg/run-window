@@ -31,6 +31,7 @@ poll in TRMNL's Node runtime, with `fetch`, and whatever it returns becomes the 
 | V7 | Password field masked | Yes, in the settings form while pasting and after saving (maintainer). The MCP shows it as `"[set]"`. The script receives it in clear. | Maintainer; `getMergeVariables` | `password` field |
 | V8 | Tredict response size | Efforts 2.3 KB, plan 1.9 KB, activities 66 KB. A 66 KB merge-variable set was accepted. | Probe | Script returns a small, screen-ready set |
 | V9 | Tredict shapes | See below. | Real responses in `tests/fixtures/private/` | Synthetic fixtures copy these shapes |
+| V10 | Form against Tredict's app | Matches on every day (64 days of the maintainer's series, rounded) after switching to fitness decay e^(−1/14), fatigue decay e^(−1/9) and performance = 1.66 · fitness − 2 · fatigue. The generic 42/7 model did not match. No values recorded. | `node tests/trmnl/formCheck.js --today 2026-11-04` | Label "Form" / "Vorm", Tredict's model |
 | V11 | Token in the query string | Moot (no polling headers). | | |
 | V12 | Re-render skipped on unchanged data | Moot: `generatedAt` changes every poll. | | |
 | Scope | `activityRead` covers all three endpoints | Yes: `plannedTrainingList`, `activityList` and `efforts` all 200. | Probe with the maintainer's token | Help text: `activityRead` only |

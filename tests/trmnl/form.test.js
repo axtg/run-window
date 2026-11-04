@@ -21,27 +21,29 @@ function coordinates(path) {
 }
 
 describe('FORM_CONSTANTS', () => {
-  it('uses 42 and 7 days', () => {
-    expect(FORM_CONSTANTS).toEqual({ fitnessDays: 42, fatigueDays: 7 });
+  it("uses Tredict's model: 14 and 9 days, weights 1.66 and 2", () => {
+    expect(FORM_CONSTANTS).toEqual({ fitnessDays: 14, fatigueDays: 9, fitnessWeight: 1.66, fatigueWeight: 2 });
   });
 });
 
 describe('formSeries', () => {
-  it('settles near 0 for a constant load of 50 over 200 days', () => {
+  it('settles at L · (1.66 / (1 − e^(−1/14)) − 2 / (1 − e^(−1/9))) for a constant load over 200 days', () => {
     const keys = dayKeys('2026-04-18', 200);
     const efforts = Object.fromEntries(keys.map(key => [key, [[50]]]));
     const series = formSeries({ efforts, today: '2026-11-03', back: 42, ahead: 7 });
     const last = pointOn(series, '2026-11-03');
     expect(keys[keys.length - 1]).toBe('20261103');
-    expect(Math.abs(last.form)).toBeLessThan(1);
+    const settled = 50 * (1.66 / (1 - Math.exp(-1 / 14)) - 2 / (1 - Math.exp(-1 / 9)));
+    expect(last.form).toBeCloseTo(settled, 2);
     expect(series.today).toBe(last.form);
   });
 
-  it('gives 100/42 − 100/7 on a day of 100 after zeros', () => {
+  it('gives 1.66 · 100 − 2 · 100 on a day of 100 after zeros, then decays both sums', () => {
     const efforts = { 20261001: [[0]], 20261002: [[0]], 20261003: [[100]] };
     const series = formSeries({ efforts, today: '2026-10-10', back: 42, ahead: 7 });
-    expect(pointOn(series, '2026-10-03').form).toBeCloseTo(100 / 42 - 100 / 7, 6);
+    expect(pointOn(series, '2026-10-03').form).toBeCloseTo(-34, 6);
     expect(pointOn(series, '2026-10-02').form).toBe(0);
+    expect(pointOn(series, '2026-10-04').form).toBeCloseTo(166 * Math.exp(-1 / 14) - 200 * Math.exp(-1 / 9), 6);
   });
 
   it('returns the window from today − back to today + ahead, one point per day', () => {
@@ -68,7 +70,7 @@ describe('formSeries', () => {
     const series = formSeries({ efforts: { 20261101: [[100]] }, today: '2026-11-03', back: 42, ahead: 7 });
     expect(series.points).toHaveLength(50);
     expect(pointOn(series, '2026-10-31').form).toBe(0);
-    expect(pointOn(series, '2026-11-01').form).toBeCloseTo(100 / 42 - 100 / 7, 6);
+    expect(pointOn(series, '2026-11-01').form).toBeCloseTo(-34, 6);
   });
 
   it('ignores a past unconfirmed effort', () => {
@@ -92,7 +94,7 @@ describe('formSeries', () => {
       back: 1,
       ahead: 0
     });
-    expect(mixed.today).toBeCloseTo(140 / 42 - 140 / 7, 6);
+    expect(mixed.today).toBeCloseTo(-0.34 * 140, 6);
     expect(mixed.today).toBe(flat.today);
   });
 
@@ -108,7 +110,7 @@ describe('formSeries', () => {
       ['2026-10-02', false],
       ['2026-10-03', true]
     ]);
-    expect(series.points[2].form).toBeCloseTo(100 / 42 - 100 / 7, 6);
+    expect(series.points[2].form).toBeCloseTo(-34, 6);
   });
 
   it('reads the fixture today as 61 + 38', () => {
@@ -129,9 +131,17 @@ describe('formSeries', () => {
       today: '2026-10-02',
       back: 1,
       ahead: 0,
-      constants: { fitnessDays: 10, fatigueDays: 5 }
+      constants: { fitnessDays: 10, fatigueDays: 5, fitnessWeight: 1, fatigueWeight: 1 }
     });
-    expect(custom.today).toBeCloseTo(100 / 10 - 100 / 5, 6);
+    expect(custom.today).toBeCloseTo(0, 6);
+    const weighted = formSeries({
+      efforts,
+      today: '2026-10-02',
+      back: 1,
+      ahead: 0,
+      constants: { fitnessDays: 10, fatigueDays: 5, fitnessWeight: 2, fatigueWeight: 1 }
+    });
+    expect(weighted.today).toBeCloseTo(100, 6);
   });
 
   it('returns no points and today null for {} (Review Focus 4)', () => {
@@ -154,7 +164,7 @@ describe('formChart', () => {
     expect(chart.futurePath).toBe('');
     expect(chart.empty).toBe('No training data yet');
     expect(chart.today).toBe('');
-    expect(chart.heading).toBe('Form (est.)');
+    expect(chart.heading).toBe('Form');
     expect(Number.isFinite(chart.zeroY)).toBe(true);
     expect(Number.isFinite(chart.todayX)).toBe(true);
     expect(formChart({ points: [], today: null }, 'nl').empty).toBe('Nog geen trainingsgegevens');
@@ -176,8 +186,8 @@ describe('formChart', () => {
       }
     }
     expect(chart.empty).toBe('');
-    expect(chart.heading).toBe('Form (est.)');
-    expect(formChart(series, 'nl').heading).toBe('Vorm (schatting)');
+    expect(chart.heading).toBe('Form');
+    expect(formChart(series, 'nl').heading).toBe('Vorm');
   });
 
   it('splits at today: the past path ends where the future path starts, at todayX', () => {
@@ -210,9 +220,11 @@ describe('formChart', () => {
     expect(Number.isFinite(flat.zeroY)).toBe(true);
   });
 
-  it('prints today as a signed integer', () => {
+  it('prints today as a rounded integer, minus sign only when negative', () => {
     const points = [{ date: '2026-11-04', form: 0, planned: false }];
-    expect(formChart({ points, today: 4.4 }, 'en').today).toBe('+4');
+    expect(formChart({ points, today: 4.4 }, 'en').today).toBe('4');
+    expect(formChart({ points, today: 4.6 }, 'en').today).toBe('5');
+    expect(formChart({ points, today: -33.6 }, 'en').today).toBe('−34');
     expect(formChart({ points, today: -3.2 }, 'en').today).toBe('−3');
     expect(formChart({ points, today: 0.3 }, 'en').today).toBe('0');
     expect(formChart({ points, today: -0.4 }, 'en').today).toBe('0');

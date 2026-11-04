@@ -1,7 +1,7 @@
 # TRMNL Running Board
 
 One full screen (800x480) with this week's training from [Tredict](https://www.tredict.com), a form graph
-(estimated from Tredict efforts) and the best run window today from the
+(Tredict's performance, computed from Tredict efforts) and the best run window today from the
 [run-window API](https://run.xadi.eu). English and Dutch.
 
 ## Install as a private plugin
