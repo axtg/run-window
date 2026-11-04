@@ -41,10 +41,13 @@ const weather = {
 };
 const api = createApp({ weather, now: () => NOW });
 
-// Only what app.js touches on its elements.
-function fakeElement() {
+// Only what app.js touches on its elements. Elements from createElement are kept too, so a test can reach the
+// controls app.js builds (the hour rows).
+function fakeElement(tagName = 'div') {
   const listeners = {};
   return {
+    tagName,
+    className: '',
     textContent: '',
     value: '',
     hidden: false,
@@ -52,19 +55,31 @@ function fakeElement() {
     attributes: {},
     children: [],
     listeners,
+    open: false,
     parentElement: { getBoundingClientRect: () => ({ width: 360, left: 0 }) },
     setAttribute(name, value) {
       this.attributes[name] = String(value);
+    },
+    getAttribute(name) {
+      return name in this.attributes ? this.attributes[name] : null;
     },
     addEventListener(type, handler) {
       listeners[type] = handler;
     },
     appendChild(child) {
       this.children.push(child);
+      return child;
     },
-    replaceChildren() {
-      this.children = [];
+    replaceChildren(...children) {
+      this.children = children;
     },
+    showModal() {
+      this.open = true;
+    },
+    close() {
+      this.open = false;
+    },
+    focus() {},
     getBoundingClientRect: () => ({ width: 360, left: 0 })
   };
 }
@@ -75,8 +90,9 @@ class QuietDOMParser extends DOMParser {
   }
 }
 
-function loadPage() {
+function loadPage({ navigator = {} } = {}) {
   const elements = new Map();
+  const created = [];
   const record = { fetches: [], storage: [], history: [] };
   const store = new Map();
   const sandbox = {
@@ -84,13 +100,18 @@ function loadPage() {
     URLSearchParams,
     DOMParser: QuietDOMParser,
     location: { origin: ORIGIN, search: '' },
-    navigator: {},
+    navigator,
     document: {
       getElementById(id) {
         if (!elements.has(id)) elements.set(id, fakeElement());
         return elements.get(id);
       },
-      createElementNS: () => fakeElement()
+      createElement(tagName) {
+        const node = fakeElement(tagName);
+        created.push(node);
+        return node;
+      },
+      createElementNS: (_ns, tagName) => fakeElement(tagName)
     },
     localStorage: {
       getItem(key) {
@@ -132,7 +153,7 @@ function loadPage() {
   for (const name of SCRIPTS) {
     vm.runInContext(fs.readFileSync(path.join(PUBLIC, name), 'utf8'), sandbox, { filename: name });
   }
-  return { sandbox, elements, record, store };
+  return { sandbox, elements, created, record, store };
 }
 
 const flush = () => new Promise(resolve => setImmediate(resolve));
@@ -170,7 +191,7 @@ describe('app.js privacy smoke test', () => {
     expect(leaks(record.fetches[0])).toEqual([]);
 
     // A settings change after opening the route writes to storage, so the storage check has something to inspect.
-    elements.get('chip-dark').listeners.click();
+    elements.get('dark-ok').listeners.click();
     await flush();
     expect(rejections).toEqual([]);
     const writes = record.storage.filter(entry => entry.op === 'set');
@@ -179,5 +200,78 @@ describe('app.js privacy smoke test', () => {
     for (const [key, value] of store) expect(leaks(`${key} ${value}`)).toEqual([]);
     for (const historyUrl of record.history) expect(leaks(historyUrl)).toEqual([]);
     for (const fetched of record.fetches) expect(leaks(fetched)).toEqual([]);
+  });
+  it('saves only the five settings and asks once per settled change that alters the request', async () => {
+    const { sandbox, elements, record, store } = loadPage();
+    await sandbox.RunApp.openRouteText(GPX, FILE_NAME);
+    await flush();
+    expect(record.fetches).toHaveLength(1);
+
+    // Pace is not part of the request (the response holds every run length), so it redraws without asking again.
+    const paceBefore = elements.get('pace-input').value;
+    elements.get('pace-up').listeners.click();
+    await flush();
+    expect(elements.get('pace-input').value).not.toBe(paceBefore);
+    expect(record.fetches).toHaveLength(1);
+
+    elements.get('add-hours').listeners.click();
+    await flush();
+    expect(record.fetches).toHaveLength(2);
+
+    const rain = elements.get('rain-input');
+    rain.value = '55';
+    rain.listeners.input(); // dragging: the value text only
+    await flush();
+    expect(record.fetches).toHaveLength(2);
+    rain.listeners.change(); // released: one request
+    await flush();
+    expect(record.fetches).toHaveLength(3);
+
+    expect(rejections).toEqual([]);
+    expect([...store.keys()]).toEqual([sandbox.RunSettings.STORAGE_KEY]);
+    const saved = JSON.parse(store.get(sandbox.RunSettings.STORAGE_KEY));
+    expect(Object.keys(saved).sort()).toEqual(['allowDark', 'durationMin', 'hours', 'paceSec', 'rain']);
+    expect(saved).toMatchObject({ paceSec: 365, hours: '10-16,16-17', rain: 55 });
+
+    for (const fetched of record.fetches) {
+      const url = new URL(fetched);
+      expect(url.origin).toBe(ORIGIN);
+      expect([...url.searchParams.keys()].sort()).toEqual(QUERY_KEYS);
+      expect(url.searchParams.get('lat')).toMatch(/^-?\d+(\.\d{1,2})?$/);
+      expect(url.searchParams.get('lon')).toMatch(/^-?\d+(\.\d{1,2})?$/);
+      expect(leaks(fetched)).toEqual([]);
+    }
+    expect(new URL(record.fetches[2]).searchParams.get('avail')).toBe('10-16,16-17');
+    expect(new URL(record.fetches[2]).searchParams.get('rain')).toBe('55');
+    for (const historyUrl of record.history) expect(leaks(historyUrl)).toEqual([]);
+  });
+
+  it('moving an hour handle asks once, on release, with the clamped hours', async () => {
+    const { sandbox, created, record, store } = loadPage();
+    await sandbox.RunApp.openRouteText(GPX, FILE_NAME);
+    await flush();
+    const end = created.find(node => node.tagName === 'input' && node.attributes['aria-label'] === 'End of hours 1');
+    expect(end).toBeDefined();
+    end.value = '18';
+    end.listeners.input();
+    end.value = '20';
+    end.listeners.input();
+    expect(record.fetches).toHaveLength(1);
+    end.listeners.change();
+    await flush();
+    expect(rejections).toEqual([]);
+    expect(record.fetches).toHaveLength(2);
+    expect(new URL(record.fetches[1]).searchParams.get('avail')).toBe('10-20');
+    expect(JSON.parse(store.get(sandbox.RunSettings.STORAGE_KEY)).hours).toBe('10-20');
+  });
+
+  it('says the location is off and asks nothing when location is denied', async () => {
+    const geolocation = { getCurrentPosition: (onOk, onError) => onError({ code: 1 }) };
+    const { elements, record } = loadPage({ navigator: { geolocation } });
+    elements.get('use-location').listeners.click();
+    await flush();
+    expect(rejections).toEqual([]);
+    expect(elements.get('status').textContent).toBe('Location is off. Open a route file instead.');
+    expect(record.fetches).toHaveLength(0);
   });
 });

@@ -94,6 +94,88 @@ test('the page has a route file input for GPX and KML and a polite status line',
   expect(tapLine[0]).toMatch(/aria-live="polite"/);
 });
 
+// The API example and the privacy text live in two <dialog>s opened from the header.
+function dialogText(id) {
+  const match = html.match(new RegExp(`<dialog\\b[^>]*id="${id}"[^>]*>([\\s\\S]*?)</dialog>`));
+  expect(match).not.toBeNull();
+  return { raw: match[1], text: match[1].replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ') };
+}
+
+test('the header opens the API and Privacy dialogs', () => {
+  expect(html).toMatch(/<header\b[\s\S]*<button\b[^>]*id="open-api"[\s\S]*<\/header>/);
+  expect(html).toMatch(/<header\b[\s\S]*<button\b[^>]*id="open-privacy"[\s\S]*<\/header>/);
+  expect([...html.matchAll(/<dialog\b/g)]).toHaveLength(2);
+});
+
+test('the API dialog holds the example request, the parameters, the capacity and the contract link', () => {
+  const api = dialogText('api-dialog');
+  expect(api.raw).toContain('/api/window?');
+  expect(api.raw).toContain('lat=52.37&amp;lon=4.89');
+  for (const name of ['lat', 'lon', 'avail', 'dark', 'rain', 'lang', 'slots'])
+    expect(api.raw).toContain(`<code>${name}</code>`);
+  expect(api.text).toMatch(/300 locations/);
+  expect(api.text).toMatch(/503/);
+  expect(api.raw).toMatch(/href="\/openapi\.yaml"/);
+});
+
+test('the privacy dialog holds every privacy statement', () => {
+  const privacy = dialogText('privacy-dialog').text;
+  for (const phrase of [
+    'read in your browser',
+    'never sent',
+    'waits briefly in your browser',
+    'deleted as soon as the page opens it',
+    'rounded to 2 decimals before',
+    'Authorization',
+    'about 3 hours',
+    'Data older than 3 hours is never served',
+    'needs no token',
+    'never read, logged or stored',
+    'with the key kept only in memory and replaced daily, not written to disk or logs',
+    'salted hash',
+    '1 decimal',
+    'User-Agent',
+    'Better Stack'
+  ]) {
+    expect(privacy).toContain(phrase);
+  }
+});
+
+test('the settings are in place, each control labelled', () => {
+  for (const id of ['pace-input', 'pace-up', 'pace-down', 'hours-rows', 'add-hours', 'clear-source', 'use-location']) {
+    expect(html).toContain(`id="${id}"`);
+  }
+  const dark = html.match(/<button\b[^>]*id="dark-ok"[^>]*>/);
+  expect(dark).not.toBeNull();
+  expect(dark[0]).toMatch(/role="switch"/);
+  expect(dark[0]).toMatch(/aria-checked="false"/);
+  const rain = html.match(/<input\b[^>]*id="rain-input"[^>]*>/);
+  expect(rain).not.toBeNull();
+  expect(rain[0]).toMatch(/type="range"/);
+  expect(html).toMatch(/<label\b[^>]*for="rain-input"/);
+  expect(html).toMatch(/<label\b[^>]*for="pace-input"/);
+  expect(html).toMatch(/<svg\b[^>]*id="timeline"[^>]*>/);
+});
+
+test('an element with a display class still hides with the hidden attribute', () => {
+  // Tailwind's display classes outrank the browser's [hidden] rule, so they need the [&[hidden]]:hidden variant.
+  const tags = [...html.matchAll(/<[a-z]+\b[^>]*\shidden\b[^>]*>/g)].map(match => match[0]);
+  for (const tag of tags) {
+    const classes = (tag.match(/class="([^"]*)"/) || [])[1] || '';
+    if (/(^|\s)(flex|inline-flex|grid|block|inline-block)(\s|$)/.test(classes))
+      expect(classes).toContain('[&[hidden]]:hidden');
+  }
+  for (const id of ['source-set', 'source-pick', 'pace-row', 'duration-row', 'key-numbers']) {
+    const tag = html.match(new RegExp(`<[a-z]+\\b[^>]*id="${id}"[^>]*>`));
+    expect(tag[0]).toContain('[&[hidden]]:hidden');
+  }
+});
+
+test('the one-off duration and the chips are gone', () => {
+  expect(html).not.toContain('oneoff-input');
+  expect(html).not.toMatch(/id="chip-/);
+});
+
 test('the only stylesheet is /tailwind.css, which the logger allows', async () => {
   const stylesheets = [...html.matchAll(/<link\b[^>]*rel="stylesheet"[^>]*>/g)].map(match => match[0]);
 

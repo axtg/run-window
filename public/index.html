@@ -18,228 +18,337 @@
     <script src="/settings.js" defer></script>
     <script src="/app.js" defer></script>
   </head>
-  <body class="bg-surface text-primary antialiased">
-    <main class="mx-auto max-w-2xl px-4 py-10 space-y-8">
-      <section class="space-y-4" aria-labelledby="tool-title">
-        <header class="space-y-1">
-          <h1 id="tool-title" class="text-3xl font-semibold">Run window</h1>
-          <p class="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-secondary">
-            <span id="source" class="min-w-0 [overflow-wrap:anywhere]">Near you</span>
-            <span aria-hidden="true">·</span>
-            <span class="inline-flex overflow-hidden rounded-full border border-gray-300" role="group" aria-label="Day">
-              <button
-                id="day-today"
-                type="button"
-                class="px-3 py-0.5 aria-pressed:bg-primary aria-pressed:text-white"
-                aria-pressed="true"
-              >
-                Today
-              </button>
-              <button
-                id="day-tomorrow"
-                type="button"
-                class="px-3 py-0.5 aria-pressed:bg-primary aria-pressed:text-white"
-                aria-pressed="false"
-              >
-                Tomorrow
-              </button>
-            </span>
-            <span id="zone-note" hidden></span>
-          </p>
-        </header>
+  <body class="min-h-screen bg-gray-100 text-primary antialiased">
+    <svg class="absolute h-0 w-0" aria-hidden="true" focusable="false">
+      <defs>
+        <pattern id="night-hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+          <rect width="6" height="6" class="fill-gray-100" />
+          <rect width="3" height="6" class="fill-gray-300" />
+        </pattern>
+      </defs>
+    </svg>
 
-        <div class="flex flex-wrap gap-2">
-          <label
-            for="route-input"
-            class="cursor-pointer rounded border border-primary px-3 py-1.5 text-sm font-medium focus-within:ring-2 focus-within:ring-primary"
-          >
-            Open route
-            <input
-              id="route-input"
-              type="file"
-              class="sr-only"
-              accept=".gpx,.kml,application/gpx+xml,application/vnd.google-earth.kml+xml"
-            />
-          </label>
-          <button id="use-location" type="button" class="rounded border border-primary px-3 py-1.5 text-sm font-medium">
-            Use my location
-          </button>
-        </div>
+    <header class="mx-auto flex max-w-xl items-center justify-between px-4 pb-3 pt-5">
+      <div class="flex items-center gap-2 text-base font-semibold">
+        <svg viewBox="0 0 512 512" class="h-6 w-6" aria-hidden="true" focusable="false">
+          <rect width="512" height="512" rx="112" fill="#111827" />
+          <rect x="84" y="280" width="56" height="112" rx="14" fill="#BBF7D0" />
+          <rect x="156" y="200" width="56" height="192" rx="14" fill="#4ADE80" />
+          <rect x="228" y="128" width="56" height="264" rx="14" fill="#16A34A" />
+          <rect x="300" y="176" width="56" height="216" rx="14" fill="#22C55E" />
+          <rect x="372" y="248" width="56" height="144" rx="14" fill="#86EFAC" />
+        </svg>
+        <h1>Run window</h1>
+      </div>
+      <nav class="flex items-center gap-1 text-sm text-gray-600" aria-label="About the page">
+        <button
+          id="open-api"
+          type="button"
+          class="rounded-lg px-3 py-1.5 hover:bg-white hover:text-gray-900"
+          aria-haspopup="dialog"
+        >
+          API
+        </button>
+        <button
+          id="open-privacy"
+          type="button"
+          class="rounded-lg px-3 py-1.5 hover:bg-white hover:text-gray-900"
+          aria-haspopup="dialog"
+        >
+          Privacy
+        </button>
+      </nav>
+    </header>
 
-        <div class="space-y-2">
-          <div class="flex flex-wrap gap-2 text-sm">
-            <button
-              id="chip-duration"
-              type="button"
-              class="rounded-full border border-gray-400 px-3 py-0.5"
-              aria-expanded="false"
-              aria-controls="editor-duration"
-            >
-              60 min
-            </button>
-            <button
-              id="chip-dark"
-              type="button"
-              class="rounded-full border border-gray-400 px-3 py-0.5 aria-pressed:border-primary aria-pressed:bg-primary aria-pressed:text-white"
-              aria-pressed="false"
-            >
-              Allow dark
-            </button>
-            <button
-              id="chip-rain"
-              type="button"
-              class="rounded-full border border-gray-400 px-3 py-0.5"
-              aria-expanded="false"
-              aria-controls="editor-rain"
-            >
-              Rain ≤ 40 %
-            </button>
-            <button
-              id="chip-hours"
-              type="button"
-              class="rounded-full border border-gray-400 px-3 py-0.5"
-              aria-expanded="false"
-              aria-controls="editor-hours"
-            >
-              Hours 06-22
-            </button>
-          </div>
-
-          <form id="editor-duration" class="rounded bg-surface-muted p-3 text-sm" hidden>
-            <div class="flex flex-wrap items-end gap-2">
-              <div id="pace-field">
-                <label class="flex flex-col gap-1">
-                  Pace (m:ss per km)
-                  <input id="pace-input" class="w-24 rounded border border-gray-400 px-2 py-1" inputmode="numeric" />
-                </label>
-              </div>
-              <div id="oneoff-field">
-                <label class="flex flex-col gap-1">
-                  This run only (min)
-                  <input
-                    id="oneoff-input"
-                    type="number"
-                    min="15"
-                    max="300"
-                    class="w-24 rounded border border-gray-400 px-2 py-1"
-                    placeholder="from pace"
-                  />
-                </label>
-              </div>
-              <div id="duration-field">
-                <label class="flex flex-col gap-1">
-                  Duration (min)
-                  <input
-                    id="duration-input"
-                    type="number"
-                    min="15"
-                    max="300"
-                    class="w-24 rounded border border-gray-400 px-2 py-1"
-                  />
-                </label>
-              </div>
-              <button type="submit" class="rounded bg-primary px-3 py-1 text-white">Set</button>
+    <main class="mx-auto max-w-xl px-3 pb-10 sm:px-4">
+      <section
+        class="overflow-hidden rounded-2xl bg-white shadow-[0_1px_2px_rgba(0,0,0,0.05),0_8px_24px_rgba(17,24,39,0.06)] ring-1 ring-black/5"
+        aria-label="Best time to run"
+      >
+        <div class="bg-gray-50 px-4 py-3 text-sm">
+          <div class="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 pb-2">
+            <div class="flex items-center gap-2">
+              <span class="inline-flex rounded-full bg-gray-200 p-0.5 text-xs" role="group" aria-label="Day">
+                <button
+                  id="day-today"
+                  type="button"
+                  class="rounded-full px-3 py-1 aria-pressed:bg-white aria-pressed:font-semibold aria-pressed:shadow-sm"
+                  aria-pressed="true"
+                >
+                  Today
+                </button>
+                <button
+                  id="day-tomorrow"
+                  type="button"
+                  class="rounded-full px-3 py-1 aria-pressed:bg-white aria-pressed:font-semibold aria-pressed:shadow-sm"
+                  aria-pressed="false"
+                >
+                  Tomorrow
+                </button>
+              </span>
+              <span id="zone-note" class="text-xs text-secondary" hidden></span>
             </div>
-          </form>
-
-          <form id="editor-rain" class="rounded bg-surface-muted p-3 text-sm" hidden>
-            <div class="flex flex-wrap items-end gap-2">
-              <label class="flex flex-col gap-1">
-                Highest rain chance (%)
+            <div
+              id="source-set"
+              class="[&[hidden]]:hidden flex min-w-0 items-center gap-1 text-xs text-secondary"
+              hidden
+            >
+              <span id="source" class="min-w-0 [overflow-wrap:anywhere]"></span>
+              <span id="source-distance" class="flex-none"></span>
+              <button
+                id="clear-source"
+                type="button"
+                class="flex h-6 w-6 flex-none items-center justify-center rounded-full hover:bg-gray-200 hover:text-gray-900"
+                aria-label="Clear the route or location"
+              >
+                ✕
+              </button>
+            </div>
+            <div id="source-pick" class="[&[hidden]]:hidden flex items-center gap-2 text-xs font-medium">
+              <label
+                for="route-input"
+                class="cursor-pointer rounded-full bg-primary px-3 py-1 text-white focus-within:ring-2 focus-within:ring-primary focus-within:ring-offset-2"
+              >
+                Open route
                 <input
-                  id="rain-input"
-                  type="number"
-                  min="0"
-                  max="100"
-                  class="w-24 rounded border border-gray-400 px-2 py-1"
+                  id="route-input"
+                  type="file"
+                  class="sr-only"
+                  accept=".gpx,.kml,application/gpx+xml,application/vnd.google-earth.kml+xml"
                 />
               </label>
-              <button type="submit" class="rounded bg-primary px-3 py-1 text-white">Set</button>
+              <button
+                id="use-location"
+                type="button"
+                class="rounded-full border border-gray-300 bg-white px-3 py-1 hover:border-gray-400"
+              >
+                Use my location
+              </button>
             </div>
-          </form>
+          </div>
 
-          <form id="editor-hours" class="rounded bg-surface-muted p-3 text-sm" hidden>
-            <div class="flex flex-wrap items-end gap-2">
-              <label class="flex flex-col gap-1">
-                Hours you can run (e.g. 07-09,17-21)
-                <input id="hours-input" class="w-40 rounded border border-gray-400 px-2 py-1" />
-              </label>
-              <button type="submit" class="rounded bg-primary px-3 py-1 text-white">Set</button>
+          <div id="pace-row" class="[&[hidden]]:hidden flex items-center gap-3 border-t border-gray-200 py-2" hidden>
+            <label
+              for="pace-input"
+              class="w-14 flex-none text-[11px] font-medium uppercase tracking-wide text-secondary"
+              >Pace</label
+            >
+            <span class="flex-1"></span>
+            <div class="flex items-center gap-1.5">
+              <button
+                id="pace-down"
+                type="button"
+                class="flex h-7 w-7 items-center justify-center rounded-full border border-gray-300 bg-white hover:border-gray-400"
+                aria-label="Pace 5 seconds faster"
+              >
+                −
+              </button>
+              <input
+                id="pace-input"
+                class="w-12 rounded border border-transparent bg-transparent px-1 text-right font-semibold hover:border-gray-300 focus:border-gray-400 focus:bg-white focus:outline-none"
+                inputmode="numeric"
+                autocomplete="off"
+              />
+              <span class="text-xs text-secondary">/km</span>
+              <button
+                id="pace-up"
+                type="button"
+                class="flex h-7 w-7 items-center justify-center rounded-full border border-gray-300 bg-white hover:border-gray-400"
+                aria-label="Pace 5 seconds slower"
+              >
+                +
+              </button>
             </div>
-          </form>
+          </div>
+
+          <div id="duration-row" class="[&[hidden]]:hidden flex items-center gap-3 border-t border-gray-200 py-2">
+            <span class="w-14 flex-none text-[11px] font-medium uppercase tracking-wide text-secondary">Run</span>
+            <span class="flex-1"></span>
+            <div class="flex items-center gap-1.5">
+              <button
+                id="duration-down"
+                type="button"
+                class="flex h-7 w-7 items-center justify-center rounded-full border border-gray-300 bg-white hover:border-gray-400"
+                aria-label="Run 15 minutes shorter"
+              >
+                −
+              </button>
+              <output id="duration-value" class="min-w-16 text-center font-semibold" aria-live="polite">60 min</output>
+              <button
+                id="duration-up"
+                type="button"
+                class="flex h-7 w-7 items-center justify-center rounded-full border border-gray-300 bg-white hover:border-gray-400"
+                aria-label="Run 15 minutes longer"
+              >
+                +
+              </button>
+            </div>
+          </div>
+
+          <div id="hours-rows"></div>
+
+          <div class="flex items-center gap-3 pb-1">
+            <span class="hidden w-14 flex-none sm:block" aria-hidden="true"></span>
+            <span id="dark-times" class="whitespace-nowrap text-xs text-secondary" hidden></span>
+            <button
+              id="dark-ok"
+              type="button"
+              role="switch"
+              aria-checked="false"
+              class="group ml-auto inline-flex flex-none items-center gap-2 rounded-full border border-gray-300 bg-white py-0.5 pl-2.5 pr-1 text-xs text-gray-700 hover:border-gray-400"
+            >
+              Dark OK
+              <span
+                class="relative h-4 w-7 rounded-full bg-gray-300 transition-colors group-aria-checked:bg-primary"
+                aria-hidden="true"
+              >
+                <span
+                  class="absolute left-0.5 top-0.5 h-3 w-3 rounded-full bg-white transition-transform group-aria-checked:translate-x-3"
+                ></span>
+              </span>
+            </button>
+          </div>
+          <div class="flex items-center gap-3 pb-2">
+            <span class="w-14 flex-none" aria-hidden="true"></span>
+            <button
+              id="add-hours"
+              type="button"
+              class="text-xs font-medium text-gray-700 underline-offset-2 hover:underline"
+            >
+              + add hours
+            </button>
+          </div>
+
+          <div class="flex items-center gap-3 border-t border-gray-200 pt-2">
+            <label
+              for="rain-input"
+              class="w-14 flex-none text-[11px] font-medium uppercase tracking-wide text-secondary"
+              >Rain ≤</label
+            >
+            <div class="relative h-6 flex-1">
+              <svg class="absolute left-2 top-0 h-full w-[calc(100%-1rem)] overflow-visible" aria-hidden="true">
+                <rect x="0" y="10" width="100%" height="4" rx="2" class="fill-gray-200" />
+                <rect id="rain-fill" x="0" y="10" width="40%" height="4" rx="2" class="fill-primary" />
+              </svg>
+              <input
+                id="rain-input"
+                type="range"
+                min="0"
+                max="100"
+                step="5"
+                value="40"
+                class="absolute inset-0 h-6 w-full cursor-pointer appearance-none bg-transparent focus:outline-none [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:bg-white [&::-moz-range-thumb]:shadow-[0_0_0_2px_#111827,0_1px_3px_rgba(0,0,0,0.2)] [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:shadow-[0_0_0_2px_#111827,0_1px_3px_rgba(0,0,0,0.2)] [&:focus-visible::-moz-range-thumb]:shadow-[0_0_0_4px_#111827] [&:focus-visible::-webkit-slider-thumb]:shadow-[0_0_0_4px_#111827]"
+              />
+            </div>
+            <span id="rain-value" class="min-w-12 flex-none whitespace-nowrap text-right font-semibold">40 %</span>
+          </div>
         </div>
 
-        <p id="status" class="text-sm" role="status" aria-live="polite">Open a route file or use your location.</p>
+        <div class="border-t border-gray-100 px-4 pb-2 pt-4">
+          <p id="prompt" class="py-6 text-center text-sm text-secondary">Open a route file or use your location.</p>
+          <div id="answer" hidden>
+            <p id="answer-label" class="text-xs text-secondary"></p>
+            <p id="answer-time" class="text-3xl font-bold tracking-tight"></p>
+            <dl id="key-numbers" class="[&[hidden]]:hidden mt-2 flex flex-wrap gap-x-5 gap-y-1"></dl>
+            <p id="wind-line" class="mt-1 text-sm text-gray-700"></p>
+            <p id="stale-note" class="mt-1 text-xs text-secondary" hidden></p>
+          </div>
+          <p id="status" class="mt-2 text-sm empty:hidden" role="status" aria-live="polite"></p>
+        </div>
 
-        <div id="result" class="space-y-3" hidden>
-          <div class="space-y-1">
-            <svg
-              id="strip"
-              class="block w-full cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-              role="img"
-              tabindex="0"
-              aria-label="Day strip"
-              height="52"
-            ></svg>
-            <p id="tap-line" class="text-sm text-secondary" aria-live="polite">
-              Tap the strip, or use the arrow keys, for each slot.
+        <div id="result" class="space-y-2 px-4 pb-4 pt-2" hidden>
+          <svg
+            id="timeline"
+            class="block w-full cursor-pointer rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+            role="img"
+            tabindex="0"
+            aria-label="Timeline"
+            height="138"
+          ></svg>
+          <p id="tap-line" class="min-h-5 text-xs text-secondary" aria-live="polite">
+            Tap the timeline, or use the arrow keys, for each slot.
+          </p>
+          <div class="space-y-1 border-t border-gray-100 pt-2">
+            <p class="flex flex-wrap gap-x-3 gap-y-1 text-xs text-secondary">
+              <span><span class="text-red-600">—</span> feels-like °C</span>
+              <span><span class="text-blue-700">- -</span> wind km/h</span>
+              <span><span class="text-blue-300">▮</span> rain %</span>
+              <span><span class="text-gray-300">▮</span> dark</span>
             </p>
+            <p id="why-sentence" class="text-sm text-gray-700"></p>
           </div>
-
-          <div class="space-y-0.5 rounded-lg bg-surface-muted px-3 py-2">
-            <p id="go-line" class="text-lg font-semibold"></p>
-            <p id="wind-line" class="min-h-6"></p>
-            <p id="route-line" hidden></p>
-          </div>
-          <p id="stale-note" class="text-sm text-secondary" hidden></p>
-
-          <details id="why" class="border-t border-gray-300 pt-2">
-            <summary class="cursor-pointer text-sm">Why this time</summary>
-            <div class="mt-2 space-y-2">
-              <svg id="chart" class="block w-full" height="112" aria-hidden="true"></svg>
-              <p class="text-xs text-secondary">
-                <span class="text-red-600">— feels-like °C</span> · <span class="text-blue-700">- - wind km/h</span> ·
-                <span><span class="text-blue-300">▮</span> rain %</span> ·
-                <span><span class="text-gray-200">▮</span> dark</span>
-              </p>
-              <p id="why-sentence" class="text-sm"></p>
-            </div>
-          </details>
-
-          <button id="copy-link" type="button" class="text-sm text-secondary underline">Copy API link</button>
         </div>
-      </section>
 
-      <section class="space-y-2">
-        <h2 class="text-xl font-semibold">The API</h2>
+        <footer
+          class="flex flex-wrap items-center justify-between gap-2 border-t border-gray-100 px-4 py-3 text-xs text-secondary"
+        >
+          <p>Weather: <a class="underline" href="https://open-meteo.com/">Open-Meteo.com</a> (CC BY 4.0)</p>
+          <button id="copy-link" type="button" class="hover:text-gray-900">Copy API link ⧉</button>
+        </footer>
+      </section>
+    </main>
+
+    <dialog
+      id="api-dialog"
+      aria-labelledby="api-title"
+      class="w-[calc(100%-2rem)] max-w-xl rounded-2xl bg-white p-0 text-primary shadow-2xl backdrop:bg-gray-900/40"
+    >
+      <div class="space-y-4 p-5 text-sm">
+        <div class="flex items-center justify-between">
+          <h2 id="api-title" class="text-lg font-semibold">The API</h2>
+          <button
+            id="close-api"
+            type="button"
+            class="flex h-8 w-8 items-center justify-center rounded-full text-gray-500 hover:bg-gray-100 hover:text-gray-900"
+            aria-label="Close"
+          >
+            ✕
+          </button>
+        </div>
         <p class="text-secondary">
           Give it a location and the hours you can run. It returns the best weather window for each session length,
           today and tomorrow.
         </p>
-      </section>
+        <div class="space-y-2">
+          <h3 class="font-semibold">Example request</h3>
+          <pre
+            class="overflow-x-auto rounded-lg bg-gray-100 p-3 text-xs"
+          ><code>GET /api/window?lat=52.37&amp;lon=4.89&amp;avail=07-09,12-14,17-21</code></pre>
+          <p>
+            <code>lat</code> and <code>lon</code> are required. <code>avail</code>, <code>dark</code>,
+            <code>rain</code>, <code>lang</code> and <code>slots</code> are optional; <code>slots=1</code> adds the
+            day's 15-minute slots, which this page draws. The full contract is in
+            <a class="underline" href="/openapi.yaml">openapi.yaml</a>.
+          </p>
+        </div>
+        <div class="space-y-2">
+          <h3 class="font-semibold">Capacity</h3>
+          <p>
+            The service accepts at most 300 locations per UTC day, to stay within the weather provider's free limits. A
+            location that was admitted keeps working all day. A new location over the limit gets a 503 until UTC
+            midnight.
+          </p>
+        </div>
+      </div>
+    </dialog>
 
-      <section class="space-y-2">
-        <h2 class="text-xl font-semibold">Example request</h2>
-        <pre
-          class="overflow-x-auto rounded bg-surface-muted p-3 text-sm"
-        ><code>GET /api/window?lat=52.37&amp;lon=4.89&amp;avail=07-09,12-14,17-21</code></pre>
-        <p>
-          <code>lat</code> and <code>lon</code> are required. <code>avail</code>, <code>dark</code>,
-          <code>rain</code> and <code>lang</code> are optional. The full contract is in
-          <a class="underline" href="/openapi.yaml">openapi.yaml</a>.
-        </p>
-      </section>
-
-      <section class="space-y-2">
-        <h2 class="text-xl font-semibold">Capacity</h2>
-        <p>
-          The service accepts at most 300 locations per UTC day, to stay within the weather provider's free limits. A
-          location that was admitted keeps working all day. A new location over the limit gets a 503 until UTC midnight.
-        </p>
-      </section>
-
-      <section class="space-y-2">
-        <h2 class="text-xl font-semibold">Privacy</h2>
+    <dialog
+      id="privacy-dialog"
+      aria-labelledby="privacy-title"
+      class="w-[calc(100%-2rem)] max-w-xl rounded-2xl bg-white p-0 text-primary shadow-2xl backdrop:bg-gray-900/40"
+    >
+      <div class="space-y-4 p-5 text-sm">
+        <div class="flex items-center justify-between">
+          <h2 id="privacy-title" class="text-lg font-semibold">Privacy</h2>
+          <button
+            id="close-privacy"
+            type="button"
+            class="flex h-8 w-8 items-center justify-center rounded-full text-gray-500 hover:bg-gray-100 hover:text-gray-900"
+            aria-label="Close"
+          >
+            ✕
+          </button>
+        </div>
         <ul class="list-disc space-y-1 pl-5">
           <li>The route file is read in your browser and never sent anywhere; the page only sends its start point.</li>
           <li>The location is rounded to 2 decimals before it leaves your device.</li>
@@ -269,11 +378,7 @@
           <li>Logs hold known paths, coordinates rounded to 1 decimal and the User-Agent. Logs go to Better Stack.</li>
           <li>Logs hold a client ID that is salted and changes every day, instead of an IP address.</li>
         </ul>
-      </section>
-
-      <footer class="border-t pt-4 text-sm text-secondary">
-        <p>Weather data by <a class="underline" href="https://open-meteo.com/">Open-Meteo.com</a> (CC BY 4.0).</p>
-      </footer>
-    </main>
+      </div>
+    </dialog>
   </body>
 </html>

@@ -1,19 +1,38 @@
-// The page's DOM glue: reads the controls, calls /api/window and draws the strip, overview and chart. The logic
+// The page's DOM glue: reads the settings rows, calls /api/window and draws the answer and the timeline. The logic
 // lives in route.js, plan.js, strip.js and settings.js. The route, its file name and the coordinates stay in memory.
 (function () {
   const { parseRoute, summarizeRoute } = globalThis.RouteFile;
   const Plan = globalThis.RunPlan;
   const Strip = globalThis.DayStrip;
-  const { loadSettings, saveSettings, validHours } = globalThis.RunSettings;
+  const { loadSettings, saveSettings, splitHours, joinHours, moveHandle, addRow, removeRow } = globalThis.RunSettings;
 
   const SVG_NS = 'http://www.w3.org/2000/svg';
   const MAX_FILE_BYTES = 5 * 1024 * 1024;
-  const STRIP_HEIGHT = 52;
-  const CELL_TOP = 4;
-  const CELL_HEIGHT = 32;
-  const CHART_HEIGHT = 112;
-  const PLOT_HEIGHT = 94;
+  const BAND_HEIGHT = 24;
+  const PLOT_TOP = 30;
+  const PLOT_HEIGHT = 90;
+  const TIMELINE_HEIGHT = 138;
   const MIN_WIDTH = 200;
+  const DAY_MIN = 1440;
+  const PACE_STEP = 5;
+  const PACE_RANGE = [180, 900];
+  const DURATION_STEP = 15;
+  const DURATION_RANGE = [15, 300];
+  const TAP_HINT = 'Tap the timeline, or use the arrow keys, for each slot.';
+
+  // Hour sliders: two overlaid native range inputs per row. Only their thumbs take the pointer.
+  const HANDLE_CLASS =
+    'pointer-events-none absolute inset-0 h-6 w-full appearance-none bg-transparent focus:outline-none ' +
+    '[&::-moz-range-thumb]:pointer-events-auto [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:w-4 ' +
+    '[&::-moz-range-thumb]:cursor-pointer [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-0 ' +
+    '[&::-moz-range-thumb]:bg-white [&::-moz-range-thumb]:shadow-[0_0_0_2px_#111827,0_1px_3px_rgba(0,0,0,0.2)] ' +
+    '[&::-webkit-slider-thumb]:pointer-events-auto [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:w-4 ' +
+    '[&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:appearance-none ' +
+    '[&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white ' +
+    '[&::-webkit-slider-thumb]:shadow-[0_0_0_2px_#111827,0_1px_3px_rgba(0,0,0,0.2)] ' +
+    '[&:focus-visible::-moz-range-thumb]:shadow-[0_0_0_4px_#111827] ' +
+    '[&:focus-visible::-webkit-slider-thumb]:shadow-[0_0_0_4px_#111827]';
+  const ROW_LABEL_CLASS = 'w-14 flex-none text-[11px] font-medium uppercase tracking-wide text-secondary';
 
   const MESSAGES = {
     'too-large': 'That file is too large for a route.',
@@ -25,51 +44,23 @@
     locating: 'Finding your location…',
     copied: 'Copied',
     pace: 'Pace is m:ss per km, from 3:00 to 15:00.',
-    duration: 'Duration is 15 to 300 minutes.',
-    rain: 'Rain is 0 to 100 %.',
-    hours: 'Hours look like 06-22 or 07-09,17-21.',
     shareFailed: "The shared route didn't arrive. Open it again."
   };
   // Where sw.js leaves a shared route file for the page to read once.
   const SHARE_CACHE = 'shared-route';
   const SHARE_KEY = '/shared-route';
 
-  const $ = id => document.getElementById(id);
-  const el = {
-    source: $('source'),
-    dayToday: $('day-today'),
-    dayTomorrow: $('day-tomorrow'),
-    zoneNote: $('zone-note'),
-    routeInput: $('route-input'),
-    useLocation: $('use-location'),
-    chipDuration: $('chip-duration'),
-    chipDark: $('chip-dark'),
-    chipRain: $('chip-rain'),
-    chipHours: $('chip-hours'),
-    editorDuration: $('editor-duration'),
-    editorRain: $('editor-rain'),
-    editorHours: $('editor-hours'),
-    paceField: $('pace-field'),
-    oneoffField: $('oneoff-field'),
-    durationField: $('duration-field'),
-    paceInput: $('pace-input'),
-    oneoffInput: $('oneoff-input'),
-    durationInput: $('duration-input'),
-    rainInput: $('rain-input'),
-    hoursInput: $('hours-input'),
-    status: $('status'),
-    result: $('result'),
-    strip: $('strip'),
-    tapLine: $('tap-line'),
-    goLine: $('go-line'),
-    windLine: $('wind-line'),
-    routeLine: $('route-line'),
-    staleNote: $('stale-note'),
-    why: $('why'),
-    chart: $('chart'),
-    whySentence: $('why-sentence'),
-    copyLink: $('copy-link')
-  };
+  // Every element app.js uses, by id; el.sourceSet is #source-set.
+  const IDS = (
+    'source source-distance source-set source-pick clear-source day-today day-tomorrow zone-note ' +
+    'route-input use-location pace-row pace-down pace-input pace-up duration-row duration-down ' +
+    'duration-value duration-up hours-rows add-hours dark-times dark-ok rain-input rain-fill rain-value ' +
+    'prompt answer answer-label answer-time key-numbers wind-line stale-note status result timeline ' +
+    'tap-line why-sentence copy-link open-api open-privacy api-dialog privacy-dialog close-api ' +
+    'close-privacy'
+  ).split(' ');
+  const camel = id => id.replace(/-(\w)/g, (_, letter) => letter.toUpperCase());
+  const el = Object.fromEntries(IDS.map(id => [camel(id), document.getElementById(id)]));
 
   // Reading the getter itself can throw (blocked site data), so it is wrapped too.
   function deviceStorage() {
@@ -81,11 +72,13 @@
   }
 
   const storage = deviceStorage();
+  const settings = loadSettings(storage);
   const state = {
-    settings: loadSettings(storage),
+    settings,
+    rows: splitHours(settings.hours), // the hour rows as shown, saved through joinHours on release
+    rowViews: [],
     summary: null, // the opened route's summary, memory only
     location: null, // { lat, lon }, already rounded to 2 decimals
-    oneOffMin: null, // this run only, not remembered
     dayIndex: 0,
     body: null, // the last /api/window response
     selected: null,
@@ -102,13 +95,22 @@
     return node;
   }
 
+  function html(name, className, text) {
+    const node = document.createElement(name);
+    if (className) node.className = className;
+    if (text !== undefined) node.textContent = text;
+    return node;
+  }
+
   function round2(value) {
     return Number(value.toFixed(2));
   }
 
+  const clamp = (value, [min, max]) => Math.min(max, Math.max(min, value));
+  const percent = min => `${((min / DAY_MIN) * 100).toFixed(2)}%`;
+
   function runMinutes() {
     if (!state.summary) return state.settings.durationMin;
-    if (state.oneOffMin !== null) return state.oneOffMin;
     return Math.max(1, Plan.runMinutes(state.summary.distanceKm, state.settings.paceSec));
   }
 
@@ -117,64 +119,8 @@
     return { lat: state.location.lat, lon: state.location.lon, hours, allowDark, rain };
   }
 
-  // ---- Chips and editors
-
-  function renderChips() {
-    const { allowDark, rain, hours } = state.settings;
-    const minutes = runMinutes();
-    el.chipDuration.textContent = state.summary
-      ? `${state.summary.distanceKm.toFixed(1)} km · ${minutes} min`
-      : `${minutes} min`;
-    el.chipDark.setAttribute('aria-pressed', String(allowDark));
-    el.chipRain.textContent = `Rain ≤ ${rain} %`;
-    el.chipHours.textContent = `Hours ${hours}`;
-  }
-
-  const editors = [
-    { chip: el.chipDuration, form: el.editorDuration, fill: fillDurationEditor },
-    { chip: el.chipRain, form: el.editorRain, fill: fillRainEditor },
-    { chip: el.chipHours, form: el.editorHours, fill: fillHoursEditor }
-  ];
-
-  function fillRainEditor() {
-    el.rainInput.value = String(state.settings.rain);
-  }
-
-  function fillHoursEditor() {
-    el.hoursInput.value = state.settings.hours;
-  }
-
-  function fillDurationEditor() {
-    const withRoute = Boolean(state.summary);
-    el.paceField.hidden = !withRoute;
-    el.oneoffField.hidden = !withRoute;
-    el.durationField.hidden = withRoute;
-    el.paceInput.value = Plan.formatPace(state.settings.paceSec);
-    el.oneoffInput.value = state.oneOffMin === null ? '' : state.oneOffMin;
-    el.durationInput.value = state.settings.durationMin;
-  }
-
-  function closeEditors() {
-    editors.forEach(({ chip, form }) => {
-      form.hidden = true;
-      chip.setAttribute('aria-expanded', 'false');
-    });
-  }
-
-  function toggleEditor(editor) {
-    const opening = editor.form.hidden;
-    closeEditors();
-    if (!opening) return;
-    editor.fill();
-    editor.form.hidden = false;
-    editor.chip.setAttribute('aria-expanded', 'true');
-    const input = [...editor.form.querySelectorAll('input')].find(node => !node.closest('[hidden]'));
-    if (input) input.focus();
-  }
-
-  function minutesFrom(text) {
-    const value = Number(text);
-    return Number.isInteger(value) && value >= 15 && value <= 300 ? value : null;
+  function currentDay() {
+    return state.body && state.body.days[state.dayIndex];
   }
 
   function save(changes) {
@@ -182,53 +128,167 @@
     saveSettings(storage, state.settings);
   }
 
-  function onDurationSubmit(event) {
-    event.preventDefault();
-    if (state.summary) {
-      const pace = Plan.parsePace(el.paceInput.value.trim());
-      if (pace === null) return setStatus(MESSAGES.pace);
-      const oneOffText = el.oneoffInput.value.trim();
-      const oneOff = oneOffText === '' ? null : minutesFrom(oneOffText);
-      if (oneOffText !== '' && oneOff === null) return setStatus(MESSAGES.duration);
-      save({ paceSec: pace });
-      state.oneOffMin = oneOff;
-    } else {
-      const minutes = minutesFrom(el.durationInput.value.trim());
-      if (minutes === null) return setStatus(MESSAGES.duration);
-      save({ durationMin: minutes });
+  // A settled change to something the request carries: save it, then ask once. Unchanged values ask nothing.
+  function commit(changes) {
+    const changed = Object.keys(changes).some(key => state.settings[key] !== changes[key]);
+    if (!changed) return undefined;
+    save(changes);
+    render();
+    return refresh();
+  }
+
+  // ---- Settings rows
+
+  function renderRunRow() {
+    const withRoute = Boolean(state.summary);
+    el.paceRow.hidden = !withRoute;
+    el.durationRow.hidden = withRoute;
+    el.paceInput.value = Plan.formatPace(state.settings.paceSec);
+    el.durationValue.textContent = `${state.settings.durationMin} min`;
+  }
+
+  function stepPace(delta) {
+    save({ paceSec: clamp(state.settings.paceSec + delta, PACE_RANGE) });
+    render(); // pace is not in the request: the response already has every run length
+  }
+
+  function onPaceTyped() {
+    const pace = Plan.parsePace(el.paceInput.value.trim());
+    if (pace === null) {
+      setStatus(MESSAGES.pace);
+      el.paceInput.value = Plan.formatPace(state.settings.paceSec);
+      return;
     }
-    closeEditors();
-    setStatus('');
-    renderChips();
+    if (el.status.textContent === MESSAGES.pace) setStatus('');
+    save({ paceSec: pace });
     render();
   }
 
-  function onRainSubmit(event) {
-    event.preventDefault();
-    const rain = Number(el.rainInput.value);
-    if (el.rainInput.value.trim() === '' || !Number.isInteger(rain) || rain < 0 || rain > 100) {
-      return setStatus(MESSAGES.rain);
+  function stepDuration(delta) {
+    save({ durationMin: clamp(state.settings.durationMin + delta, DURATION_RANGE) });
+    render();
+  }
+
+  // While dragging only the fill and the value move; the input keeps its own value.
+  function showRain(rain) {
+    el.rainFill.setAttribute('width', `${rain}%`);
+    el.rainValue.textContent = `${rain} %`;
+  }
+
+  function renderDark() {
+    el.darkOk.setAttribute('aria-checked', String(state.settings.allowDark));
+  }
+
+  // ---- Hour rows: built from the stored string on load, add and remove; updated in place while dragging.
+
+  function handle(index, which) {
+    const input = html('input', HANDLE_CLASS);
+    input.type = 'range';
+    input.min = '0';
+    input.max = '24';
+    input.step = '1';
+    input.setAttribute('aria-label', `${which === 'start' ? 'Start' : 'End'} of hours ${index + 1}`);
+    input.addEventListener('input', () => {
+      state.rows = moveHandle(state.rows, index, which, Number(input.value));
+      updateRow(index);
+    });
+    input.addEventListener('change', () => commit({ hours: joinHours(state.rows) }));
+    return input;
+  }
+
+  function buildHours() {
+    el.hoursRows.replaceChildren();
+    state.rowViews = state.rows.map((row, index) => {
+      const wrap = html('div', 'flex items-center gap-3 border-t border-gray-200 py-2');
+      wrap.appendChild(html('span', ROW_LABEL_CLASS, index === 0 ? 'Hours' : ''));
+      const slider = html('div', 'relative h-6 min-w-0 flex-1');
+      const track = svg('svg', {
+        class: 'absolute left-2 top-0 h-full w-[calc(100%-1rem)] overflow-visible',
+        'aria-hidden': 'true'
+      });
+      track.appendChild(svg('rect', { x: 0, y: 10, width: '100%', height: 4, rx: 2, class: 'fill-gray-200' }));
+      const night = svg('g', {});
+      const fill = svg('rect', { x: 0, y: 10, width: 0, height: 4, rx: 2, class: 'fill-primary' });
+      track.appendChild(night);
+      track.appendChild(fill);
+      const start = handle(index, 'start');
+      const end = handle(index, 'end');
+      slider.appendChild(track);
+      slider.appendChild(start);
+      slider.appendChild(end);
+      wrap.appendChild(slider);
+      const value = html('span', 'min-w-12 flex-none whitespace-nowrap text-right font-semibold');
+      wrap.appendChild(value);
+      if (state.rows.length > 1) {
+        const removeClass = 'flex h-6 w-6 flex-none items-center justify-center rounded-full text-secondary';
+        const remove = html('button', `${removeClass} hover:bg-gray-200 hover:text-gray-900`, '✕');
+        remove.type = 'button';
+        remove.setAttribute('aria-label', `Remove hours ${index + 1}`);
+        remove.addEventListener('click', () => onRemoveRow(index));
+        wrap.appendChild(remove);
+      }
+      el.hoursRows.appendChild(wrap);
+      return { start, end, fill, night, value };
+    });
+    state.rowViews.forEach((view, index) => updateRow(index));
+    renderNight();
+  }
+
+  // A stored 07:30 keeps its text; its handle sits at the nearest whole hour until moved.
+  function updateRow(index) {
+    const row = state.rows[index];
+    const view = state.rowViews[index];
+    if (!row || !view) return;
+    view.start.value = String(Math.round(row.startMin / 60));
+    view.end.value = String(Math.round(row.endMin / 60));
+    view.fill.setAttribute('x', percent(row.startMin));
+    view.fill.setAttribute('width', percent(row.endMin - row.startMin));
+    view.value.textContent = `${row.start}–${row.end}`;
+  }
+
+  function onAddRow() {
+    const rows = addRow(state.rows);
+    if (rows.length === state.rows.length) return undefined;
+    state.rows = rows;
+    buildHours();
+    return commit({ hours: joinHours(rows) });
+  }
+
+  function onRemoveRow(index) {
+    state.rows = removeRow(state.rows, index);
+    buildHours();
+    return commit({ hours: joinHours(state.rows) });
+  }
+
+  function minuteOfDay(iso, timeZone) {
+    const [hour, minute] = Plan.formatClock(iso, timeZone).split(':').map(Number);
+    return hour * 60 + minute;
+  }
+
+  // The chosen day's dark hours, hatched on every hours track; none before the first response.
+  function renderNight() {
+    const day = currentDay();
+    const known = Boolean(day && day.sunrise && day.sunset);
+    const timeZone = known ? state.body.location.timezone : null;
+    const dark = [];
+    if (known) {
+      dark.push([0, minuteOfDay(day.sunrise, timeZone)]);
+      dark.push([minuteOfDay(day.sunset, timeZone), DAY_MIN]);
     }
-    save({ rain });
-    closeEditors();
-    renderChips();
-    refresh();
-  }
-
-  function onHoursSubmit(event) {
-    event.preventDefault();
-    const hours = el.hoursInput.value.trim();
-    if (!validHours(hours)) return setStatus(MESSAGES.hours);
-    save({ hours });
-    closeEditors();
-    renderChips();
-    refresh();
-  }
-
-  function onDarkToggle() {
-    save({ allowDark: !state.settings.allowDark });
-    renderChips();
-    refresh();
+    state.rowViews.forEach(view => {
+      view.night.replaceChildren();
+      dark
+        .filter(([from, to]) => to > from)
+        .forEach(([from, to]) => {
+          const rect = svg('rect', { x: percent(from), y: 5, width: percent(to - from), height: 14, rx: 3 });
+          rect.setAttribute('fill', 'url(#night-hatch)');
+          view.night.appendChild(rect);
+        });
+    });
+    el.darkTimes.hidden = !known;
+    el.darkTimes.textContent = known
+      ? `▨ dark ${Plan.formatClock(day.sunset, timeZone)}–${Plan.formatClock(day.sunrise, timeZone)}`
+      : '';
   }
 
   function setDay(index) {
@@ -241,15 +301,20 @@
 
   // ---- Input: a route file or the device's location
 
+  function renderSource() {
+    const known = Boolean(state.location);
+    el.sourceSet.hidden = !known;
+    el.sourcePick.hidden = known;
+    el.source.textContent = state.summary ? state.summary.name || 'Route' : known ? 'Near you' : '';
+    el.sourceDistance.textContent = state.summary ? `· ${state.summary.distanceKm.toFixed(1)} km` : '';
+  }
+
   function openRouteText(text, fileName) {
     const parsed = parseRoute(String(text), String(fileName || ''), window.DOMParser);
     if (!parsed.ok) return setStatus(MESSAGES[parsed.reason] || MESSAGES.unreadable);
     state.summary = summarizeRoute(parsed.route);
     state.location = { lat: state.summary.start.lat, lon: state.summary.start.lon };
-    state.oneOffMin = null;
-    el.source.textContent = state.summary.name || 'Route';
-    closeEditors();
-    renderChips();
+    render();
     return refresh();
   }
 
@@ -273,16 +338,24 @@
     navigator.geolocation.getCurrentPosition(
       position => {
         state.summary = null;
-        state.oneOffMin = null;
         state.location = { lat: round2(position.coords.latitude), lon: round2(position.coords.longitude) };
-        el.source.textContent = 'Near you';
-        closeEditors();
-        renderChips();
+        render();
         refresh();
       },
       () => setStatus(MESSAGES.locationOff),
       { maximumAge: 10 * 60 * 1000, timeout: 15000 }
     );
+  }
+
+  // ✕ forgets the route or location and drops any answer still on its way.
+  function onClearSource() {
+    state.summary = null;
+    state.location = null;
+    state.body = null;
+    state.selected = null;
+    state.request++;
+    setStatus('');
+    render();
   }
 
   // ---- A route shared from the share sheet: sw.js put it in the Cache API and opened /?share=1.
@@ -338,7 +411,7 @@
   // ---- The request
 
   async function refresh() {
-    if (!state.location) return setStatus(MESSAGES.noLocation);
+    if (!state.location) return undefined; // the prompt already asks for a route or location
     const request = ++state.request;
     setStatus(MESSAGES.loading);
     let message = null;
@@ -364,10 +437,6 @@
 
   // ---- Drawing
 
-  function currentDay() {
-    return state.body && state.body.days[state.dayIndex];
-  }
-
   // The window's own slots: its start plus the run's time, or the whole window for a fallback or a capped run.
   function outlineRange(slots, result, minutes) {
     if (result.kind === 'none') return null;
@@ -380,120 +449,137 @@
     return Math.max(MIN_WIDTH, Math.floor(node.getBoundingClientRect().width));
   }
 
-  function drawTicks(target, slots, step, timeZone, y) {
+  function drawTicks(slots, step, timeZone) {
     Strip.ticks(slots, timeZone).forEach(({ index, label }) => {
       const x = Math.min(index * step, step * slots.length - 12);
-      const text = svg('text', { x: x.toFixed(1), y, class: 'fill-secondary text-[10px]' });
+      const text = svg('text', { x: x.toFixed(1), y: TIMELINE_HEIGHT - 3, class: 'fill-gray-400 text-[10px]' });
       text.textContent = label;
-      target.appendChild(text);
+      el.timeline.appendChild(text);
     });
   }
 
-  function drawGaps(target, gaps, step, height, attributes) {
+  function drawGaps(target, gaps, step, from, to, attributes) {
     gaps.forEach(index => {
       const x = (index * step).toFixed(1);
-      target.appendChild(svg('line', { x1: x, x2: x, y1: 0, y2: height, ...attributes }));
+      target.appendChild(svg('line', { x1: x, x2: x, y1: from, y2: to, ...attributes }));
     });
   }
 
-  function drawStrip(slots, range, fallback, timeZone, gaps) {
-    const width = widthOf(el.strip);
-    const step = width / slots.length;
-    el.strip.replaceChildren();
-    el.strip.setAttribute('viewBox', `0 0 ${width} ${STRIP_HEIGHT}`);
-    el.strip.setAttribute('width', width);
-    Strip.shadeClasses(slots).forEach((className, index) => {
-      el.strip.appendChild(
-        svg('rect', {
-          x: (index * step).toFixed(1),
-          y: CELL_TOP,
-          width: (step + 0.5).toFixed(1),
-          height: CELL_HEIGHT,
-          class: className
-        })
-      );
-    });
-    drawGaps(el.strip, gaps, step, CELL_TOP * 2 + CELL_HEIGHT, { class: 'stroke-white', 'stroke-width': 3 });
-    if (range) {
-      const outline = {
-        x: (range.first * step + 1.5).toFixed(1),
-        y: 1.5,
-        width: Math.max(3, (range.last - range.first + 1) * step - 3).toFixed(1),
-        height: CELL_HEIGHT + 2 * CELL_TOP - 3,
-        rx: 4,
-        class: 'fill-none stroke-primary',
-        'stroke-width': 3
-      };
-      if (fallback) outline['stroke-dasharray'] = '6 4';
-      el.strip.appendChild(svg('rect', outline));
-    }
-    if (state.selected !== null) {
-      el.strip.appendChild(
-        svg('rect', {
-          x: (state.selected * step).toFixed(1),
-          y: CELL_TOP + CELL_HEIGHT - 4,
-          width: Math.max(2, step).toFixed(1),
-          height: 4,
-          class: 'fill-primary'
-        })
-      );
-    }
-    drawTicks(el.strip, slots, step, timeZone, STRIP_HEIGHT - 2);
-  }
-
-  function drawChart(slots, range, timeZone) {
-    const width = widthOf(el.chart.parentElement);
-    const model = Strip.chartModel(slots, { width, height: PLOT_HEIGHT, range });
-    const step = width / slots.length;
-    el.chart.replaceChildren();
-    el.chart.setAttribute('viewBox', `0 0 ${width} ${CHART_HEIGHT}`);
-    el.chart.setAttribute('width', width);
+  function drawGraph(model, step) {
+    const graph = svg('g', { transform: `translate(0 ${PLOT_TOP})` });
     model.dark.forEach(run => {
-      el.chart.appendChild(
-        svg('rect', { x: run.x, y: 0, width: run.width, height: PLOT_HEIGHT, class: 'fill-gray-200' })
-      );
+      graph.appendChild(svg('rect', { x: run.x, y: 0, width: run.width, height: PLOT_HEIGHT, class: 'fill-gray-100' }));
     });
     if (model.window) {
-      const { x, width: w } = model.window;
-      el.chart.appendChild(svg('rect', { x, y: 0, width: w, height: PLOT_HEIGHT, class: 'fill-green-100' }));
+      const { x, width } = model.window;
+      graph.appendChild(svg('rect', { x, y: 0, width, height: PLOT_HEIGHT, class: 'fill-emerald-50' }));
     }
     model.rain.forEach(bar => {
       const attributes = { x: bar.x, y: bar.y, width: Math.max(1, bar.width - 1), height: bar.height };
-      el.chart.appendChild(svg('rect', { ...attributes, class: 'fill-blue-300' }));
+      graph.appendChild(svg('rect', { ...attributes, class: 'fill-blue-300' }));
     });
     if (model.feels) {
-      el.chart.appendChild(svg('path', { d: model.feels, class: 'fill-none stroke-red-600', 'stroke-width': 2 }));
+      graph.appendChild(svg('path', { d: model.feels, class: 'fill-none stroke-red-600', 'stroke-width': 2 }));
     }
     if (model.wind) {
-      el.chart.appendChild(
+      graph.appendChild(
         svg('path', { d: model.wind, class: 'fill-none stroke-blue-700', 'stroke-width': 2, 'stroke-dasharray': '4 3' })
       );
     }
-    drawGaps(el.chart, model.gaps, step, PLOT_HEIGHT, {
-      class: 'stroke-gray-400',
-      'stroke-width': 1.5,
-      'stroke-dasharray': '3 3'
-    });
-    drawTicks(el.chart, slots, step, timeZone, CHART_HEIGHT - 4);
+    const dashed = { class: 'stroke-gray-300', 'stroke-width': 1.5, 'stroke-dasharray': '3 3' };
+    drawGaps(graph, model.gaps, step, 0, PLOT_HEIGHT, dashed);
+    el.timeline.appendChild(graph);
   }
 
-  // The tap line is announced (aria-live) and the strip's label names the selected slot, so the cell is labelled
-  // when tapped or reached with the arrow keys. With nothing selected the label is the go line.
-  function renderTapLine(slots, timeZone, stripLabel) {
+  // One SVG: the strip band on top, the graph under it on the same x axis, one outline through both.
+  function drawTimeline(slots, range, fallback, timeZone) {
+    const width = widthOf(el.timeline);
+    const step = width / slots.length;
+    const model = Strip.chartModel(slots, { width, height: PLOT_HEIGHT, range });
+    el.timeline.replaceChildren();
+    el.timeline.setAttribute('viewBox', `0 0 ${width} ${TIMELINE_HEIGHT}`);
+    el.timeline.setAttribute('width', width);
+    Strip.shadeClasses(slots).forEach((className, index) => {
+      const cell = { x: (index * step).toFixed(1), y: 0, width: (step + 0.5).toFixed(1), height: BAND_HEIGHT };
+      el.timeline.appendChild(svg('rect', { ...cell, class: className }));
+    });
+    drawGaps(el.timeline, model.gaps, step, 0, BAND_HEIGHT, { class: 'stroke-white', 'stroke-width': 3 });
+    drawGraph(model, step);
+    if (range) {
+      const outline = {
+        x: (range.first * step + 1).toFixed(1),
+        y: 1,
+        width: Math.max(2, (range.last - range.first + 1) * step - 2).toFixed(1),
+        height: PLOT_TOP + PLOT_HEIGHT - 2,
+        rx: 6,
+        class: 'fill-none stroke-primary',
+        'stroke-width': 2
+      };
+      if (fallback) outline['stroke-dasharray'] = '6 4';
+      el.timeline.appendChild(svg('rect', outline));
+    }
+    if (state.selected !== null) {
+      const x = ((state.selected + 0.5) * step).toFixed(1);
+      el.timeline.appendChild(
+        svg('line', { x1: x, x2: x, y1: 0, y2: PLOT_TOP + PLOT_HEIGHT, class: 'stroke-primary', 'stroke-width': 1.5 })
+      );
+    }
+    drawTicks(slots, step, timeZone);
+  }
+
+  function renderKeyNumbers(numbers) {
+    el.keyNumbers.replaceChildren();
+    numbers.forEach(({ label, value }) => {
+      const item = html('div');
+      item.appendChild(html('dt', 'text-[11px] text-secondary', label));
+      item.appendChild(html('dd', 'text-base font-semibold', value));
+      el.keyNumbers.appendChild(item);
+    });
+    el.keyNumbers.hidden = numbers.length === 0;
+  }
+
+  // The tap line is announced (aria-live) and the timeline's label names the selected slot, so the slot is labelled
+  // when tapped or reached with the arrow keys. With nothing selected the label is the answer.
+  function renderTapLine(slots, timeZone, label) {
     if (state.selected === null || !slots[state.selected]) {
-      el.tapLine.textContent = 'Tap the strip, or use the arrow keys, for each slot.';
-      el.strip.setAttribute('aria-label', stripLabel);
+      el.tapLine.textContent = TAP_HINT;
+      el.timeline.setAttribute('aria-label', label);
       return;
     }
     const line = Strip.slotLine(slots[state.selected], timeZone);
     el.tapLine.textContent = line;
-    el.strip.setAttribute('aria-label', line);
+    el.timeline.setAttribute('aria-label', line);
+  }
+
+  function renderAnswer(day, timeZone, dayLabel) {
+    const minutes = runMinutes();
+    const result = Plan.pickResult(day, minutes);
+    const none = result.kind === 'none';
+    el.answer.hidden = false;
+    el.answerLabel.textContent = Plan.answerLabel(result, minutes);
+    el.answerLabel.hidden = none;
+    el.answerTime.textContent = none
+      ? Plan.noWindowText(minutes, dayLabel)
+      : Plan.answerTime(result, { minutes, timeZone });
+    el.answerTime.className = none ? 'text-xl font-semibold' : 'text-3xl font-bold tracking-tight';
+    renderKeyNumbers(Plan.keyNumbers(result, state.summary, minutes));
+    el.windLine.textContent = result.window ? Plan.windLine(state.summary, result.window) : '';
+    el.windLine.hidden = !result.window;
+    const stale = Plan.staleNote(state.body);
+    el.staleNote.hidden = !stale;
+    el.staleNote.textContent = stale || '';
+    return { result, minutes, text: `${el.answerLabel.textContent} ${el.answerTime.textContent}`.trim() };
   }
 
   function render() {
-    const day = currentDay();
-    renderChips();
+    renderSource();
+    renderRunRow();
+    renderDark();
+    renderNight();
+    const day = state.location ? currentDay() : null;
+    el.prompt.hidden = Boolean(state.location);
     if (!day) {
+      el.answer.hidden = true;
       el.result.hidden = true;
       el.zoneNote.hidden = true;
       return;
@@ -502,41 +588,28 @@
     const deviceZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
     const zone = Plan.zoneNote(timeZone, deviceZone, Date.now());
     el.zoneNote.hidden = !zone;
-    el.zoneNote.textContent = zone ? `· ${zone}` : '';
+    el.zoneNote.textContent = zone || '';
 
-    const minutes = runMinutes();
     const dayLabel = state.dayIndex === 0 ? 'today' : 'tomorrow';
-    const result = Plan.pickResult(day, minutes);
+    const { result, minutes, text } = renderAnswer(day, timeZone, dayLabel);
     const slots = day.slots || [];
     const range = outlineRange(slots, result, minutes);
-
+    const label = `Timeline, ${dayLabel}: ${text}`;
     el.result.hidden = false;
-    el.goLine.textContent = Plan.goLine(result, { minutes, dayLabel, timeZone });
-    el.windLine.textContent = result.window ? Plan.windLine(state.summary, result.window) : '';
-    const routeText = Plan.routeLine(state.summary);
-    el.routeLine.hidden = !routeText;
-    el.routeLine.textContent = routeText || '';
-    const stale = Plan.staleNote(state.body);
-    el.staleNote.hidden = !stale;
-    el.staleNote.textContent = stale || '';
-    const stripLabel = `Day strip, ${dayLabel}: ${el.goLine.textContent}`;
-    el.strip.setAttribute('aria-label', stripLabel);
+    el.timeline.setAttribute('aria-label', label);
 
     if (slots.length === 0) {
-      el.strip.replaceChildren();
-      el.chart.replaceChildren();
+      el.timeline.replaceChildren();
       el.whySentence.textContent = '';
       el.tapLine.textContent = 'No hours to show for this day.';
       return;
     }
-    const gaps = Strip.chartModel(slots, { width: 1, height: 1, range: null }).gaps;
-    drawStrip(slots, range, result.kind === 'fallback', timeZone, gaps);
-    drawChart(slots, range, timeZone);
+    drawTimeline(slots, range, result.kind === 'fallback', timeZone);
     el.whySentence.textContent = Strip.whySentence(slots, range, { timeZone, sunsetIso: day.sunset });
-    renderTapLine(slots, timeZone, stripLabel);
+    renderTapLine(slots, timeZone, label);
   }
 
-  // ---- Exploring the strip: tap or arrow keys. It never moves the outline.
+  // ---- Exploring the timeline: tap or arrow keys. It never moves the outline.
 
   function select(index) {
     const day = currentDay();
@@ -545,14 +618,14 @@
     render();
   }
 
-  function onStripClick(event) {
+  function onTimelineClick(event) {
     const day = currentDay();
     if (!day || !day.slots || day.slots.length === 0) return;
-    const box = el.strip.getBoundingClientRect();
+    const box = el.timeline.getBoundingClientRect();
     select(Math.floor(((event.clientX - box.left) / box.width) * day.slots.length));
   }
 
-  function onStripKey(event) {
+  function onTimelineKey(event) {
     const day = currentDay();
     if (!day || !day.slots || day.slots.length === 0) return;
     const last = day.slots.length - 1;
@@ -581,6 +654,16 @@
     }
   }
 
+  // ---- The API and Privacy dialogs: ✕, Escape (native) or a click on the backdrop closes them.
+
+  function wireDialog(opener, dialog, closer) {
+    opener.addEventListener('click', () => dialog.showModal());
+    closer.addEventListener('click', () => dialog.close());
+    dialog.addEventListener('click', event => {
+      if (event.target === dialog) dialog.close();
+    });
+  }
+
   let resizeFrame = null;
   function onResize() {
     if (resizeFrame !== null) return;
@@ -590,21 +673,30 @@
     });
   }
 
-  editors.forEach(editor => editor.chip.addEventListener('click', () => toggleEditor(editor)));
-  el.editorDuration.addEventListener('submit', onDurationSubmit);
-  el.editorRain.addEventListener('submit', onRainSubmit);
-  el.editorHours.addEventListener('submit', onHoursSubmit);
-  el.chipDark.addEventListener('click', onDarkToggle);
+  el.paceDown.addEventListener('click', () => stepPace(-PACE_STEP));
+  el.paceUp.addEventListener('click', () => stepPace(PACE_STEP));
+  el.paceInput.addEventListener('change', onPaceTyped);
+  el.durationDown.addEventListener('click', () => stepDuration(-DURATION_STEP));
+  el.durationUp.addEventListener('click', () => stepDuration(DURATION_STEP));
+  el.addHours.addEventListener('click', onAddRow);
+  el.darkOk.addEventListener('click', () => commit({ allowDark: !state.settings.allowDark }));
+  el.rainInput.addEventListener('input', () => showRain(Number(el.rainInput.value)));
+  el.rainInput.addEventListener('change', () => commit({ rain: Number(el.rainInput.value) }));
   el.dayToday.addEventListener('click', () => setDay(0));
   el.dayTomorrow.addEventListener('click', () => setDay(1));
   el.routeInput.addEventListener('change', onFileChosen);
   el.useLocation.addEventListener('click', onUseLocation);
-  el.strip.addEventListener('click', onStripClick);
-  el.strip.addEventListener('keydown', onStripKey);
+  el.clearSource.addEventListener('click', onClearSource);
+  el.timeline.addEventListener('click', onTimelineClick);
+  el.timeline.addEventListener('keydown', onTimelineKey);
   el.copyLink.addEventListener('click', onCopyLink);
-  el.why.addEventListener('toggle', render); // the chart has no width while folded
+  wireDialog(el.openApi, el.apiDialog, el.closeApi);
+  wireDialog(el.openPrivacy, el.privacyDialog, el.closePrivacy);
   window.addEventListener('resize', onResize);
-  renderChips();
+  el.rainInput.value = String(state.settings.rain); // set once: a late render never moves a slider being dragged
+  showRain(state.settings.rain);
+  buildHours();
+  render();
   registerWorker();
   receiveShare();
 

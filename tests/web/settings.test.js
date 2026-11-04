@@ -280,4 +280,24 @@ describe('hour rows', () => {
     expect(texts(removeRow(rows, 0))).toEqual(['14-16']);
     expect(texts(removeRow(removeRow(rows, 0), 0))).toEqual(['14-16']);
   });
+  test('every sequence of moves, adds and removes joins to hours the API accepts', () => {
+    // A small deterministic generator, so a failure can be replayed.
+    let seed = 7;
+    const next = () => {
+      seed = (seed * 1103515245 + 12345) % 2147483648;
+      return seed / 2147483648;
+    };
+    for (const start of ['10-16', '07:30-09,12-14', '00-02,20-24', '06-22', '05:30-06:30,18-24']) {
+      let rows = splitHours(start);
+      for (let step = 0; step < 200; step++) {
+        const pick = next();
+        const index = Math.floor(next() * rows.length);
+        if (pick < 0.7) rows = moveHandle(rows, index, next() < 0.5 ? 'start' : 'end', Math.floor(next() * 27) - 1);
+        else if (pick < 0.85) rows = addRow(rows);
+        else rows = removeRow(rows, index);
+        expect(rows.length).toBeGreaterThan(0);
+        expect(validHours(joinHours(rows))).toBe(true);
+      }
+    }
+  });
 });
