@@ -254,12 +254,33 @@
 
         <div class="border-t border-gray-100 px-4 pb-2 pt-4">
           <p id="prompt" class="py-6 text-center text-sm text-secondary">Open a route file or use your location.</p>
-          <div id="answer" hidden>
-            <p id="answer-label" class="text-xs text-secondary"></p>
-            <p id="answer-time" class="text-3xl font-bold tracking-tight"></p>
-            <dl id="key-numbers" class="[&[hidden]]:hidden mt-2 flex flex-wrap gap-x-5 gap-y-1"></dl>
-            <p id="wind-line" class="mt-1 text-sm text-gray-700"></p>
-            <p id="stale-note" class="mt-1 text-xs text-secondary" hidden></p>
+          <div
+            id="answer"
+            class="[&[hidden]]:hidden grid grid-cols-1 sm:grid-cols-[minmax(0,1fr)_auto] sm:gap-x-6"
+            hidden
+          >
+            <div class="sm:col-start-1 sm:row-start-1">
+              <p id="answer-label" class="text-xs text-secondary"></p>
+              <p id="answer-time" class="text-3xl font-bold tracking-tight"></p>
+            </div>
+            <dl
+              id="key-numbers"
+              class="[&[hidden]]:hidden mt-2 flex flex-wrap gap-x-5 gap-y-1 sm:col-start-2 sm:row-span-3 sm:row-start-1 sm:mt-0 sm:grid sm:grid-cols-4 sm:self-start sm:text-right"
+            ></dl>
+            <p
+              id="wind-line"
+              class="[&[hidden]]:hidden mt-2 flex items-center gap-2 text-sm text-gray-700 sm:col-start-1 sm:row-start-2"
+            >
+              <svg id="wind-compass" viewBox="0 0 28 28" class="h-7 w-7 flex-none" aria-hidden="true" focusable="false">
+                <circle cx="14" cy="14" r="13" class="fill-gray-50 stroke-gray-200" />
+                <text x="14" y="8" text-anchor="middle" class="fill-gray-400 text-[6px]">N</text>
+                <g id="wind-arrow" transform="rotate(0 14 14)">
+                  <path d="M14 6 L18 16 L14 13.5 L10 16 Z" class="fill-primary" />
+                </g>
+              </svg>
+              <span id="wind-text"></span>
+            </p>
+            <p id="stale-note" class="mt-1 text-xs text-secondary sm:col-start-1 sm:row-start-3" hidden></p>
           </div>
           <p id="status" class="mt-2 text-sm empty:hidden" role="status" aria-live="polite"></p>
         </div>

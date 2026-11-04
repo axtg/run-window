@@ -19,7 +19,8 @@ const {
   answerLabel,
   answerTime,
   noWindowText,
-  distanceEstimate
+  distanceEstimate,
+  windArrowDeg
 } = RunPlan;
 
 function win(overrides = {}) {
@@ -223,42 +224,71 @@ describe('windLine', () => {
     const calm = win({ windAvg: 9 });
     expect(windLine({ shape: 'loop', startBearing: 0, overallBearing: 0 }, calm)).toBe('Little wind');
     expect(windLine(null, calm)).toBe('Little wind');
-    expect(windLine(null, win({ windAvg: 10 }))).toBe('Start into the E wind');
+    expect(windLine(null, win({ windAvg: 10 }))).toBe('Start east, into the wind');
   });
 
   test('no route or out-and-back: start into the wind', () => {
-    expect(windLine(null, east)).toBe('Start into the E wind');
+    expect(windLine(null, east)).toBe('Start east, into the wind');
     expect(windLine({ shape: 'out-and-back', startBearing: 270, overallBearing: 270 }, east)).toBe(
-      'Start into the E wind'
+      'Start east, into the wind'
     );
   });
 
+  test('names every cardinal in words', () => {
+    const names = {
+      N: 'north',
+      NE: 'north-east',
+      E: 'east',
+      SE: 'south-east',
+      S: 'south',
+      SW: 'south-west',
+      W: 'west',
+      NW: 'north-west'
+    };
+    for (const [code, name] of Object.entries(names)) {
+      expect(windLine(null, win({ windFromCardinal: code }))).toBe(`Start ${name}, into the wind`);
+    }
+  });
+
   test('loop: as drawn when the start heads into the wind', () => {
-    const s = { shape: 'loop', startBearing: 45, overallBearing: 0 };
-    expect(windLine(s, east)).toBe('As drawn: into the E wind first');
-    expect(windLine({ ...s, startBearing: 180 }, east)).toBe('As drawn: into the E wind first');
+    const s = { shape: 'loop', startBearing: 0, overallBearing: 0 };
+    expect(windLine(s, east)).toBe('As drawn: east into the wind first');
+    expect(windLine({ ...s, startBearing: 180 }, east)).toBe('As drawn: east into the wind first');
   });
 
   test('loop: reverse when the start heads away from the wind', () => {
     const s = { shape: 'loop', startBearing: 270, overallBearing: 0 };
-    expect(windLine(s, east)).toBe('Reverse it: into the E wind first');
-    expect(windLine({ ...s, startBearing: 181 }, east)).toBe('Reverse it: into the E wind first');
+    expect(windLine(s, east)).toBe('Reverse it: east into the wind first');
+    expect(windLine({ ...s, startBearing: 181 }, east)).toBe('Reverse it: east into the wind first');
   });
 
-  test('loop: angle wraps around north', () => {
+  test('loop: bearings across north', () => {
     const north = win({ windFrom: 350, windFromCardinal: 'N' });
     expect(windLine({ shape: 'loop', startBearing: 20, overallBearing: 0 }, north)).toBe(
-      'As drawn: into the N wind first'
+      'As drawn: north into the wind first'
     );
   });
 
   test('point-to-point: headwind or tailwind overall', () => {
     expect(windLine({ shape: 'point-to-point', startBearing: 0, overallBearing: 60 }, east)).toBe(
-      'Headwind overall, wind from E'
+      'Headwind overall, wind from the east'
     );
     expect(windLine({ shape: 'point-to-point', startBearing: 0, overallBearing: 270 }, east)).toBe(
-      'Tailwind overall, wind from E'
+      'Tailwind overall, wind from the east'
     );
+  });
+});
+
+describe('windArrowDeg', () => {
+  test('points to where the wind comes from, in whole degrees', () => {
+    expect(windArrowDeg(win({ windFrom: 90 }))).toBe(90);
+    expect(windArrowDeg(win({ windFrom: 247.6 }))).toBe(248);
+    expect(windArrowDeg(win({ windFrom: 359.7 }))).toBe(0);
+  });
+
+  test('has no arrow in little wind', () => {
+    expect(windArrowDeg(win({ windAvg: 9.9 }))).toBeNull();
+    expect(windArrowDeg(win({ windAvg: 10 }))).toBe(90);
   });
 });
 
@@ -359,7 +389,7 @@ describe('answer helpers', () => {
     expect(keyNumbers(windowResult, route, 65)).toEqual([
       { label: 'Sky', value: 'Dry' },
       { label: 'Feels', value: '7 °C' },
-      { label: 'Wind', value: '14 E' },
+      { label: 'Wind', value: '14 km/h E' },
       { label: 'Climb', value: '+45 m' }
     ]);
   });

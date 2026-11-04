@@ -55,7 +55,8 @@
     'source source-distance source-set source-pick clear-source day-today day-tomorrow zone-note ' +
     'route-input use-location duration-group run-distance run-minutes run-estimate pace-down pace-input ' +
     'pace-up duration-down duration-value duration-up hours-rows add-hours dark-times dark-ok rain-input ' +
-    'rain-fill rain-value prompt answer answer-label answer-time key-numbers wind-line stale-note status ' +
+    'rain-fill rain-value prompt answer answer-label answer-time key-numbers wind-line wind-compass ' +
+    'wind-arrow wind-text stale-note status ' +
     'result timeline tap-line why-sentence copy-link open-api open-privacy api-dialog privacy-dialog ' +
     'close-api close-privacy'
   ).split(' ');
@@ -591,8 +592,11 @@
       : Plan.answerTime(result, { minutes, timeZone });
     el.answerTime.className = none ? 'text-xl font-semibold' : 'text-3xl font-bold tracking-tight';
     renderKeyNumbers(Plan.keyNumbers(result, state.summary, minutes));
-    el.windLine.textContent = result.window ? Plan.windLine(state.summary, result.window) : '';
     el.windLine.hidden = !result.window;
+    el.windText.textContent = result.window ? Plan.windLine(state.summary, result.window) : '';
+    const arrow = result.window ? Plan.windArrowDeg(result.window) : null;
+    el.windCompass.hidden = arrow === null; // no arrow in little wind
+    el.windArrow.setAttribute('transform', `rotate(${arrow || 0} 14 14)`);
     const stale = Plan.staleNote(state.body);
     el.staleNote.hidden = !stale;
     el.staleNote.textContent = stale || '';

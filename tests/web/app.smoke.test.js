@@ -41,6 +41,24 @@ const weather = {
 };
 const api = createApp({ weather, now: () => NOW });
 
+// An app of its own for a test that needs other weather. `values(i)` overrides hour i (Open-Meteo names).
+function apiWith(values) {
+  const forecast = parseForecast(
+    makeForecastJson({
+      startMs: Date.UTC(2026, 10, 1, 23),
+      hours: 96,
+      sun: [
+        { sunriseMs: Date.UTC(2026, 10, 2, 6, 38), sunsetMs: Date.UTC(2026, 10, 2, 16, 9) },
+        { sunriseMs: Date.UTC(2026, 10, 3, 6, 40), sunsetMs: Date.UTC(2026, 10, 3, 16, 7) }
+      ],
+      values
+    })
+  );
+  const own = { getForecast: jest.fn().mockResolvedValue({ forecast, stale: false }), stats: () => ({}) };
+  return createApp({ weather: own, now: () => NOW });
+}
+const geolocation = { getCurrentPosition: onOk => onOk({ coords: { latitude: 52.3702, longitude: 4.8952 } }) };
+
 // Only what app.js touches on its elements. Elements from createElement are kept too, so a test can reach the
 // controls app.js builds (the hour rows).
 const focusLog = [];
@@ -94,7 +112,7 @@ class QuietDOMParser extends DOMParser {
   }
 }
 
-function loadPage({ navigator = {}, stored = null } = {}) {
+function loadPage({ navigator = {}, stored = null, app = api } = {}) {
   const elements = new Map();
   const created = [];
   const record = { fetches: [], storage: [], history: [] };
@@ -144,7 +162,7 @@ function loadPage({ navigator = {}, stored = null } = {}) {
     async fetch(url) {
       record.fetches.push(String(url));
       const target = new URL(url);
-      const response = await request(api).get(target.pathname + target.search);
+      const response = await request(app).get(target.pathname + target.search);
       return {
         ok: response.status < 400,
         status: response.status,
@@ -162,6 +180,12 @@ function loadPage({ navigator = {}, stored = null } = {}) {
 }
 
 const flush = () => new Promise(resolve => setImmediate(resolve));
+
+// The location path doesn't hand back refresh()'s promise: wait until the answer is drawn.
+async function answered(elements) {
+  for (let i = 0; i < 100 && elements.get('result').hidden !== false; i++) await flush();
+  expect(elements.get('result').hidden).toBe(false);
+}
 
 function leaks(text) {
   const found = [ROUTE_NAME, FILE_NAME, ...PRECISE_COORDS].filter(secret => text.includes(secret));
@@ -272,7 +296,6 @@ describe('app.js privacy smoke test', () => {
   });
 
   it('keeps pace in the Run row without a route: an estimate under it, pace edits redraw without asking', async () => {
-    const geolocation = { getCurrentPosition: onOk => onOk({ coords: { latitude: 52.3702, longitude: 4.8952 } }) };
     const { elements, record } = loadPage({ navigator: { geolocation }, stored: JSON.stringify({ paceSec: 390 }) });
     elements.get('use-location').listeners.click();
     await flush();
@@ -317,8 +340,8 @@ describe('app.js privacy smoke test', () => {
   });
 
   it('says the location is off and asks nothing when location is denied', async () => {
-    const geolocation = { getCurrentPosition: (onOk, onError) => onError({ code: 1 }) };
-    const { elements, record } = loadPage({ navigator: { geolocation } });
+    const denied = { getCurrentPosition: (onOk, onError) => onError({ code: 1 }) };
+    const { elements, record } = loadPage({ navigator: { geolocation: denied } });
     elements.get('use-location').listeners.click();
     await flush();
     expect(rejections).toEqual([]);
@@ -415,6 +438,29 @@ describe('app.js privacy smoke test', () => {
     await flush();
     expect(elements.get('dark-times').hidden).toBe(false);
     expect(elements.get('dark-times').textContent).toBe('▨ 17:09–07:38');
+  });
+
+  it('turns the compass arrow toward where the wind comes from, and says it in words', async () => {
+    const app = apiWith(() => ({ wind_speed_10m: 16, wind_direction_10m: 90 }));
+    const { elements } = loadPage({ navigator: { geolocation }, app });
+    elements.get('use-location').listeners.click();
+    await answered(elements);
+    expect(rejections).toEqual([]);
+    expect(elements.get('wind-line').hidden).toBe(false);
+    expect(elements.get('wind-text').textContent).toBe('Start east, into the wind');
+    expect(elements.get('wind-compass').hidden).toBe(false);
+    expect(elements.get('wind-arrow').attributes.transform).toBe('rotate(90 14 14)');
+    const wind = elements.get('key-numbers').children.find(item => item.children[0].textContent === 'Wind');
+    expect(wind.children[1].textContent).toBe('16 km/h E');
+  });
+
+  it('shows no compass in little wind', async () => {
+    const { elements } = loadPage({ navigator: { geolocation } });
+    elements.get('use-location').listeners.click();
+    await answered(elements);
+    expect(rejections).toEqual([]);
+    expect(elements.get('wind-text').textContent).toBe('Little wind');
+    expect(elements.get('wind-compass').hidden).toBe(true);
   });
 
   it('reads the rain slider out as a percentage, while dragging too', () => {

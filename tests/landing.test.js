@@ -212,6 +212,17 @@ test('Dark has its own row with the times and an OK switch; add hours is a round
   expect(html).toMatch(/<div id="hours-rows">\s*<button\b[^>]*id="add-hours"/);
 });
 
+test('the answer puts the key numbers beside the time from sm up, and the wind line has a hidden compass', () => {
+  const numbers = html.match(/<dl\b[^>]*id="key-numbers"[^>]*>/)[0];
+  expect(numbers).toMatch(/sm:grid-cols-4/);
+  expect(numbers).toMatch(/sm:col-start-2/);
+  const wind = html.match(/<p\b[^>]*id="wind-line"[^>]*>([\s\S]*?)<\/p>/);
+  expect(wind).not.toBeNull();
+  expect(wind[1]).toMatch(/<svg\b[^>]*id="wind-compass"[^>]*aria-hidden="true"/);
+  expect(wind[1]).toMatch(/<g\b[^>]*id="wind-arrow"[^>]*transform="rotate\(0 14 14\)"/);
+  expect(wind[1]).toContain('id="wind-text"');
+});
+
 test('the pace field brings up a keyboard with a colon', () => {
   const pace = html.match(/<input\b[^>]*id="pace-input"[^>]*>/)[0];
   expect(pace).not.toMatch(/inputmode="(numeric|decimal)"/);

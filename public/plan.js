@@ -9,6 +9,16 @@
   const LITTLE_WIND_KMH = 10;
   const HEADWIND_MAX_ANGLE = 90;
   const GENERIC_ERROR = 'Weather unavailable, try again later.';
+  const CARDINAL_NAMES = {
+    N: 'north',
+    NE: 'north-east',
+    E: 'east',
+    SE: 'south-east',
+    S: 'south',
+    SW: 'south-west',
+    W: 'west',
+    NW: 'north-west'
+  };
 
   function parsePace(text) {
     if (typeof text !== 'string' || !/^\d{1,2}:\d{2}$/.test(text)) return null;
@@ -91,7 +101,7 @@
     return [
       { label: 'Sky', value: skyValue(w) },
       { label: 'Feels', value: tempOf(w) },
-      { label: 'Wind', value: `${Math.round(w.windAvg)} ${w.windFromCardinal}` },
+      { label: 'Wind', value: `${Math.round(w.windAvg)} km/h ${w.windFromCardinal}` },
       last
     ];
   }
@@ -123,14 +133,20 @@
 
   function windLine(summary, window) {
     if (window.windAvg < LITTLE_WIND_KMH) return 'Little wind';
-    const wind = window.windFromCardinal;
-    if (!summary || summary.shape === 'out-and-back') return `Start into the ${wind} wind`;
+    const wind = CARDINAL_NAMES[window.windFromCardinal] || window.windFromCardinal;
+    if (!summary || summary.shape === 'out-and-back') return `Start ${wind}, into the wind`;
     if (summary.shape === 'loop') {
       const asDrawn = angleBetween(summary.startBearing, window.windFrom) <= HEADWIND_MAX_ANGLE;
-      return `${asDrawn ? 'As drawn' : 'Reverse it'}: into the ${wind} wind first`;
+      return `${asDrawn ? 'As drawn' : 'Reverse it'}: ${wind} into the wind first`;
     }
     const head = angleBetween(summary.overallBearing, window.windFrom) <= HEADWIND_MAX_ANGLE;
-    return `${head ? 'Headwind' : 'Tailwind'} overall, wind from ${wind}`;
+    return `${head ? 'Headwind' : 'Tailwind'} overall, wind from the ${wind}`;
+  }
+
+  // The compass arrow's bearing: toward where the wind comes from, the way to start. None in little wind.
+  function windArrowDeg(window) {
+    if (window.windAvg < LITTLE_WIND_KMH) return null;
+    return Math.round(window.windFrom) % 360;
   }
 
   function routeLine(summary) {
@@ -187,6 +203,7 @@
     formatClock,
     goLine,
     windLine,
+    windArrowDeg,
     keyNumbers,
     answerLabel,
     answerTime,
