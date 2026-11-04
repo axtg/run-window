@@ -377,6 +377,46 @@ describe('app.js privacy smoke test', () => {
     expect(loadPage().elements.get('add-hours').disabled).toBe(false);
   });
 
+  it('puts the round add button at the end of the last hours row and keeps focus on it after adding', async () => {
+    const { sandbox, elements } = loadPage();
+    const rows = () => elements.get('hours-rows').children;
+    const addHours = elements.get('add-hours');
+    expect(rows()).toHaveLength(1);
+    expect(rows()[0].children.at(-1)).toBe(addHours);
+    await sandbox.RunApp.openRouteText(GPX, FILE_NAME);
+    await flush();
+    focusLog.length = 0;
+    addHours.listeners.click();
+    await flush();
+    expect(rejections).toEqual([]);
+    expect(rows()).toHaveLength(2);
+    expect(rows()[0].children).not.toContain(addHours);
+    const last = rows()[1].children;
+    expect(last.at(-1)).toBe(addHours);
+    expect(last.at(-2).attributes['aria-label']).toBe('Remove hours 2'); // after the value and the ✕
+    expect(focusLog.pop()).toBe(addHours);
+  });
+
+  it('focuses the new row when adding hours fills the last free hour', async () => {
+    const { created, elements } = loadPage({ stored: JSON.stringify({ hours: '00-23' }) });
+    focusLog.length = 0;
+    elements.get('add-hours').listeners.click();
+    await flush();
+    expect(rejections).toEqual([]);
+    expect(elements.get('add-hours').disabled).toBe(true);
+    const start = created.filter(node => node.attributes['aria-label'] === 'Start of hours 2').pop();
+    expect(focusLog.pop()).toBe(start);
+  });
+
+  it('shows the dark times in the Dark row once the weather is in, without the word dark', async () => {
+    const { sandbox, elements } = loadPage();
+    expect(elements.get('dark-times').hidden).toBe(true);
+    await sandbox.RunApp.openRouteText(GPX, FILE_NAME);
+    await flush();
+    expect(elements.get('dark-times').hidden).toBe(false);
+    expect(elements.get('dark-times').textContent).toBe('▨ 17:09–07:38');
+  });
+
   it('reads the rain slider out as a percentage, while dragging too', () => {
     const { elements } = loadPage();
     const rain = elements.get('rain-input');

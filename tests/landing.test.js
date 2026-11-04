@@ -194,6 +194,24 @@ test('pace sits in the one Run row, with or without a route', () => {
     expect(row[1]).toContain(`id="${id}"`);
 });
 
+test('Dark has its own row with the times and an OK switch; add hours is a round + button', () => {
+  expect(text).not.toContain('add hours');
+  const dark = html.match(/<div\b[^>]*>\s*<span\b[^>]*>Dark<\/span>([\s\S]*?)<\/button>/);
+  expect(dark).not.toBeNull();
+  expect(dark[1]).toContain('id="dark-times"');
+  const toggle = dark[1].match(/<button\b[^>]*id="dark-ok"[^>]*>([\s\S]*)$/);
+  expect(toggle).not.toBeNull();
+  expect(toggle[0]).toMatch(/role="switch"/);
+  expect(toggle[0]).toMatch(/aria-label="[^"]*dark[^"]*"/);
+  expect(toggle[1].replace(/<[^>]+>/g, '').trim()).toBe('OK');
+  const add = html.match(/<button\b[^>]*id="add-hours"[^>]*>([^<]*)<\/button>/);
+  expect(add).not.toBeNull();
+  expect(add[0]).toMatch(/aria-label="Add hours"/);
+  expect(add[0]).toMatch(/disabled:/);
+  expect(add[1].trim()).toBe('+');
+  expect(html).toMatch(/<div id="hours-rows">\s*<button\b[^>]*id="add-hours"/);
+});
+
 test('the pace field brings up a keyboard with a colon', () => {
   const pace = html.match(/<input\b[^>]*id="pace-input"[^>]*>/)[0];
   expect(pace).not.toMatch(/inputmode="(numeric|decimal)"/);

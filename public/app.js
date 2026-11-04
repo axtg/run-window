@@ -236,6 +236,7 @@
         remove.addEventListener('click', () => onRemoveRow(index));
         wrap.appendChild(remove);
       }
+      if (index === state.rows.length - 1) wrap.appendChild(el.addHours); // the round + ends the last row
       el.hoursRows.appendChild(wrap);
       return { start, end, fill, night, value };
     });
@@ -275,7 +276,8 @@
     const rows = addRow(state.rows);
     if (rows.length === state.rows.length) return undefined;
     state.rows = rows;
-    buildHours();
+    buildHours(); // the + moved to the new last row: keep focus on it, or on the new row once nothing is free
+    (el.addHours.disabled ? state.rowViews[state.rowViews.length - 1].start : el.addHours).focus();
     return commit({ hours: joinHours(rows) });
   }
 
@@ -313,7 +315,7 @@
     });
     el.darkTimes.hidden = !known;
     el.darkTimes.textContent = known
-      ? `▨ dark ${Plan.formatClock(day.sunset, timeZone)}–${Plan.formatClock(day.sunrise, timeZone)}`
+      ? `▨ ${Plan.formatClock(day.sunset, timeZone)}–${Plan.formatClock(day.sunrise, timeZone)}`
       : '';
   }
 
