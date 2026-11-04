@@ -32,5 +32,11 @@ module.exports = [
       sourceType: 'script',
       globals: { ...globals.browser, module: 'readonly', require: 'readonly' }
     }
+  },
+  {
+    files: ['public/sw.js'],
+    languageOptions: {
+      globals: { ...globals.serviceworker, module: 'readonly' }
+    }
   }
 ];

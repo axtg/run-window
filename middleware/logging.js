@@ -44,7 +44,13 @@ const LOGGABLE_PATHS = new Set([
   '/plan.js',
   '/strip.js',
   '/settings.js',
-  '/app.js'
+  '/app.js',
+  '/manifest.webmanifest',
+  '/sw.js',
+  '/icon.svg',
+  '/icon-192.png',
+  '/icon-512.png',
+  '/share-target'
 ]);
 // Express routes case-insensitively and accepts one trailing slash, so `/API/Window/` is served as `/api/window`.
 // Compare that canonical form; what is logged still only ever comes from the list above.

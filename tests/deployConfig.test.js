@@ -32,6 +32,7 @@ const locations = [...server.matchAll(/^\s*location\s[^{]*\{/gm)].map(match => (
   head: match[0].trim(),
   body: block(new RegExp(match[0].trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&')))
 }));
+const shareTarget = locations.find(location => /share-target/.test(location.head));
 const logFormat = conf.match(/log_format\s+runwindow\s+([^;]*);/)[1];
 const mapBody = block(/^map\s+\$uri\s+\$run_window_path\s*\{/m);
 
@@ -44,8 +45,24 @@ describe('nginx config', () => {
     expect(locations.length).toBeGreaterThan(0);
     for (const location of locations) {
       expect(location.body).not.toMatch(/proxy_set_header/);
-      expect(location.body).toMatch(/proxy_pass http:\/\/127\.0\.0\.1:3003;/);
     }
+  });
+
+  test('every location proxies to the app except the share target', () => {
+    expect(shareTarget).toBeDefined();
+    const unproxied = locations.filter(location => !/proxy_pass http:\/\/127\.0\.0\.1:3003;/.test(location.body));
+    expect(unproxied.map(location => location.head)).toEqual([shareTarget.head]);
+  });
+
+  test('a shared file that reaches nginx never reaches Node: it answers /share-target itself', () => {
+    expect(shareTarget).toBeDefined();
+    expect(shareTarget.head).toMatch(/^location ~\* /);
+    expect(shareTarget.body.trim()).toBe('return 303 /?share=failed;');
+    // nginx checks client_max_body_size before return and would answer 413 instead of the redirect
+    expect(shareTarget.body).not.toMatch(/proxy_pass|client_max_body_size/);
+    const regex = new RegExp(shareTarget.head.match(/~\*\s+(\S+)/)[1], 'i');
+    ['/share-target', '/SHARE-TARGET', '/share-target/'].forEach(url => expect(url).toMatch(regex));
+    ['/share-targetx', '/x/share-target', '/share-target/x'].forEach(url => expect(url).not.toMatch(regex));
   });
 
   test('serves run.xadi.eu and leaves TLS to certbot', () => {

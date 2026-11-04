@@ -27,8 +27,12 @@
     pace: 'Pace is m:ss per km, from 3:00 to 15:00.',
     duration: 'Duration is 15 to 300 minutes.',
     rain: 'Rain is 0 to 100 %.',
-    hours: 'Hours look like 06-22 or 07-09,17-21.'
+    hours: 'Hours look like 06-22 or 07-09,17-21.',
+    shareFailed: "The shared route didn't arrive. Open it again."
   };
+  // Where sw.js leaves a shared route file for the page to read once.
+  const SHARE_CACHE = 'shared-route';
+  const SHARE_KEY = '/shared-route';
 
   const $ = id => document.getElementById(id);
   const el = {
@@ -279,6 +283,46 @@
       () => setStatus(MESSAGES.locationOff),
       { maximumAge: 10 * 60 * 1000, timeout: 15000 }
     );
+  }
+
+  // ---- A route shared from the share sheet: sw.js put it in the Cache API and opened /?share=1.
+
+  async function readSharedRoute() {
+    const cache = await caches.open(SHARE_CACHE);
+    const response = await cache.match(SHARE_KEY);
+    if (!response) return null;
+    const text = await response.text();
+    const fileName = decodeURIComponent(response.headers.get('X-File-Name') || '');
+    return { text, fileName };
+  }
+
+  async function receiveShare() {
+    const share = new URLSearchParams(location.search).get('share');
+    if (share === null) return undefined;
+    history.replaceState(null, '', '/'); // first, so a reload never replays the share
+    let shared = null;
+    if (share === '1') {
+      try {
+        shared = await readSharedRoute();
+      } catch {
+        shared = null;
+      }
+    }
+    try {
+      await caches.delete(SHARE_CACHE); // read once, gone
+    } catch {
+      // no Cache API here: nothing was stored either
+    }
+    if (!shared) return setStatus(MESSAGES.shareFailed);
+    return openRouteText(shared.text, shared.fileName);
+  }
+
+  function registerWorker() {
+    try {
+      if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => {});
+    } catch {
+      // not available here (an insecure context or blocked storage): the file picker still works
+    }
   }
 
   // ---- The request
@@ -551,6 +595,8 @@
   el.why.addEventListener('toggle', render); // the chart has no width while folded
   window.addEventListener('resize', onResize);
   renderChips();
+  registerWorker();
+  receiveShare();
 
   globalThis.RunApp = { openRouteText };
 })();
