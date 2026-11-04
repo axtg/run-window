@@ -1,4 +1,5 @@
-// Remembers the page's chip settings on this device only. Runs in the browser and in the Jest tests.
+// Remembers the page's settings (pace, run length, hours, dark, rain) on this device only. Runs in the browser and
+// in the Jest tests.
 (function () {
   const STORAGE_KEY = 'run-window-settings';
   const DEFAULTS = Object.freeze({ paceSec: 360, durationMin: 60, allowDark: false, rain: 40, hours: '10-16' });

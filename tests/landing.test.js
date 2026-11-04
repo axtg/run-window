@@ -185,6 +185,11 @@ test("the legend's dark swatch is the graph's dark shade", () => {
   expect(html).toMatch(new RegExp(`<span class="text-${shade[1]}">▮</span> dark`));
 });
 
+test('the pace field brings up a keyboard with a colon', () => {
+  const pace = html.match(/<input\b[^>]*id="pace-input"[^>]*>/)[0];
+  expect(pace).not.toMatch(/inputmode="(numeric|decimal)"/);
+});
+
 test('the one-off duration and the chips are gone', () => {
   expect(html).not.toContain('oneoff-input');
   expect(html).not.toMatch(/id="chip-/);

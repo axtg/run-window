@@ -257,7 +257,7 @@ describe('app.js privacy smoke test', () => {
     await flush();
     const end = created.find(node => node.tagName === 'input' && node.attributes['aria-label'] === 'End of hours 1');
     expect(end).toBeDefined();
-    expect(end.attributes['aria-valuetext']).toBe('16'); // the stored text, read out instead of the number
+    expect(end.attributes['aria-valuetext']).toBe('16:00'); // a clock time, not the bare number
     end.value = '18';
     end.listeners.input();
     end.value = '20';
@@ -285,11 +285,59 @@ describe('app.js privacy smoke test', () => {
     const label = name => created.filter(node => node.attributes['aria-label'] === name).pop();
     expect(label('Start of hours 1').attributes['aria-valuetext']).toBe('07:30');
     expect(label('Start of hours 1').value).toBe('8');
-    expect(label('End of hours 2').attributes['aria-valuetext']).toBe('14');
+    expect(label('End of hours 2').attributes['aria-valuetext']).toBe('14:00');
     focusLog.length = 0;
     label('Remove hours 2').listeners.click();
     await flush();
     expect(rejections).toEqual([]);
     expect(focusLog.pop()).toBe(label('Start of hours 1'));
+  });
+  it('raises the start handle when the end handle cannot move right, so both stay reachable', () => {
+    const raised = node => node.className.split(' ').includes('z-10');
+    const last = loadPage({ stored: JSON.stringify({ hours: '23-24' }) }).created;
+    const label = (nodes, name) => nodes.filter(node => node.attributes['aria-label'] === name).pop();
+    expect(raised(label(last, 'Start of hours 1'))).toBe(true);
+    expect(raised(label(last, 'End of hours 1'))).toBe(false);
+
+    const touching = loadPage({ stored: JSON.stringify({ hours: '10-12,12-14' }) }).created;
+    expect(raised(label(touching, 'Start of hours 1'))).toBe(true); // its end meets the next row's start
+    expect(raised(label(touching, 'Start of hours 2'))).toBe(false);
+
+    const normal = loadPage().created;
+    expect(raised(label(normal, 'Start of hours 1'))).toBe(false);
+    const end = label(normal, 'End of hours 1');
+    end.value = '24';
+    end.listeners.input();
+    expect(raised(label(normal, 'Start of hours 1'))).toBe(true);
+  });
+
+  it('disables + add hours when no hour is free and enables it again after a move or removal', async () => {
+    const full = loadPage({ stored: JSON.stringify({ hours: '00-24' }) });
+    const addHours = full.elements.get('add-hours');
+    expect(addHours.disabled).toBe(true);
+    const end = full.created.filter(node => node.attributes['aria-label'] === 'End of hours 1').pop();
+    end.value = '20';
+    end.listeners.input();
+    expect(addHours.disabled).toBe(false);
+
+    const split = loadPage({ stored: JSON.stringify({ hours: '00-12,12-24' }) });
+    expect(split.elements.get('add-hours').disabled).toBe(true);
+    split.created
+      .filter(node => node.attributes['aria-label'] === 'Remove hours 2')
+      .pop()
+      .listeners.click();
+    await flush();
+    expect(rejections).toEqual([]);
+    expect(split.elements.get('add-hours').disabled).toBe(false);
+    expect(loadPage().elements.get('add-hours').disabled).toBe(false);
+  });
+
+  it('reads the rain slider out as a percentage, while dragging too', () => {
+    const { elements } = loadPage();
+    const rain = elements.get('rain-input');
+    expect(rain.attributes['aria-valuetext']).toBe('40 %');
+    rain.value = '65';
+    rain.listeners.input();
+    expect(rain.attributes['aria-valuetext']).toBe('65 %');
   });
 });

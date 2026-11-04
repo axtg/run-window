@@ -171,6 +171,7 @@
 
   // While dragging only the fill and the value move; the input keeps its own value.
   function showRain(rain) {
+    el.rainInput.setAttribute('aria-valuetext', `${rain} %`);
     el.rainFill.setAttribute('width', `${rain}%`);
     el.rainValue.textContent = `${rain} %`;
   }
@@ -190,7 +191,7 @@
     input.setAttribute('aria-label', `${which === 'start' ? 'Start' : 'End'} of hours ${index + 1}`);
     input.addEventListener('input', () => {
       state.rows = moveHandle(state.rows, index, which, Number(input.value));
-      updateRow(index);
+      updateRows();
     });
     input.addEventListener('change', () => commit({ hours: joinHours(state.rows) }));
     return input;
@@ -230,22 +231,36 @@
       el.hoursRows.appendChild(wrap);
       return { start, end, fill, night, value };
     });
-    state.rowViews.forEach((view, index) => updateRow(index));
+    updateRows();
     renderNight();
   }
 
-  // A stored 07:30 keeps its text; its handle sits at the nearest whole hour until moved.
+  // A stored 07:30 keeps its text; its handle sits at the nearest whole hour until moved. Screen readers hear a clock
+  // time (07:30, 16:00), not the slider's number.
+  const clockText = text => (text.includes(':') ? text : `${text}:00`);
+
   function updateRow(index) {
     const row = state.rows[index];
     const view = state.rowViews[index];
     if (!row || !view) return;
     view.start.value = String(Math.round(row.startMin / 60));
     view.end.value = String(Math.round(row.endMin / 60));
-    view.start.setAttribute('aria-valuetext', row.start); // read out as stored: 07:30, not 8
-    view.end.setAttribute('aria-valuetext', row.end);
+    view.start.setAttribute('aria-valuetext', clockText(row.start));
+    view.end.setAttribute('aria-valuetext', clockText(row.end));
+    // The later input wins where the thumbs overlap; when the end can't move right, the start goes on top so it
+    // never ends up buried under the end thumb.
+    const next = state.rows[index + 1];
+    const endStuck = row.endMin >= (next ? next.startMin : DAY_MIN);
+    view.start.className = endStuck ? `${HANDLE_CLASS} z-10` : HANDLE_CLASS;
     view.fill.setAttribute('x', percent(row.startMin));
     view.fill.setAttribute('width', percent(row.endMin - row.startMin));
     view.value.textContent = `${row.start}–${row.end}`;
+  }
+
+  // Every row (a move changes its neighbours' limits) and whether one more hour is free.
+  function updateRows() {
+    state.rowViews.forEach((view, index) => updateRow(index));
+    el.addHours.disabled = addRow(state.rows).length === state.rows.length;
   }
 
   function onAddRow() {
