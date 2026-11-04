@@ -54,6 +54,7 @@ These count as failure even if everything else works:
 | `dark` | no | `ok` \| `avoid` | `avoid` | `avoid` excludes slots outside civil daylight (sunrise to sunset) |
 | `rain` | no | integer 0–100 | `40` | Max precipitation probability (%) allowed in any slot of a window |
 | `lang` | no | `en` \| `nl` | `en` | Only affects the human-readable `label` fields |
+| `slots` | no | `1` | off | Adds a `slots` array (one entry per 15-minute slot inside `avail`) to each day, for the web page's strip. Without it the response is unchanged. Shape: `docs/openapi.yaml` and `2026-11-04-run-window-web-ui-design.md` |
 
 Invalid, out-of-range or repeated values return 400 with a message naming the parameter, matching eu-dayahead's
 validation style. Empty values mean "use the default", as in eu-dayahead (TRMNL sends empty strings for blank fields).
@@ -249,6 +250,12 @@ v1, because all TRMNL users share a few IPs.
   3h10; data older than 3 hours is never served). The distinct-key counter is stored as salted hashes, with the key kept
   only in memory and replaced daily, not written to disk or logs. Logs also hold the User-Agent, and logs go to Better
   Stack.
+- **The web page** (`/`, see the web UI spec): the route file (GPX/KML) is read in the browser and never sent; the page
+  sends only `lat` and `lon` rounded to 2 decimals, the chip settings and `slots=1`. Pace and chip settings are kept in
+  `localStorage` on the device, never the route or location. A route shared from Android's share sheet is a POST to
+  `/share-target`: the page's service worker handles it on the device with no network request; if the worker isn't
+  installed, nginx answers that path itself with a redirect and never proxies it, so the file never reaches Node and
+  no body is logged.
 - Document all of this on the landing page: what the service receives, what it keeps, and that it never stores tokens.
 
 ## Other routes

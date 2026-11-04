@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-Two things in one repo:
+Three things in one repo:
 
 1. **Run-window API** (`run.xadi.eu`, design call): a small, stateless, anonymous Express service. Given a location and
    the hours someone can run, it returns the best weather window for each session length today and tomorrow.
@@ -12,6 +12,9 @@ Two things in one repo:
 2. **TRMNL "Running Board" plugin** (`integrations/trmnl-running-board/`): one full screen with this week's training
    (Tredict), a form graph (Tredict efforts) and today's run window (the API above).
    Spec: `docs/superpowers/specs/2026-11-02-trmnl-running-board-design.md`.
+3. **Web interface** (`public/`, served at `/`): a page where someone opens a GPX/KML route (or uses their location)
+   and sees the best window for that run on a day strip. It reads the file in the browser and calls the API with
+   `slots=1`. Spec: `docs/superpowers/specs/2026-11-04-run-window-web-ui-design.md`.
 
 The API comes first: the plugin depends on it.
 
@@ -19,7 +22,9 @@ The API comes first: the plugin depends on it.
 
 The API is live at `https://run.xadi.eu` (deployed 2026-11-03). The TRMNL plugin is built and tested; install steps are
 in `integrations/trmnl-running-board/README.md`. The install check on the device (plan Task 12) is pending. Publishing
-it as a recipe waits for Tredict's written agreement (see the plugin spec, "Tredict's terms").
+it as a recipe waits for Tredict's written agreement (see the plugin spec, "Tredict's terms"). The web interface is
+built on `feat/web-ui`; the manifest's `share_target` ships only after the nginx `/share-target` location is live
+(see "Web interface").
 
 ## Sister project
 
@@ -62,6 +67,33 @@ test approach. Read its `CLAUDE.md` first. Reuse rather than reinvent:
 - `npm run docker:build`: builds the image. `docker-compose.yml` uses host networking bound to 127.0.0.1:3003, so
   nginx reaches it over loopback (`trust proxy` is `loopback`). `docker/nginx-run.xadi.eu.conf` is the nginx site: it
   logs a fixed list of paths only, strips `Authorization` and `Cookie`, and allows `/health/cache` from the host only.
+
+## Web interface
+
+`public/` holds the page (`index.html`, `app.js`) and its modules (`route.js`, `plan.js`, `strip.js`, `settings.js`),
+the worker `sw.js`, the manifest and icons.
+
+- Each module is an IIFE that exports its API with `module.exports` in Node and as a global in the browser (the
+  eu-dayahead pattern). Jest tests live in `tests/web/`.
+- Same-origin only: external `<script src="/...">` files, no inline script, `<style>`, `style=` attribute or
+  `setAttribute('style', ...)`. The CSP is unchanged (`script-src 'self'`, `style-src 'self'`, `connect-src 'self'`,
+  no hashes). Styling is Tailwind classes in `public/tailwind.css`.
+- The route file never leaves the browser. The only request the page makes is `/api/window` with `lat` and `lon` at 2
+  decimals plus `avail`, `dark`, `rain` and `slots=1`. Nothing from the file goes into storage or the URL.
+- Settings (pace, duration, Allow dark, Rain %, Hours) live in `localStorage` only, always in try/catch; the page works
+  without it.
+- The service worker has one job: catch `POST /share-target` (a route shared from Android's share sheet), put the file
+  in the Cache API for the page to read once, and redirect to `/` without a network request. It never calls `fetch`
+  and answers nothing else.
+- nginx has a `/share-target` location for when the worker isn't there: `client_max_body_size 0` (nginx checks the size
+  before `return`, so the default would answer 413), `return 303 /?share=failed`, never proxied, so the body never
+  reaches Node. Express has no body parser and must not get one. It is the only location without `proxy_pass`.
+- A new public path goes in both `LOGGABLE_PATHS` (`middleware/logging.js`) and the nginx `$run_window_path` map;
+  `tests/deployConfig.test.js` checks they match.
+- Release order: the manifest's `share_target` entry is added only after the nginx change is live on the host, because
+  until then a share would POST the file to Node. The maintainer applies nginx by hand and reloads it after `nginx -t`.
+- Known noise: Chrome logs CSP `style-src` errors when it parses a malformed XML file (its `parsererror` element
+  carries inline styles). Harmless: the page shows a plain message.
 
 ## TRMNL transform script
 

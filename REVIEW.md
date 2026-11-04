@@ -9,6 +9,9 @@ should match that task, not more.
 - **Privacy, highest priority.** The repo is public. No token, real coordinate, personal name or real Tredict data in
   code, fixtures, tests or docs. The API must never log raw coordinates or query strings; logged locations are rounded
   to 1 decimal. The Tredict token is sent to Tredict only, never to `run.xadi.eu`.
+- **The web interface** (`public/`): anything that sends route data anywhere, writes it to `localStorage` or the URL,
+  adds an inline script or style, or makes a third-party request; and a service worker that answers anything other
+  than the share POST (`/share-target`).
 - **The TRMNL transform script** (`integrations/trmnl-running-board/src/`, built into `transform.js`): `run` must never
   throw and every outbound call needs a timeout (TRMNL keeps the previous screen silently on a throw, and allows 5 s).
   Built-ins only, no `require` in the built file. Its output must not contain raw Tredict responses or an activity's
