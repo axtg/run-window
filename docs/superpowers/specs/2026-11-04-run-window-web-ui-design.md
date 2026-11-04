@@ -1,7 +1,7 @@
 # Run-window web interface
 
 Date: 2026-11-04
-Status: draft, awaiting the maintainer's approval
+Status: draft, awaiting the maintainer's approval (builder check done)
 Builds on: `2026-11-02-run-window-api-design.md` (the API), live at `https://run.xadi.eu`
 
 ## Intent
@@ -81,8 +81,7 @@ dap.xadi.eu (design call: keeps one URL to list, and the landing tests' privacy 
      directly (remembered).
    - Allow dark: off by default (`dark=avoid`), remembered.
    - Rain ≤ N %: default 40, remembered.
-   - Hours: the hours they can run, default `06-22` (the API's default), remembered (design call; see "Open for the
-     maintainer").
+   - Hours: the hours they can run, default `06-22` (the API's default), remembered. Confirmed by the maintainer.
 4. **Day strip:** the whole `avail` span of the chosen day, one cell per 15-minute slot, ticks every 3 hours.
    - Usable slots shade from light to dark green, darker = better, scaled to that day's own best and worst usable slot
      (so tuning the API's scores never breaks the page).
@@ -283,7 +282,10 @@ So the share target ships in two releases (design call):
 - The DOM parser used in tests.
 - Climb threshold tuning within the rule above.
 
-## Open for the maintainer
+### Time zones (travel)
 
-- **Hours:** an "Hours" chip with default `06-22` is my call. At work, lunch or after work may be the only real
-  options, so whether this chip is needed (and its default) is yours to confirm.
+The maintainer asked how this behaves far from home (e.g. in Asia). Hours, "today", the strip and every time shown are
+the **location's** local time, from the API's `location.timezone`, never the phone's: `06-22` means 06–22 where the
+route is. The API already works this way; the page formats with `Intl.DateTimeFormat` and that `timeZone`. When the
+location's zone differs from the device's, the source line adds it (e.g. "Today · Asia/Tokyo time"), so a phone still
+on home time doesn't mislead. A test covers a location far from the device's zone (fixed `TZ` in Jest).
