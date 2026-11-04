@@ -4,6 +4,7 @@
 const fs = require('fs');
 const path = require('path');
 const vm = require('vm');
+const { performance } = require('perf_hooks'); // not the global one, which Jest's fake timers replace
 const request = require('supertest');
 const { DOMParser } = require('@xmldom/xmldom');
 
@@ -206,10 +207,17 @@ function loadPage({ navigator = {}, stored = null, app = api } = {}) {
 
 const flush = () => new Promise(resolve => setImmediate(resolve));
 
-// The location path doesn't hand back refresh()'s promise: wait until the answer is drawn.
+// The location path doesn't hand back refresh()'s promise: wait until the answer is drawn. The wait is bounded in real
+// time, not in rounds: a round is one setImmediate, and the fake fetch's HTTP call to Express can take many rounds on a
+// busy runner. On a timeout the message carries #status, where the page reports what went wrong.
+const ANSWER_TIMEOUT_MS = 5000;
 async function answered(elements) {
-  for (let i = 0; i < 100 && elements.get('result').hidden !== false; i++) await flush();
-  expect(elements.get('result').hidden).toBe(false);
+  const deadline = performance.now() + ANSWER_TIMEOUT_MS;
+  while (elements.get('result').hidden !== false && performance.now() < deadline) await flush();
+  if (elements.get('result').hidden !== false) {
+    const status = elements.get('status').textContent;
+    throw new Error(`#result still hidden after ${ANSWER_TIMEOUT_MS} ms; #status: ${JSON.stringify(status)}`);
+  }
 }
 
 function leaks(text) {
