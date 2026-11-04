@@ -1,3 +1,5 @@
+const fs = require('fs');
+const path = require('path');
 const express = require('express');
 const request = require('supertest');
 
@@ -316,5 +318,20 @@ describe('rate limiting', () => {
 
     for (let i = 0; i < 5; i++) await request(app).get('/health').expect(200);
     for (let i = 0; i < 3; i++) await request(app).get('/health/cache').expect(200);
+  });
+});
+
+describe('GET /api/window golden responses', () => {
+  const GOLDEN_URL = '/api/window?lat=52.37&lon=4.89&avail=07-09,12-14,17-21';
+  const golden = name => fs.readFileSync(path.join(__dirname, 'fixtures', name), 'utf8');
+
+  test.each([
+    ['dry Amsterdam forecast', forecast, 'window-response-amsterdam.json'],
+    ['wet forecast with a fallback', wetForecast, 'window-response-amsterdam-wet.json']
+  ])('without slots the response is byte-for-byte the golden one (%s)', async (_label, source, file) => {
+    const weather = fakeWeather({ forecast: source, stale: false });
+    const response = await request(build(weather)).get(GOLDEN_URL).expect(200);
+
+    expect(response.text).toBe(golden(file));
   });
 });
