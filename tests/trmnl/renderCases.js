@@ -52,6 +52,7 @@ async function renderCases() {
     stale: (await board({ previous: first }, { efforts: 503 })).output,
     empty: (await board({ previous: null }, EMPTY_ACCOUNT_OVERRIDES)).output,
     'long-attribution': await longAttributionOutput(),
+    'no-intensity': { ...(await board()).output, intensity: null },
     error: ERROR_OUTPUT
   };
   for (const [name, overrides] of Object.entries(STATE_CASES)) {

@@ -21,6 +21,10 @@
   .rb-form__value { font-size: 56px; font-weight: 700; line-height: 56px; }
   .rb-form svg { display: block; width: 100%; height: auto; max-height: 160px; }
   .rb-form__labels { display: flex; justify-content: space-between; font-size: 16px; line-height: 20px; }
+  .rb-form--intensity svg.rb-form__graph { max-height: 120px; }
+  .rb-intensity__heading { font-size: 17px; font-weight: 700; line-height: 21px; padding-top: 4px; }
+  .rb-form .rb-intensity__bar { max-height: 22px; }
+  .rb-intensity__labels { display: flex; justify-content: space-between; font-size: 15px; line-height: 19px; }
   .rb-run { padding-top: 8px; }
   .rb-run__heading { font-size: 24px; font-weight: 700; line-height: 30px; }
   .rb-run__line { font-size: 22px; line-height: 28px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -65,7 +69,7 @@
       </div>
 
       <div class="rb-right">
-        <div class="rb-form">
+        <div class="rb-form{% if intensity %} rb-form--intensity{% endif %}">
           {% if form %}
             <div class="rb-form__head">
               <span class="rb-form__heading">{{ form.heading | escape }}</span>
@@ -74,7 +78,7 @@
             {% if form.empty and form.empty != '' %}
               <div class="rb-message rb-message--big">{{ form.empty | escape }}</div>
             {% else %}
-              <svg viewBox="0 0 360 150" xmlns="http://www.w3.org/2000/svg">
+              <svg class="rb-form__graph" viewBox="0 0 360 150" xmlns="http://www.w3.org/2000/svg">
                 <line class="rb-zero" x1="0" y1="{{ form.zeroY }}" x2="360" y2="{{ form.zeroY }}" stroke="#000" stroke-width="1" shape-rendering="crispEdges" vector-effect="non-scaling-stroke" />
                 <line class="rb-today" x1="{{ form.todayX }}" y1="0" x2="{{ form.todayX }}" y2="150" stroke="#000" stroke-width="1" stroke-dasharray="2 4" shape-rendering="crispEdges" vector-effect="non-scaling-stroke" />
                 <path class="rb-past" d="{{ form.pastPath }}" fill="none" stroke="#000" stroke-width="3" stroke-linejoin="round" vector-effect="non-scaling-stroke" />
@@ -88,6 +92,34 @@
                 <span>{{ form.labels.ahead | escape }}</span>
               </div>
             {% endif %}
+          {% endif %}
+          {% if intensity %}
+            {% assign patternId = 'rb-moderate' | append_random %}
+            <div class="rb-intensity__heading">{{ intensity.heading | escape }}</div>
+            <svg class="rb-intensity__bar" viewBox="0 0 360 22" xmlns="http://www.w3.org/2000/svg">
+              <defs>
+                <pattern id="{{ patternId }}" width="4" height="4" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+                  <rect width="4" height="4" fill="#fff" />
+                  <line x1="0" y1="0" x2="0" y2="4" stroke="#000" stroke-width="2" />
+                </pattern>
+              </defs>
+              {% for segment in intensity.segments %}
+                {% case segment.kind %}
+                  {% when 'high' %}
+                    <rect x="{{ segment.x | plus: 0 }}" y="0" width="{{ segment.width | plus: 0 }}" height="22" fill="#000" />
+                  {% when 'moderate' %}
+                    <rect x="{{ segment.x | plus: 0 }}" y="0" width="{{ segment.width | plus: 0 }}" height="22" fill="url(#{{ patternId }})" />
+                  {% else %}
+                    <rect x="{{ segment.x | plus: 0 }}" y="0" width="{{ segment.width | plus: 0 }}" height="22" fill="#fff" />
+                {% endcase %}
+              {% endfor %}
+              <rect x="0" y="0" width="360" height="22" fill="none" stroke="#000" stroke-width="2" vector-effect="non-scaling-stroke" />
+            </svg>
+            <div class="rb-intensity__labels">
+              {% for label in intensity.labels %}
+                <span>{{ label | escape }}</span>
+              {% endfor %}
+            </div>
           {% endif %}
         </div>
 

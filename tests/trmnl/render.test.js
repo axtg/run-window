@@ -87,6 +87,56 @@ describe('full.liquid: normal case', () => {
   });
 });
 
+describe('full.liquid: intensity bar', () => {
+  it('draws the bar, its labels and yields the graph height', async () => {
+    const { output, html } = await rendered();
+    const { intensity } = output;
+    expect(intensity).not.toBeNull();
+    expect(textOf(html)).toContain(intensity.heading);
+    expect(html.match(/<pattern/g)).toHaveLength(1);
+    expect(html).toContain('viewBox="0 0 360 22"');
+    for (const { x, width } of intensity.segments)
+      expect(html).toMatch(new RegExp(`<rect[^>]*x="${x}"[^>]*width="${width}"`));
+    const bar = html.slice(html.indexOf('<div class="rb-intensity__heading"'));
+    const spans = [
+      ...bar.slice(bar.indexOf('<div class="rb-intensity__labels"')).matchAll(/<span>([^<]*)<\/span>/g)
+    ].map(m => m[1]);
+    expect(spans.slice(0, 3)).toEqual(intensity.labels);
+    expect(html).toContain('rb-form--intensity');
+    expect(html).toMatch(/vector-effect="non-scaling-stroke"[^>]*>|<rect[^>]*vector-effect="non-scaling-stroke"/);
+  });
+
+  it('makes the pattern id unique per render', () => {
+    expect(template).toMatch(/append_random/);
+  });
+
+  it('draws no bar without intensity', async () => {
+    const { output } = await board();
+    const html = await renderFull({ ...output, intensity: null });
+    const body = html.slice(html.indexOf('</style>'));
+    expect(body).not.toContain('rb-intensity');
+    expect(body).not.toContain('rb-form--intensity');
+    expect(html).not.toContain('<pattern');
+  });
+
+  it('escapes the heading and labels', async () => {
+    const { output } = await board();
+    const intensity = { ...output.intensity, heading: '<b>x</b>', labels: ['<i>a</i>', 'b', 'c'] };
+    const html = await renderFull({ ...output, intensity });
+    expect(html).toContain('&lt;b&gt;x&lt;/b&gt;');
+    expect(html).toContain('&lt;i&gt;a&lt;/i&gt;');
+    expect(html).not.toContain('<b>x');
+  });
+
+  it('prints segment geometry as numbers only', async () => {
+    const { output } = await board();
+    const segments = [{ kind: 'high', x: '"><script>', width: '1" onload="x' }];
+    const html = await renderFull({ ...output, intensity: { ...output.intensity, segments } });
+    expect(html).not.toMatch(/<script/i);
+    expect(html).not.toContain('onload');
+  });
+});
+
 describe('full.liquid: attribution', () => {
   it('prints a long attribution in full and never clips it', async () => {
     const output = await longAttributionOutput();
@@ -125,7 +175,15 @@ describe('full.liquid: layout', () => {
 
 describe('full.liquid: template rules', () => {
   it('escapes every printed value except the validated SVG data', () => {
-    const allowed = ['form.pastPath', 'form.futurePath', 'form.zeroY', 'form.todayX'];
+    const allowed = [
+      'form.pastPath',
+      'form.futurePath',
+      'form.zeroY',
+      'form.todayX',
+      'segment.x | plus: 0',
+      'segment.width | plus: 0',
+      'patternId'
+    ];
     const tags = [...template.matchAll(/\{\{\s*([\s\S]*?)\s*\}\}/g)].map(match => match[1]);
     expect(tags.length).toBeGreaterThan(10);
     const unescaped = tags.filter(tag => !/\|\s*escape$/.test(tag) && !allowed.includes(tag));
@@ -139,7 +197,7 @@ describe('full.liquid: template rules', () => {
     expect(template).not.toMatch(/\b(rgba?|hsla?)\(/i);
     const values = [...template.matchAll(/(?:color|background|fill|stroke)\s*[:=]\s*"?([#\w]+)/gi)].map(m => m[1]);
     expect(values.length).toBeGreaterThan(0);
-    for (const value of values) expect(['#000', '#fff', 'none', 'transparent']).toContain(value.toLowerCase());
+    for (const value of values) expect(['#000', '#fff', 'url', 'none', 'transparent']).toContain(value.toLowerCase());
     expect(template).not.toMatch(/gr[ae]y/i);
   });
 
