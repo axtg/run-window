@@ -4,31 +4,31 @@
       <div class="rb-left">
         {% if week %}
           {% if tredict.message and tredict.message != '' %}
-            <div class="rb-message">{{ tredict.message | escape }}</div>
+            <div class="rb-message title font--bold lg:label--xlarge">{{ tredict.message | escape }}</div>
           {% endif %}
-          <div class="rb-title title">{{ week.title | escape }}</div>
+          <div class="rb-title label label--xlarge font--bold lg:label--xxlarge">{{ week.title | escape }}</div>
           <div class="rb-days">
             {% for day in week.days %}
               <div class="rb-day{% if day.today %} rb-day--today{% endif %}">
-                <span class="rb-day__label">{{ day.label | escape }}</span>
+                <span class="rb-day__label label label--xlarge font--bold lg:label--xxlarge">{{ day.label | escape }}</span>
                 <div class="rb-day__items">
                   {% if day.items.size > 0 %}
                     {% for item in day.items %}
-                      <span class="rb-item rb-item--{{ item.kind | escape }}">{{ item.text | escape }}</span>
+                      <span class="rb-item rb-item--{{ item.kind | escape }} description description--xlarge lg:description--xxlarge {% if item.kind == 'done' or item.kind == 'unplanned' %}font--bold{% else %}font--regular{% endif %}" data-clamp="1" data-clamp-lg="2">{{ item.text | escape }}</span>
                     {% endfor %}
                   {% else %}
-                    <span class="rb-item">—</span>
+                    <span class="rb-item description description--xlarge lg:description--xxlarge font--regular" data-clamp="1" data-clamp-lg="2">—</span>
                   {% endif %}
                 </div>
                 {% if day.more and day.more != '' %}
-                  <span class="rb-day__more">{{ day.more | escape }}</span>
+                  <span class="rb-day__more description description--xlarge font--bold lg:description--xxlarge">{{ day.more | escape }}</span>
                 {% endif %}
               </div>
             {% endfor %}
           </div>
-          <div class="rb-total">{{ week.footer | escape }}</div>
+          <div class="rb-total title font--bold lg:label--xlarge">{{ week.footer | escape }}</div>
         {% else %}
-          <div class="rb-message rb-message--big">{{ tredict.message | escape }}</div>
+          <div class="rb-message rb-message--big title font--bold lg:label--xlarge">{{ tredict.message | escape }}</div>
         {% endif %}
       </div>
 
@@ -36,11 +36,11 @@
         <div class="rb-form{% if intensity %} rb-form--intensity{% endif %}">
           {% if form %}
             <div class="rb-form__head">
-              <span class="rb-form__heading">{{ form.heading | escape }}</span>
-              <span class="rb-form__value value">{{ form.today | escape }}</span>
+              <span class="rb-form__heading description description--xxlarge font--bold lg:title--large">{{ form.heading | escape }}</span>
+              <span class="rb-form__value value value--large font--bold lg:value--xlarge">{{ form.today | escape }}</span>
             </div>
             {% if form.empty and form.empty != '' %}
-              <div class="rb-message rb-message--big">{{ form.empty | escape }}</div>
+              <div class="rb-message rb-message--big title font--bold lg:label--xlarge">{{ form.empty | escape }}</div>
             {% else %}
               <div class="rb-form__graphbox">
               <svg class="rb-form__graph" viewBox="0 0 360 150" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
@@ -51,17 +51,17 @@
                   <path class="rb-future" d="{{ form.futurePath }}" fill="none" stroke="#000" stroke-width="3" stroke-dasharray="8 6" vector-effect="non-scaling-stroke" />
                 {% endif %}
               </svg>
-              <span class="rb-form__today" style="left: {{ form.todayX | divided_by: 3.6 }}%">{{ form.labels.today | escape }}</span>
+              <span class="rb-form__today description description--large font--regular lg:description--xlarge" style="left: {{ form.todayX | divided_by: 3.6 }}%">{{ form.labels.today | escape }}</span>
               </div>
               <div class="rb-form__labels">
-                <span>{{ form.labels.back | escape }}</span>
-                <span>{{ form.labels.ahead | escape }}</span>
+                <span class="rb-form__label description description--large font--regular lg:description--xlarge">{{ form.labels.back | escape }}</span>
+                <span class="rb-form__label description description--large font--regular lg:description--xlarge">{{ form.labels.ahead | escape }}</span>
               </div>
             {% endif %}
           {% endif %}
           {% if intensity %}
             {% assign patternId = 'rb-moderate' | append_random %}
-            <div class="rb-intensity__heading">{{ intensity.heading | escape }}</div>
+            <div class="rb-intensity__heading description description--large font--bold lg:description--xlarge">{{ intensity.heading | escape }}</div>
             <svg class="rb-intensity__bar" viewBox="0 0 360 22" xmlns="http://www.w3.org/2000/svg">
               <defs>
                 <pattern id="{{ patternId }}" width="4" height="4" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
@@ -83,25 +83,25 @@
             </svg>
             <div class="rb-intensity__labels">
               {% for label in intensity.labels %}
-                <span>{{ label | escape }}</span>
+                <span class="rb-intensity__label description description--large font--regular lg:description--xlarge">{{ label | escape }}</span>
               {% endfor %}
             </div>
           {% endif %}
         </div>
 
         <div class="rb-run">
-          <div class="rb-run__heading">{{ run.heading | escape }}</div>
+          <div class="rb-run__heading description description--xxlarge font--bold lg:title--large">{{ run.heading | escape }}</div>
           {% for line in run.lines %}
-            <div class="rb-run__line{% if forloop.first %} rb-run__line--first{% endif %}">{{ line | escape }}</div>
+            <div class="rb-run__line {% if forloop.first %}rb-run__line--first value font--bold lg:value--large{% else %}title font--regular lg:label--xlarge{% endif %}">{{ line | escape }}</div>
           {% endfor %}
         </div>
       </div>
     </div>
 
     <div class="rb-foot">
-      <span class="rb-foot__source">{{ attribution | escape }}</span>
+      <span class="rb-foot__source description font--regular lg:description--large">{{ attribution | escape }}</span>
       {% if fetchedAtText and fetchedAtText != '' %}
-        <span class="rb-foot__time">data {{ fetchedAtText | escape }}</span>
+        <span class="rb-foot__time description font--regular lg:description--large">data {{ fetchedAtText | escape }}</span>
       {% endif %}
     </div>
   </div>

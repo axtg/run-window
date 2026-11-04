@@ -29,7 +29,7 @@ describe('full.liquid: normal case', () => {
 
   it('shows seven rows, Monday first, with today inverted', () => {
     expect(rows(html)).toHaveLength(7);
-    const labels = [...html.matchAll(/<span class="rb-day__label">([^<]*)<\/span>/g)].map(match => match[1]);
+    const labels = [...html.matchAll(/<span class="rb-day__label[^"]*">([^<]*)<\/span>/g)].map(match => match[1]);
     expect(labels).toEqual(['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su']);
     const today = rows(html).findIndex(row => row.includes('rb-day--today'));
     expect(today).toBe(2);
@@ -63,7 +63,7 @@ describe('full.liquid: normal case', () => {
     expect(html).toMatch(/<path class="rb-future"[^>]*stroke-dasharray=/);
     expect(html).toContain(`y1="${output.form.zeroY}" x2="360" y2="${output.form.zeroY}"`);
     expect(html).toContain(`x1="${output.form.todayX}"`);
-    expect(html).toMatch(/<span class="rb-form__today" style="left: [\d.]+%">today<\/span>/);
+    expect(html).toMatch(/<span class="rb-form__today[^"]*" style="left: [\d.]+%">today<\/span>/);
     expect(html).not.toContain('<text');
   });
 
@@ -108,14 +108,6 @@ describe('full.liquid: theme', () => {
       /\.screen--dark-mode \.rb, \.screen:not\(\.screen--dark-mode\) \.rb--dark \{ filter: invert\(1\); \}/
     );
   });
-
-  it("pins every framework text class it uses to black, so TRMNL's dark mode can't recolour them", () => {
-    expect(template).toMatch(/\.screen \.rb \.title, \.screen \.rb \.value \{ color: #000; \}/);
-    const classes = [...template.matchAll(/class="([^"]*)"/g)].map(m => m[1].replace(/\{[{%][\s\S]*?[}%]\}/g, ' '));
-    const used = new Set(classes.flatMap(text => text.split(/\s+/)).filter(Boolean));
-    const framework = [...used].filter(name => !name.startsWith('rb'));
-    expect(framework.sort()).toEqual(['layout', 'title', 'value']);
-  });
 });
 
 describe('full.liquid: intensity bar', () => {
@@ -128,9 +120,9 @@ describe('full.liquid: intensity bar', () => {
     expect(html).toContain('viewBox="0 0 360 22"');
     for (const { x, width } of intensity.segments)
       expect(html).toMatch(new RegExp(`<rect[^>]*x="${x}"[^>]*width="${width}"`));
-    const bar = html.slice(html.indexOf('<div class="rb-intensity__heading"'));
+    const bar = html.slice(html.indexOf('<div class="rb-intensity__heading '));
     const spans = [
-      ...bar.slice(bar.indexOf('<div class="rb-intensity__labels"')).matchAll(/<span>([^<]*)<\/span>/g)
+      ...bar.slice(bar.indexOf('<div class="rb-intensity__labels"')).matchAll(/<span[^>]*>([^<]*)<\/span>/g)
     ].map(m => m[1]);
     expect(spans.slice(0, 3)).toEqual(intensity.labels);
     expect(html).toContain('rb-form--intensity');
@@ -253,6 +245,113 @@ describe.each(LAYOUTS)('%s.liquid: template rules', layout => {
 
   it('stays under 100 KB', () => {
     expect(Buffer.byteLength(template)).toBeLessThanOrEqual(100 * 1024);
+  });
+});
+
+// The framework's text elements; their size modifiers and the font--* utilities set no colour
+const TEXT_ELEMENTS = ['description', 'label', 'title', 'value'];
+// The board's classes for elements that print text
+const TEXT_PARTS = [
+  'rb-title',
+  'rb-day__label',
+  'rb-item',
+  'rb-day__more',
+  'rb-total',
+  'rb-message',
+  'rb-form__heading',
+  'rb-form__value',
+  'rb-form__label',
+  'rb-form__today',
+  'rb-intensity__heading',
+  'rb-intensity__label',
+  'rb-run__heading',
+  'rb-run__line',
+  'rb-foot__source',
+  'rb-foot__time'
+];
+const markupOf = template => template.slice(template.indexOf('</style>'));
+// Class lists with the Liquid tags removed (the text between them stays, so conditional classes count)
+const classListsOf = template =>
+  [...markupOf(template).matchAll(/class="([^"]*)"/g)].map(match =>
+    match[1]
+      .replace(/\{[{%][\s\S]*?[}%]\}/g, ' ')
+      .split(/\s+/)
+      .filter(Boolean)
+  );
+const elementsUsed = templates =>
+  [...new Set(templates.flatMap(t => classListsOf(t).flat()).filter(name => TEXT_ELEMENTS.includes(name)))].sort();
+const selectorsOf = (template, body) =>
+  [...template.replace(/\/\*[\s\S]*?\*\//g, '').matchAll(/([^{}]+)\{\s*([^}]*)\}/g)]
+    .filter(match => match[2].trim() === body)
+    .flatMap(match => match[1].split(',').map(selector => selector.trim()));
+
+describe('typography', () => {
+  const shared = layoutTemplate('full').slice(0, layoutTemplate('full').indexOf('</style>'));
+  const templates = LAYOUTS.map(layoutTemplate);
+
+  it('uses no custom font sizes, families or line heights', () => {
+    expect(shared).not.toMatch(/font-size|font-family|line-height/);
+    for (const template of templates) expect(markupOf(template)).not.toMatch(/font-size|font-family|line-height/);
+  });
+
+  it.each(LAYOUTS)('%s: draws every text with a framework element', layout => {
+    const lists = classListsOf(layoutTemplate(layout));
+    const texts = lists.filter(list => list.some(name => TEXT_PARTS.includes(name)));
+    expect(texts.length).toBeGreaterThan(3);
+    for (const list of texts)
+      expect([list.join(' '), list.some(name => TEXT_ELEMENTS.includes(name))]).toEqual([list.join(' '), true]);
+    expect(markupOf(layoutTemplate(layout))).not.toMatch(/<span>/);
+  });
+
+  it.each(LAYOUTS)('%s: steps every text up on X', layout => {
+    const texts = classListsOf(layoutTemplate(layout)).filter(list => list.some(name => TEXT_ELEMENTS.includes(name)));
+    expect(texts.length).toBeGreaterThan(3);
+    for (const list of texts) {
+      const stepped = list.some(name => /^lg:(title|value|label|description)--[a-z]+$/.test(name));
+      expect([list.join(' '), stepped]).toEqual([list.join(' '), true]);
+    }
+  });
+
+  it('clamps items to one line on OG and two on X', () => {
+    const items = markupOf(template).match(/<span class="rb-item[^>]*>/g);
+    expect(items).toHaveLength(2);
+    for (const item of items) expect(item).toContain('data-clamp="1" data-clamp-lg="2"');
+    const rule = template.match(/\.rb-item\s*\{([^}]*)\}/);
+    expect(rule).not.toBeNull();
+    expect(rule[1]).not.toMatch(/nowrap|ellipsis/);
+  });
+
+  it("pins every framework text class to black in dark mode, so TRMNL's dark mode can't recolour them", () => {
+    const used = elementsUsed(templates);
+    expect(used.length).toBeGreaterThanOrEqual(3);
+    const pinned = selectorsOf(shared, 'color: #000;')
+      .map(selector => selector.match(/^\.screen \.rb \.([a-z]+)$/))
+      .filter(Boolean)
+      .map(match => match[1]);
+    expect(pinned.sort()).toEqual(used);
+  });
+
+  it('keeps the today row white', () => {
+    const full = layoutTemplate('full');
+    const dayRow = full.slice(full.indexOf('<div class="rb-days">'), full.indexOf('<div class="rb-total'));
+    const used = elementsUsed([`</style>${dayRow}`]);
+    expect(used.length).toBeGreaterThan(0);
+    const white = selectorsOf(shared, 'color: #fff;')
+      .map(selector => selector.match(/^\.screen \.rb \.rb-day--today \.([a-z]+)$/))
+      .filter(Boolean)
+      .map(match => match[1]);
+    expect(white.sort()).toEqual(used);
+    expect(shared.indexOf('.screen .rb .rb-day--today .')).toBeGreaterThan(shared.indexOf('.screen .rb .'));
+  });
+
+  it('keeps the compact run panel smaller than the full one with classes, not CSS', () => {
+    expect(shared).not.toMatch(/\.rb-run--compact\s/);
+    const runClasses = layout =>
+      classListsOf(layoutTemplate(layout))
+        .filter(list => list.some(name => /^rb-run__/.test(name)))
+        .map(list => list.filter(name => !name.startsWith('rb')).join(' '));
+    for (const layout of ['half_horizontal', 'half_vertical', 'quadrant'])
+      expect(runClasses(layout)).not.toEqual(runClasses('full'));
   });
 });
 

@@ -3,25 +3,25 @@
     <div class="rb-main">
       <div class="rb-left">
         <div class="rb-run rb-run--compact">
-          <div class="rb-run__heading">{{ run.heading | escape }}</div>
+          <div class="rb-run__heading title font--bold lg:description--xxlarge">{{ run.heading | escape }}</div>
           {% for line in run.lines %}
-            <div class="rb-run__line{% if forloop.first %} rb-run__line--first{% endif %}">{{ line | escape }}</div>
+            <div class="rb-run__line {% if forloop.first %}rb-run__line--first title title--large font--bold lg:value--base{% else %}description description--large font--regular lg:description--xlarge{% endif %}">{{ line | escape }}</div>
           {% endfor %}
         </div>
       </div>
 
       <div class="rb-right">
         {% if tredict.message and tredict.message != '' %}
-          <div class="rb-message rb-message--small">{{ tredict.message | escape }}</div>
+          <div class="rb-message rb-message--small title title--small font--bold lg:title--base">{{ tredict.message | escape }}</div>
         {% endif %}
         <div class="rb-form rb-form--fill rb-form--last">
           {% if form %}
             <div class="rb-form__head">
-              <span class="rb-form__heading">{{ form.heading | escape }}</span>
-              <span class="rb-form__value value">{{ form.today | escape }}</span>
+              <span class="rb-form__heading description description--xxlarge font--bold lg:title--large">{{ form.heading | escape }}</span>
+              <span class="rb-form__value value value--large font--bold lg:value--xlarge">{{ form.today | escape }}</span>
             </div>
             {% if form.empty and form.empty != '' %}
-              <div class="rb-message rb-message--small">{{ form.empty | escape }}</div>
+              <div class="rb-message rb-message--small title title--small font--bold lg:title--base">{{ form.empty | escape }}</div>
             {% else %}
               <div class="rb-form__graphbox">
                 <svg class="rb-form__graph" viewBox="0 0 360 150" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
@@ -32,11 +32,11 @@
                     <path class="rb-future" d="{{ form.futurePath }}" fill="none" stroke="#000" stroke-width="3" stroke-dasharray="8 6" vector-effect="non-scaling-stroke" />
                   {% endif %}
                 </svg>
-                <span class="rb-form__today" style="left: {{ form.todayX | divided_by: 3.6 }}%">{{ form.labels.today | escape }}</span>
+                <span class="rb-form__today description description--large font--regular lg:description--xlarge" style="left: {{ form.todayX | divided_by: 3.6 }}%">{{ form.labels.today | escape }}</span>
               </div>
               <div class="rb-form__labels">
-                <span>{{ form.labels.back | escape }}</span>
-                <span>{{ form.labels.ahead | escape }}</span>
+                <span class="rb-form__label description description--large font--regular lg:description--xlarge">{{ form.labels.back | escape }}</span>
+                <span class="rb-form__label description description--large font--regular lg:description--xlarge">{{ form.labels.ahead | escape }}</span>
               </div>
             {% endif %}
           {% endif %}
@@ -45,9 +45,9 @@
     </div>
 
     <div class="rb-foot">
-      <span class="rb-foot__source">{{ attribution | escape }}</span>
+      <span class="rb-foot__source description font--regular lg:description--large">{{ attribution | escape }}</span>
       {% if fetchedAtText and fetchedAtText != '' %}
-        <span class="rb-foot__time">data {{ fetchedAtText | escape }}</span>
+        <span class="rb-foot__time description font--regular lg:description--large">data {{ fetchedAtText | escape }}</span>
       {% endif %}
     </div>
   </div>
