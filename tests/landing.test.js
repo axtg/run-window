@@ -203,8 +203,22 @@ test('pace sits in the one Run row, with or without a route', () => {
   expect(html).not.toContain('id="duration-row"');
   const row = html.match(/<div\b[^>]*id="run-row"[^>]*>([\s\S]*?)<p\b[^>]*id="run-estimate"/);
   expect(row).not.toBeNull();
-  for (const id of ['duration-group', 'run-distance', 'pace-down', 'pace-input', 'pace-up', 'run-minutes'])
+  for (const id of ['duration-group', 'run-distance', 'pace-down', 'pace-input', 'pace-up'])
     expect(row[1]).toContain(`id="${id}"`);
+  // The run's minutes sit under the row like the estimate, so the row itself is distance, at, pace.
+  const under = html.match(/<p\b[^>]*id="run-minutes"[^>]*>/);
+  expect(under).not.toBeNull();
+  const estimate = html.match(/<p\b[^>]*id="run-estimate"[^>]*>/)[0];
+  expect(under[0].match(/class="([^"]*)"/)[1]).toBe(estimate.match(/class="([^"]*)"/)[1]);
+  expect(html.indexOf('id="run-minutes"')).toBeGreaterThan(html.indexOf('id="pace-up"'));
+});
+
+test("the compass arrow's tip stays clear of the N when it points north", () => {
+  const north = html.match(/<text\b[^>]*\sy="([\d.]+)"[^>]*>N<\/text>/);
+  const tip = html.match(/<g\b[^>]*id="wind-arrow"[^>]*>\s*<path\b[^>]*d="M14 ([\d.]+)/);
+  expect(north).not.toBeNull();
+  expect(tip).not.toBeNull();
+  expect(Number(tip[1])).toBeGreaterThanOrEqual(Number(north[1]) + 1); // the N's baseline is its lowest point
 });
 
 test('Dark has its own row with the times and an OK switch; add hours is a round + button', () => {
@@ -221,6 +235,7 @@ test('Dark has its own row with the times and an OK switch; add hours is a round
   expect(add).not.toBeNull();
   expect(add[0]).toMatch(/aria-label="Add hours"/);
   expect(add[0]).toMatch(/disabled:/);
+  expect(add[0]).toMatch(/\sw-6\s/); // the same width as the spacer that ends the other hours rows
   expect(add[1].trim()).toBe('+');
   expect(html).toMatch(/<div id="hours-rows">\s*<button\b[^>]*id="add-hours"/);
 });

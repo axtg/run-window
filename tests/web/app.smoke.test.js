@@ -63,10 +63,19 @@ const geolocation = { getCurrentPosition: onOk => onOk({ coords: { latitude: 52.
 // controls app.js builds (the hour rows).
 const focusLog = [];
 
-function fakeElement(tagName = 'div') {
+// SVG elements, as in a browser, have no reflected `hidden` property: assigning `.hidden` only adds an expando that
+// changes nothing. They hide through the attribute alone, which isHidden() reads. Ids of the page's SVG elements:
+const SVG_IDS = new Set(['wind-compass', 'wind-arrow', 'copy-icon', 'copy-check', 'timeline', 'rain-fill']);
+// The page's markup starts these hidden.
+const HIDDEN_IN_HTML = new Set(['copy-check']);
+
+const isHidden = node => (node.svg ? 'hidden' in node.attributes : node.hidden === true);
+
+function fakeElement(tagName = 'div', { svg = false } = {}) {
   const listeners = {};
   return {
     tagName,
+    svg,
     className: '',
     textContent: '',
     value: '',
@@ -82,6 +91,16 @@ function fakeElement(tagName = 'div') {
     },
     getAttribute(name) {
       return name in this.attributes ? this.attributes[name] : null;
+    },
+    removeAttribute(name) {
+      delete this.attributes[name];
+    },
+    toggleAttribute(name, force) {
+      const on = force === undefined ? !(name in this.attributes) : Boolean(force);
+      if (on) this.attributes[name] = '';
+      else delete this.attributes[name];
+      if (name === 'hidden' && !this.svg) this.hidden = on; // HTML elements reflect it
+      return on;
     },
     addEventListener(type, handler) {
       listeners[type] = handler;
@@ -126,7 +145,11 @@ function loadPage({ navigator = {}, stored = null, app = api } = {}) {
     navigator,
     document: {
       getElementById(id) {
-        if (!elements.has(id)) elements.set(id, fakeElement());
+        if (!elements.has(id)) {
+          const node = fakeElement(SVG_IDS.has(id) ? 'svg' : 'div', { svg: SVG_IDS.has(id) });
+          if (HIDDEN_IN_HTML.has(id)) node.toggleAttribute('hidden', true);
+          elements.set(id, node);
+        }
         return elements.get(id);
       },
       createElement(tagName) {
@@ -134,7 +157,7 @@ function loadPage({ navigator = {}, stored = null, app = api } = {}) {
         created.push(node);
         return node;
       },
-      createElementNS: (_ns, tagName) => fakeElement(tagName)
+      createElementNS: (_ns, tagName) => fakeElement(tagName, { svg: true })
     },
     localStorage: {
       getItem(key) {
@@ -416,6 +439,10 @@ describe('app.js privacy smoke test', () => {
     expect(rejections).toEqual([]);
     expect(rows()).toHaveLength(2);
     expect(rows()[0].children).not.toContain(addHours);
+    const spacer = rows()[0].children.at(-1); // keeps the sliders lined up with the row that has the +
+    expect(spacer.tagName).toBe('span');
+    expect(spacer.attributes['aria-hidden']).toBe('true');
+    expect(spacer.className.split(' ')).toEqual(expect.arrayContaining(['w-6', 'flex-none'])); // the + is w-6 too
     const last = rows()[1].children;
     expect(last.at(-1)).toBe(addHours);
     expect(last.at(-2).attributes['aria-label']).toBe('Remove hours 2'); // after the value and the ✕
@@ -450,7 +477,7 @@ describe('app.js privacy smoke test', () => {
     expect(rejections).toEqual([]);
     expect(elements.get('wind-line').hidden).toBe(false);
     expect(elements.get('wind-text').textContent).toBe('Start east, into the wind');
-    expect(elements.get('wind-compass').hidden).toBe(false);
+    expect(isHidden(elements.get('wind-compass'))).toBe(false);
     expect(elements.get('wind-arrow').attributes.transform).toBe('rotate(90 14 14)');
     const wind = elements.get('key-numbers').children.find(item => item.children[0].textContent === 'Wind');
     expect(wind.children[1].textContent).toBe('16 km/h E');
@@ -467,7 +494,7 @@ describe('app.js privacy smoke test', () => {
     await answered(elements);
     expect(rejections).toEqual([]);
     expect(elements.get('wind-text').textContent).toBe('Little wind');
-    expect(elements.get('wind-compass').hidden).toBe(true);
+    expect(isHidden(elements.get('wind-compass'))).toBe(true);
   });
 
   it('offers Try tomorrow when today has no window, and switches day without asking again', async () => {
@@ -515,8 +542,8 @@ describe('app.js privacy smoke test', () => {
       expect(copied).toHaveLength(1);
       expect(new URL(copied[0]).searchParams.has('slots')).toBe(false);
       expect(elements.get('copy-label').textContent).toBe('Copied');
-      expect(elements.get('copy-check').hidden).toBe(false);
-      expect(elements.get('copy-icon').hidden).toBe(true);
+      expect(isHidden(elements.get('copy-check'))).toBe(false);
+      expect(isHidden(elements.get('copy-icon'))).toBe(true);
       expect(elements.get('copy-note').textContent).toBe('Copied');
       expect(elements.get('status').textContent).toBe(status);
 
@@ -526,8 +553,8 @@ describe('app.js privacy smoke test', () => {
       expect(elements.get('copy-label').textContent).toBe('Copied');
       jest.advanceTimersByTime(500);
       expect(elements.get('copy-label').textContent).toBe('Copy API link');
-      expect(elements.get('copy-check').hidden).toBe(true);
-      expect(elements.get('copy-icon').hidden).toBe(false);
+      expect(isHidden(elements.get('copy-check'))).toBe(true);
+      expect(isHidden(elements.get('copy-icon'))).toBe(false);
       expect(elements.get('copy-note').textContent).toBe('');
     } finally {
       jest.useRealTimers();
@@ -544,7 +571,7 @@ describe('app.js privacy smoke test', () => {
     try {
       await elements.get('copy-link').listeners.click();
       expect(elements.get('copy-label').textContent).toBe("Couldn't copy");
-      expect(elements.get('copy-check').hidden).toBe(true);
+      expect(isHidden(elements.get('copy-check'))).toBe(true);
       expect(elements.get('copy-note').textContent).toBe("Couldn't copy");
       expect(elements.get('status').textContent).toBe(status);
       jest.advanceTimersByTime(2000);

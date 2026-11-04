@@ -240,7 +240,10 @@
         remove.addEventListener('click', () => onRemoveRow(index));
         wrap.appendChild(remove);
       }
-      if (index === state.rows.length - 1) wrap.appendChild(el.addHours); // the round + ends the last row
+      // The round + ends the last row; the others end in a spacer as wide, so the sliders line up.
+      const spacer = html('span', 'w-6 flex-none');
+      spacer.setAttribute('aria-hidden', 'true');
+      wrap.appendChild(index === state.rows.length - 1 ? el.addHours : spacer);
       el.hoursRows.appendChild(wrap);
       return { start, end, fill, night, value };
     });
@@ -605,8 +608,9 @@
     el.windLine.hidden = !result.window;
     el.windText.textContent = result.window ? Plan.windLine(state.summary, result.window) : '';
     const arrow = result.window ? Plan.windArrowDeg(result.window) : null;
-    el.windCompass.hidden = arrow === null; // no arrow in little wind
-    el.windArrow.setAttribute('transform', `rotate(${arrow || 0} 14 14)`);
+    // SVG elements have no `hidden` property, only the attribute.
+    el.windCompass.toggleAttribute('hidden', arrow === null); // no compass in little wind
+    if (arrow !== null) el.windArrow.setAttribute('transform', `rotate(${arrow} 14 14)`);
     const hint = none && state.dayIndex === 0 ? tomorrowHint(minutes, timeZone) : null;
     el.tomorrowHint.hidden = !hint;
     el.tomorrowText.textContent = hint || '';
@@ -693,8 +697,8 @@
   function showCopyResult(text, ok) {
     clearTimeout(copyTimer);
     el.copyLabel.textContent = text || COPY_LABEL;
-    el.copyCheck.hidden = !ok;
-    el.copyIcon.hidden = Boolean(ok);
+    el.copyCheck.toggleAttribute('hidden', !ok); // SVG: the attribute, not .hidden
+    el.copyIcon.toggleAttribute('hidden', Boolean(ok));
     el.copyNote.textContent = text;
     if (text) copyTimer = setTimeout(() => showCopyResult('', false), COPY_FEEDBACK_MS);
   }
