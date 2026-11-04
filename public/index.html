@@ -249,18 +249,14 @@
 
         <div class="border-t border-gray-100 px-4 pb-2 pt-4">
           <p id="prompt" class="py-6 text-center text-sm text-secondary">Open a route file or use your location.</p>
-          <div
-            id="answer"
-            class="[&[hidden]]:hidden grid grid-cols-1 sm:grid-cols-[minmax(0,1fr)_auto] sm:gap-x-6"
-            hidden
-          >
+          <div id="answer" class="[&[hidden]]:hidden grid grid-cols-1 sm:grid-cols-[auto_1fr] sm:gap-x-6" hidden>
             <div class="sm:col-start-1 sm:row-start-1">
               <p id="answer-label" class="text-xs text-secondary"></p>
-              <p id="answer-time" class="text-3xl font-bold tracking-tight"></p>
+              <p id="answer-time" class="whitespace-nowrap text-3xl font-bold tracking-tight"></p>
             </div>
             <dl
               id="key-numbers"
-              class="[&[hidden]]:hidden mt-2 flex flex-wrap gap-x-5 gap-y-1 sm:col-start-2 sm:row-span-3 sm:row-start-1 sm:mt-0 sm:grid sm:grid-cols-4 sm:self-start sm:text-right"
+              class="[&[hidden]]:hidden mt-2 flex flex-wrap gap-x-5 gap-y-1 sm:col-start-2 sm:row-span-3 sm:row-start-1 sm:mt-0 sm:grid sm:grid-cols-4 sm:self-start sm:justify-self-end sm:text-right"
             ></dl>
             <p
               id="wind-line"

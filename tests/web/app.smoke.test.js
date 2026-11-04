@@ -485,6 +485,7 @@ describe('app.js privacy smoke test', () => {
     expect(rejections).toEqual([]);
     expect(elements.get('wind-line').hidden).toBe(false);
     expect(elements.get('wind-text').textContent).toBe('Start east, into the wind');
+    expect(elements.get('answer-time').className.split(' ')).toContain('whitespace-nowrap'); // app.js sets the class
     expect(isHidden(elements.get('wind-compass'))).toBe(false);
     expect(elements.get('wind-arrow').attributes.transform).toBe('rotate(90 14 14)');
     const wind = elements.get('key-numbers').children.find(item => item.children[0].textContent === 'Wind');

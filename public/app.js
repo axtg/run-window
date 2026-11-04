@@ -603,7 +603,7 @@
     el.answerTime.textContent = none
       ? Plan.noWindowText(minutes, dayLabel)
       : Plan.answerTime(result, { minutes, timeZone });
-    el.answerTime.className = none ? 'text-xl font-semibold' : 'text-3xl font-bold tracking-tight';
+    el.answerTime.className = none ? 'text-xl font-semibold' : 'whitespace-nowrap text-3xl font-bold tracking-tight';
     renderKeyNumbers(Plan.keyNumbers(result, state.summary, minutes));
     el.windLine.hidden = !result.window;
     el.windText.textContent = result.window ? Plan.windLine(state.summary, result.window) : '';

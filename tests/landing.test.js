@@ -244,6 +244,10 @@ test('the answer puts the key numbers beside the time from sm up, and the wind l
   const numbers = html.match(/<dl\b[^>]*id="key-numbers"[^>]*>/)[0];
   expect(numbers).toMatch(/sm:grid-cols-4/);
   expect(numbers).toMatch(/sm:col-start-2/);
+  expect(numbers).toMatch(/sm:justify-self-end/); // beside the time with its own gaps, not spread over the row
+  expect(html).toMatch(/id="answer"[^>]*sm:grid-cols-\[auto_1fr\]/); // the left column takes the width it needs
+  const time = html.match(/<p\b[^>]*id="answer-time"[^>]*>/)[0];
+  expect(time).toMatch(/["\s]whitespace-nowrap["\s]/); // never "14:00–" / "14:45"
   const wind = html.match(/<p\b[^>]*id="wind-line"[^>]*>([\s\S]*?)<\/p>/);
   expect(wind).not.toBeNull();
   expect(wind[1]).toMatch(/<svg\b[^>]*id="wind-compass"[^>]*aria-hidden="true"/);
