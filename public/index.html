@@ -9,16 +9,209 @@
       content="The best weather window for a run today and tomorrow, for a location and the hours you can run."
     />
     <link rel="stylesheet" href="/tailwind.css" />
+    <script src="/route.js" defer></script>
+    <script src="/plan.js" defer></script>
+    <script src="/strip.js" defer></script>
+    <script src="/settings.js" defer></script>
+    <script src="/app.js" defer></script>
   </head>
   <body class="bg-surface text-primary antialiased">
     <main class="mx-auto max-w-2xl px-4 py-10 space-y-8">
-      <header class="space-y-2">
-        <h1 class="text-3xl font-semibold">Run window</h1>
+      <section class="space-y-4" aria-labelledby="tool-title">
+        <header class="space-y-1">
+          <h1 id="tool-title" class="text-3xl font-semibold">Run window</h1>
+          <p class="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-secondary">
+            <span id="source">Near you</span>
+            <span aria-hidden="true">·</span>
+            <span class="inline-flex overflow-hidden rounded-full border border-gray-300" role="group" aria-label="Day">
+              <button
+                id="day-today"
+                type="button"
+                class="px-3 py-0.5 aria-pressed:bg-primary aria-pressed:text-white"
+                aria-pressed="true"
+              >
+                Today
+              </button>
+              <button
+                id="day-tomorrow"
+                type="button"
+                class="px-3 py-0.5 aria-pressed:bg-primary aria-pressed:text-white"
+                aria-pressed="false"
+              >
+                Tomorrow
+              </button>
+            </span>
+            <span id="zone-note" hidden></span>
+          </p>
+        </header>
+
+        <div class="flex flex-wrap gap-2">
+          <label
+            for="route-input"
+            class="cursor-pointer rounded border border-primary px-3 py-1.5 text-sm font-medium focus-within:ring-2 focus-within:ring-primary"
+          >
+            Open route
+            <input
+              id="route-input"
+              type="file"
+              class="sr-only"
+              accept=".gpx,.kml,application/gpx+xml,application/vnd.google-earth.kml+xml"
+            />
+          </label>
+          <button id="use-location" type="button" class="rounded border border-primary px-3 py-1.5 text-sm font-medium">
+            Use my location
+          </button>
+        </div>
+
+        <div class="space-y-2">
+          <div class="flex flex-wrap gap-2 text-sm">
+            <button
+              id="chip-duration"
+              type="button"
+              class="rounded-full border border-gray-400 px-3 py-0.5"
+              aria-expanded="false"
+              aria-controls="editor-duration"
+            >
+              60 min
+            </button>
+            <button
+              id="chip-dark"
+              type="button"
+              class="rounded-full border border-gray-400 px-3 py-0.5 aria-pressed:border-primary aria-pressed:bg-primary aria-pressed:text-white"
+              aria-pressed="false"
+            >
+              Allow dark
+            </button>
+            <button
+              id="chip-rain"
+              type="button"
+              class="rounded-full border border-gray-400 px-3 py-0.5"
+              aria-expanded="false"
+              aria-controls="editor-rain"
+            >
+              Rain ≤ 40 %
+            </button>
+            <button
+              id="chip-hours"
+              type="button"
+              class="rounded-full border border-gray-400 px-3 py-0.5"
+              aria-expanded="false"
+              aria-controls="editor-hours"
+            >
+              Hours 06-22
+            </button>
+          </div>
+
+          <form id="editor-duration" class="rounded bg-surface-muted p-3 text-sm" hidden>
+            <div class="flex flex-wrap items-end gap-2">
+              <div id="pace-field">
+                <label class="flex flex-col gap-1">
+                  Pace (m:ss per km)
+                  <input id="pace-input" class="w-24 rounded border border-gray-400 px-2 py-1" inputmode="numeric" />
+                </label>
+              </div>
+              <div id="oneoff-field">
+                <label class="flex flex-col gap-1">
+                  This run only (min)
+                  <input
+                    id="oneoff-input"
+                    type="number"
+                    min="15"
+                    max="300"
+                    class="w-24 rounded border border-gray-400 px-2 py-1"
+                    placeholder="from pace"
+                  />
+                </label>
+              </div>
+              <div id="duration-field">
+                <label class="flex flex-col gap-1">
+                  Duration (min)
+                  <input
+                    id="duration-input"
+                    type="number"
+                    min="15"
+                    max="300"
+                    class="w-24 rounded border border-gray-400 px-2 py-1"
+                  />
+                </label>
+              </div>
+              <button type="submit" class="rounded bg-primary px-3 py-1 text-white">Set</button>
+            </div>
+          </form>
+
+          <form id="editor-rain" class="rounded bg-surface-muted p-3 text-sm" hidden>
+            <div class="flex flex-wrap items-end gap-2">
+              <label class="flex flex-col gap-1">
+                Highest rain chance (%)
+                <input
+                  id="rain-input"
+                  type="number"
+                  min="0"
+                  max="100"
+                  class="w-24 rounded border border-gray-400 px-2 py-1"
+                />
+              </label>
+              <button type="submit" class="rounded bg-primary px-3 py-1 text-white">Set</button>
+            </div>
+          </form>
+
+          <form id="editor-hours" class="rounded bg-surface-muted p-3 text-sm" hidden>
+            <div class="flex flex-wrap items-end gap-2">
+              <label class="flex flex-col gap-1">
+                Hours you can run (e.g. 07-09,17-21)
+                <input id="hours-input" class="w-40 rounded border border-gray-400 px-2 py-1" />
+              </label>
+              <button type="submit" class="rounded bg-primary px-3 py-1 text-white">Set</button>
+            </div>
+          </form>
+        </div>
+
+        <p id="status" class="text-sm" role="status" aria-live="polite">Open a route file or use your location.</p>
+
+        <div id="result" class="space-y-3" hidden>
+          <div class="space-y-1">
+            <svg
+              id="strip"
+              class="block w-full cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+              role="img"
+              tabindex="0"
+              aria-label="Day strip"
+              height="52"
+            ></svg>
+            <p id="tap-line" class="text-sm text-secondary">Tap the strip, or use the arrow keys, for each slot.</p>
+          </div>
+
+          <div class="space-y-0.5 rounded-lg bg-surface-muted px-3 py-2">
+            <p id="go-line" class="text-lg font-semibold"></p>
+            <p id="wind-line" class="min-h-6"></p>
+            <p id="route-line" hidden></p>
+          </div>
+          <p id="stale-note" class="text-sm text-secondary" hidden></p>
+
+          <details id="why" class="border-t border-gray-300 pt-2">
+            <summary class="cursor-pointer text-sm">Why this time</summary>
+            <div class="mt-2 space-y-2">
+              <svg id="chart" class="block w-full" height="112" aria-hidden="true"></svg>
+              <p class="text-xs text-secondary">
+                <span class="text-red-600">— feels-like °C</span> · <span class="text-blue-700">- - wind km/h</span> ·
+                <span class="text-blue-400">▮ rain %</span> ·
+                <span class="text-gray-500">▮ dark</span>
+              </p>
+              <p id="why-sentence" class="text-sm"></p>
+            </div>
+          </details>
+
+          <button id="copy-link" type="button" class="text-sm text-secondary underline">Copy API link</button>
+        </div>
+      </section>
+
+      <section class="space-y-2">
+        <h2 class="text-xl font-semibold">The API</h2>
         <p class="text-secondary">
           Give it a location and the hours you can run. It returns the best weather window for each session length,
           today and tomorrow.
         </p>
-      </header>
+      </section>
 
       <section class="space-y-2">
         <h2 class="text-xl font-semibold">Example request</h2>
@@ -43,6 +236,9 @@
       <section class="space-y-2">
         <h2 class="text-xl font-semibold">Privacy</h2>
         <ul class="list-disc space-y-1 pl-5">
+          <li>The route file is read in your browser and never sent anywhere; the page only sends its start point.</li>
+          <li>The location is rounded to 2 decimals before it leaves your device.</li>
+          <li>Pace and chip settings are kept in your browser's storage; the route and location are not.</li>
           <li>The service receives the coordinates you send.</li>
           <li>
             The service needs no token and knows nothing about your training. The TRMNL Running Board calls Tredict from

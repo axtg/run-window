@@ -41,12 +41,52 @@ test('landing page privacy text says no more than the code does', () => {
   expect(text).not.toMatch(/at most 3 hours|cannot be read back/);
 });
 
-test('landing page has no scripts and makes no external requests', () => {
-  expect(html).not.toMatch(/<script/i);
+const SCRIPTS = ['/route.js', '/plan.js', '/strip.js', '/settings.js', '/app.js'];
+const scriptTags = [...html.matchAll(/<script\b[^>]*>/gi)].map(match => match[0]);
+const scriptPath = tag => (tag.match(/\ssrc="([^"?]*)(\?[^"]*)?"/) || [])[1];
+
+test('the page loads only same-origin external scripts, deferred, in order, and none inline', () => {
+  expect(scriptTags.map(scriptPath)).toEqual(SCRIPTS);
+  scriptTags.forEach(tag => {
+    expect(tag).toMatch(/\ssrc="\/[^/]/);
+    expect(tag).toMatch(/\sdefer\b/);
+  });
+  expect(html).not.toMatch(/<script\b(?![^>]*\ssrc=)[^>]*>/i);
+  expect(html).not.toMatch(/<script\b[^>]*>[^<]+<\/script>/i);
+});
+
+test('every script path is logged by name and served as JavaScript', async () => {
+  const app = createApp({ weather: { getForecast: jest.fn(), stats: () => ({}) } });
+  for (const script of SCRIPTS) {
+    expect(LOGGABLE_PATHS.has(script)).toBe(true);
+    await request(app)
+      .get(script)
+      .expect(200)
+      .expect('Content-Type', /javascript/);
+  }
+});
+
+test('the page makes no external requests and has no inline style', () => {
   expect(html).not.toMatch(/\s(src|srcset|data)=["']?(https?:)?\/\//i);
   expect(html).not.toMatch(/<(link|img|iframe|object|embed|source|video|audio)\b[^>]*(https?:)?\/\/[^>]*>/i);
   expect(html).not.toMatch(/<style|style=/i);
   expect(html).not.toMatch(/@import|url\(/i);
+});
+
+test('privacy text says the route file stays in the browser and the location is rounded', () => {
+  expect(text).toContain('read in your browser');
+  expect(text).toContain('never sent');
+  expect(text).toContain('rounded to 2 decimals before');
+});
+
+test('the page has a route file input for GPX and KML and a polite status line', () => {
+  const input = html.match(/<input\b[^>]*id="route-input"[^>]*>/);
+  expect(input).not.toBeNull();
+  expect(input[0]).toMatch(/type="file"/);
+  const accept = input[0].match(/accept="([^"]*)"/)[1];
+  expect(accept).toContain('.gpx');
+  expect(accept).toContain('.kml');
+  expect(html).toMatch(/<[^>]*id="status"[^>]*aria-live="polite"|<[^>]*aria-live="polite"[^>]*id="status"/);
 });
 
 test('the only stylesheet is /tailwind.css, which the logger allows', async () => {

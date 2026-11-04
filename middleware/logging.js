@@ -39,7 +39,12 @@ const LOGGABLE_PATHS = new Set([
   '/health/cache',
   '/openapi.yaml',
   '/tailwind.css',
-  '/favicon.ico'
+  '/favicon.ico',
+  '/route.js',
+  '/plan.js',
+  '/strip.js',
+  '/settings.js',
+  '/app.js'
 ]);
 // Express routes case-insensitively and accepts one trailing slash, so `/API/Window/` is served as `/api/window`.
 // Compare that canonical form; what is logged still only ever comes from the list above.
