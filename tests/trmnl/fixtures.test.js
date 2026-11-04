@@ -73,6 +73,8 @@ describe('synthetic fixtures', () => {
     expect(names).toEqual([
       'activities-dst.json',
       'activities-week.json',
+      'activity-detail-hr.json',
+      'activity-detail-nohr.json',
       'efforts-week.json',
       'planned-dst.json',
       'planned-week.json'

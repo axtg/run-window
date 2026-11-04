@@ -5,13 +5,12 @@ const windowOk = require('../fixtures/trmnl/window-ok.json');
 const plannedWeek = require('../fixtures/tredict/planned-week.json');
 const activitiesWeek = require('../fixtures/tredict/activities-week.json');
 const effortsWeek = require('../fixtures/tredict/efforts-week.json');
+const detailHr = require('../fixtures/tredict/activity-detail-hr.json');
+const detailNoHr = require('../fixtures/tredict/activity-detail-nohr.json');
 
 const NOW = Date.parse('2026-11-04T11:00:00Z');
 const TOKEN = 'synthetic-token-value-123';
 const MINUTE = 60000;
-
-// A synthetic activity detail; Task 5 adds real-shaped fixtures
-const DETAIL_BODY = { id: 'synthetic-detail', heartrate: null };
 
 // Response headers, looked up case-insensitively like fetch's Headers
 const headersOf = (values = {}) => {
@@ -20,6 +19,7 @@ const headersOf = (values = {}) => {
 };
 
 // Routes by URL to fixtures; `overrides` maps a route name to a status, a body, or a function returning a response.
+// `overrides.details` does the same per activity id for detail calls, before `overrides.detail`.
 // Each call record gets `start` and `end` from one shared counter, with a yield in between, so overlap shows.
 function fakeFetch(overrides = {}) {
   const calls = [];
@@ -28,7 +28,7 @@ function fakeFetch(overrides = {}) {
     plan: plannedWeek,
     activities: activitiesWeek,
     efforts: effortsWeek,
-    detail: DETAIL_BODY,
+    detail: detailHr,
     window: windowOk
   };
   const route = url => {
@@ -39,8 +39,11 @@ function fakeFetch(overrides = {}) {
     if (url.startsWith('https://run.xadi.eu/api/window')) return 'window';
     return 'unknown';
   };
+  const detailId = url => decodeURIComponent(url.split('/activity/')[1].split('?')[0]);
   const respond = (name, url, options) => {
-    const override = overrides[name];
+    const details = overrides.details || {};
+    const perId = name === 'detail' && Object.hasOwn(details, detailId(url));
+    const override = perId ? details[detailId(url)] : overrides[name];
     if (typeof override === 'function') return override(url, options);
     if (typeof override === 'number') {
       return { status: override, headers: headersOf(), text: async () => '{"error":"x"}' };
@@ -84,4 +87,16 @@ async function board({ clock, ...options } = {}, fetchOverrides = {}, now = NOW)
   return { output: roundTrip(output), calls: fake.calls };
 }
 
-module.exports = { windowOk, NOW, TOKEN, MINUTE, headersOf, fakeFetch, makeInput, roundTrip, board };
+module.exports = {
+  windowOk,
+  detailHr,
+  detailNoHr,
+  NOW,
+  TOKEN,
+  MINUTE,
+  headersOf,
+  fakeFetch,
+  makeInput,
+  roundTrip,
+  board
+};

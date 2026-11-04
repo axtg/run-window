@@ -1,6 +1,19 @@
 const { buildBoard } = require('../../integrations/trmnl-running-board/src/board');
 const { loadTransform } = require('./harness');
-const { windowOk, NOW, TOKEN, MINUTE, headersOf, fakeFetch, makeInput, roundTrip, board } = require('./boardCases');
+const {
+  windowOk,
+  detailNoHr,
+  NOW,
+  TOKEN,
+  MINUTE,
+  headersOf,
+  fakeFetch,
+  makeInput,
+  roundTrip,
+  board
+} = require('./boardCases');
+const activitiesWeek = require('../fixtures/tredict/activities-week.json');
+const effortsWeek = require('../fixtures/tredict/efforts-week.json');
 
 const SECOND = 1000;
 
@@ -35,8 +48,8 @@ describe('buildBoard: normal case', () => {
     expect(output.attribution).toBe([...output.week.garmin, windowOk.attribution].join(' · '));
   });
 
-  it('makes three Tredict calls with the token and no weather retry', () => {
-    expect(calls.map(call => call.name).sort()).toEqual(['activities', 'efforts', 'plan']);
+  it("makes the Tredict calls, this week's details included, with the token and no weather retry", () => {
+    expect(calls.map(call => call.name)).toEqual(['plan', 'activities', 'efforts', 'detail', 'detail', 'detail']);
     for (const call of calls) expect(call.options.headers.Authorization).toBe(`Bearer ${TOKEN}`);
   });
 
@@ -44,8 +57,11 @@ describe('buildBoard: normal case', () => {
     const json = JSON.stringify(output);
     expect(json).not.toContain('positionLat');
     expect(json).not.toContain('summary');
+    expect(json).not.toContain('seriesSampled');
+    expect(json).not.toContain('intensityDistribution');
     expect(json).not.toContain('Bearer');
     expect(json).not.toContain(TOKEN);
+    expect(output.intensityCache).toHaveLength(3);
     expect(Buffer.byteLength(json)).toBeLessThan(10 * 1024);
   });
 
@@ -258,11 +274,11 @@ describe('buildBoard: Tredict sequence', () => {
   });
   const at = ms => new Date(ms).toISOString();
 
-  it('calls Tredict one at a time in plan, activities, efforts order', async () => {
+  it('calls Tredict one at a time in plan, activities, efforts, detail order', async () => {
     const { calls, output } = await board();
     expect(output.tredict.state).toBe('ok');
     const tredict = calls.filter(call => call.name !== 'window');
-    expect(tredict.map(call => call.name)).toEqual(['plan', 'activities', 'efforts']);
+    expect(tredict.map(call => call.name)).toEqual(['plan', 'activities', 'efforts', 'detail', 'detail', 'detail']);
     for (let i = 1; i < tredict.length; i += 1) expect(tredict[i].start).toBeGreaterThan(tredict[i - 1].end);
   });
 
@@ -270,8 +286,8 @@ describe('buildBoard: Tredict sequence', () => {
     const { calls, output } = await board({ body: {} });
     expect(output.run.kind).toBe('window');
     const window = calls.find(call => call.name === 'window');
-    const efforts = calls.find(call => call.name === 'efforts');
-    expect(window.start).toBeLessThan(efforts.end);
+    const plan = calls.find(call => call.name === 'plan');
+    expect(window.start).toBeLessThan(plan.end);
   });
 
   it('a 429 stops the sequence and pauses', async () => {
@@ -376,8 +392,26 @@ describe('buildBoard: Tredict sequence', () => {
       expect(output.run.kind).toBe('error');
       expect(output.tredict.state).toBe('unavailable');
       expect(output.tredictRetryAt).toBe(tredictRetryAt);
+      expect(output.intensity).toBeNull();
+      expect(output.intensityCache).toEqual(first.intensityCache);
       expect(JSON.stringify(output)).not.toContain('boom');
     });
+  });
+
+  it('the error output keeps a pause and a cache from the same run', async () => {
+    const input = makeInput({ previous: null });
+    Object.defineProperty(input, 'days', {
+      get() {
+        throw new Error('boom');
+      }
+    });
+    const fake = fakeFetch({ details: { SynAct03xxxxxxxxxxxxxx: rateLimited('3600') } });
+    const output = roundTrip(await buildBoard(input, { fetch: fake.fetch, now: NOW }));
+    expect(fake.calls.map(call => call.name)).toEqual(['plan', 'activities', 'efforts', 'detail', 'detail']);
+    expect(output.run.kind).toBe('error');
+    expect(output.tredictRetryAt).toBe(at(NOW + 3600 * SECOND));
+    expect(output.intensityCache).toEqual([['SynAct04xxxxxxxxxxxxxx', 2100, 450, 150]]);
+    expect(output.intensity).toBeNull();
   });
 
   it('leaves tredictRetryAt null without a pause or a 429', async () => {
@@ -394,7 +428,7 @@ describe('buildBoard: Tredict sequence', () => {
     };
     const { output, calls } = await board({ previous: null, clock }, { plan: slowPlan });
     expect(tredictNames(calls)).toEqual(['plan']);
-    expect(['stale', 'unavailable']).toContain(output.tredict.state);
+    expect(output.tredict.state).toBe('unavailable');
     expect(output.tredictRetryAt).toBeNull();
   });
 });
@@ -611,10 +645,274 @@ describe('buildBoard: garbage input (Review Focus 5)', () => {
       week: null,
       form: null,
       run: { kind: 'error', heading: 'Weather unavailable', lines: [] },
+      intensity: null,
       weatherRetryAt: null,
       tredictRetryAt: null,
+      // The getter throws after this run's detail calls, so their cache survives
+      intensityCache: [
+        ['SynAct04xxxxxxxxxxxxxx', 2100, 450, 150],
+        ['SynAct03xxxxxxxxxxxxxx', 2100, 450, 150],
+        ['SynAct02xxxxxxxxxxxxxx', 2100, 450, 150]
+      ],
       attribution: ''
     });
     expect(JSON.stringify(output)).not.toContain('boom');
+  });
+});
+
+describe('buildBoard: intensity', () => {
+  const ACT02 = 'SynAct02xxxxxxxxxxxxxx';
+  const ACT03 = 'SynAct03xxxxxxxxxxxxxx';
+  const ACT04 = 'SynAct04xxxxxxxxxxxxxx';
+  const ACT07 = 'SynAct07xxxxxxxxxxxxxx';
+  const HR = [2100, 450, 150];
+  const BAR = {
+    heading: 'Intensity this week · 2:15',
+    segments: [
+      { kind: 'low', x: 0, width: 280 },
+      { kind: 'moderate', x: 280, width: 60 },
+      { kind: 'high', x: 340, width: 20 }
+    ],
+    labels: ['low 78%', 'moderate 17%', 'high 5%']
+  };
+  const GARMIN = 'Synthetic Garmin attribution text';
+  const detailIds = calls =>
+    calls.filter(call => call.name === 'detail').map(call => decodeURIComponent(call.url.split('/activity/')[1]));
+  const rateLimited = () => ({ status: 429, headers: headersOf({ 'Retry-After': '3600' }), text: async () => '{}' });
+  const count = (text, part) => text.split(part).length - 1;
+
+  let cold;
+
+  beforeAll(async () => {
+    cold = await board({ previous: {} });
+  });
+
+  it("a cold cache fetches this week's runs and shows the bar", () => {
+    const tredict = cold.calls.filter(call => call.name !== 'window');
+    expect(tredict.map(call => call.name)).toEqual(['plan', 'activities', 'efforts', 'detail', 'detail', 'detail']);
+    for (let i = 1; i < tredict.length; i += 1) expect(tredict[i].start).toBeGreaterThan(tredict[i - 1].end);
+    expect(detailIds(cold.calls)).toEqual([ACT04, ACT03, ACT02].map(id => `${id}?extraValues=1`));
+    expect(cold.output.intensity.heading.startsWith('Intensity this week · ')).toBe(true);
+    expect(cold.output.intensity).toEqual(BAR);
+    expect(cold.output.intensityCache).toEqual([ACT04, ACT03, ACT02].map(id => [id, ...HR]));
+    expect(cold.output.tredict.state).toBe('ok');
+  });
+
+  it('shows the bar in Dutch', async () => {
+    const { output } = await board({ user: { time_zone_iana: 'Europe/Amsterdam', locale: 'nl-NL' } });
+    expect(output.intensity.heading).toBe('Intensiteit deze week · 2:15');
+    expect(output.intensity.labels).toEqual(['laag 78%', 'gemiddeld 17%', 'hoog 5%']);
+  });
+
+  it('a warm cache makes no detail calls', async () => {
+    const { output, calls } = await board({ previous: cold.output });
+    expect(detailIds(calls)).toEqual([]);
+    expect(output.intensity).toEqual(cold.output.intensity);
+    expect(output.intensityCache).toEqual(cold.output.intensityCache);
+  });
+
+  it('four new runs: three now, the bar next run', async () => {
+    const extra = { ...activitiesWeek._embedded.activityList[3], id: ACT07, date: '2026-11-03T07:00:00.000Z' };
+    delete extra._links;
+    const activities = { _embedded: { activityList: [...activitiesWeek._embedded.activityList, extra] } };
+    const first = await board({ previous: {} }, { activities });
+    expect(detailIds(first.calls)).toEqual([ACT04, ACT07, ACT03].map(id => `${id}?extraValues=1`));
+    expect(first.output.intensity).toBeNull();
+    expect(first.output.intensityCache.map(entry => entry[0])).toEqual([ACT04, ACT07, ACT03]);
+    const second = await board({ previous: first.output }, { activities }, NOW + 5 * MINUTE);
+    expect(detailIds(second.calls)).toEqual([`${ACT02}?extraValues=1`]);
+    expect(second.output.intensity.heading).toBe('Intensity this week · 3:00');
+    expect(second.output.intensityCache.map(entry => entry[0])).toEqual([ACT04, ACT07, ACT03, ACT02]);
+  });
+
+  it("last week's ids drop out (Review Focus 4)", async () => {
+    const previous = {
+      intensityCache: [
+        ['SynAct01xxxxxxxxxxxxxx', 600, 0, 0],
+        ['SynOldxxxxxxxxxxxxxxxx', 1, 2, 3]
+      ]
+    };
+    const { output, calls } = await board({ previous });
+    expect(detailIds(calls)).toEqual([ACT04, ACT03, ACT02].map(id => `${id}?extraValues=1`));
+    expect(output.intensityCache.map(entry => entry[0])).toEqual([ACT04, ACT03, ACT02]);
+    // Monday 00:15 local, before this week's first run: no ids, no calls, no bar
+    const monday = await board({ previous: cold.output }, {}, Date.parse('2026-11-01T23:15:00Z'));
+    expect(detailIds(monday.calls)).toEqual([]);
+    expect(monday.output.intensity).toBeNull();
+    expect(monday.output.intensityCache).toEqual([]);
+  });
+
+  it('a run without heart rate is cached as zeros', async () => {
+    const { output } = await board({ previous: {} }, { details: { [ACT02]: detailNoHr } });
+    expect(output.intensityCache).toEqual([
+      [ACT04, ...HR],
+      [ACT03, ...HR],
+      [ACT02, 0, 0, 0]
+    ]);
+    expect(output.intensity.heading).toBe('Intensity this week · 1:30');
+  });
+
+  it('a 2xx without the distribution is cached as zeros', async () => {
+    const { output } = await board({ previous: {} }, { details: { [ACT02]: { _id: 'x' } } });
+    expect(output.intensityCache[2]).toEqual([ACT02, 0, 0, 0]);
+  });
+
+  it('no bar when every run lacks heart rate', async () => {
+    const { output } = await board({ previous: {} }, { detail: detailNoHr });
+    expect(output.intensityCache).toHaveLength(3);
+    expect(output.intensity).toBeNull();
+  });
+
+  it('a 404 is cached as zeros, a 503 is retried', async () => {
+    const { output, calls } = await board({ previous: {} }, { details: { [ACT04]: 404, [ACT03]: 503 } });
+    expect(detailIds(calls)).toHaveLength(3);
+    expect(output.intensityCache).toEqual([
+      [ACT04, 0, 0, 0],
+      [ACT02, ...HR]
+    ]);
+    expect(output.intensity).toBeNull();
+    expect(output.tredict.state).toBe('ok');
+    const next = await board({ previous: output }, {}, NOW + 5 * MINUTE);
+    expect(detailIds(next.calls)).toEqual([`${ACT03}?extraValues=1`]);
+    expect(next.output.intensity.heading).toBe('Intensity this week · 1:30');
+  });
+
+  it('a 429 on a detail call keeps the panels and pauses', async () => {
+    const { output, calls } = await board({ previous: {} }, { details: { [ACT03]: rateLimited } });
+    expect(detailIds(calls)).toEqual([ACT04, ACT03].map(id => `${id}?extraValues=1`));
+    expect(output.tredict).toEqual({ state: 'ok', message: '' });
+    expect(output.week).not.toBeNull();
+    expect(output.form).not.toBeNull();
+    expect(output.tredictRetryAt).toBe(new Date(NOW + 3600 * SECOND).toISOString());
+    expect(output.intensity).toBeNull();
+    expect(output.intensityCache).toEqual([[ACT04, ...HR]]);
+  });
+
+  it('no detail calls with under a second left', async () => {
+    let time = NOW;
+    const clock = () => time;
+    const slowEfforts = () => {
+      time += 3100;
+      return { status: 200, headers: headersOf(), text: async () => JSON.stringify(effortsWeek) };
+    };
+    const { output, calls } = await board({ previous: {}, clock }, { efforts: slowEfforts });
+    expect(calls.map(call => call.name)).toEqual(['plan', 'activities', 'efforts']);
+    expect(output.tredict.state).toBe('ok');
+    expect(output.intensity).toBeNull();
+    expect(output.intensityCache).toEqual([]);
+  });
+
+  it('stops detail calls once under a second is left', async () => {
+    let time = NOW;
+    const clock = () => time;
+    const slowDetail = () => {
+      time += 2000;
+      return { status: 200, headers: headersOf(), text: async () => JSON.stringify({ _id: 'x' }) };
+    };
+    const { calls } = await board({ previous: {}, clock }, { detail: slowDetail });
+    // 4000 ms: 2000 left after the first detail, 0 after the second
+    expect(detailIds(calls)).toHaveLength(2);
+  });
+
+  it('the Garmin run adds its attribution', () => {
+    expect(cold.output.week.garmin).toContain(GARMIN);
+    expect(count(cold.output.attribution, GARMIN)).toBe(1);
+    expect(cold.output.attribution.endsWith(windowOk.attribution)).toBe(true);
+  });
+
+  it('a Garmin run beyond the rows a day shows still adds its attribution', async () => {
+    const list = activitiesWeek._embedded.activityList;
+    // Two more Monday runs push the Garmin run off its day's two rows
+    const more = [1, 2].map(n => ({
+      ...list[3],
+      id: `SynAct1${n}xxxxxxxxxxxxxx`,
+      date: `2026-11-02T0${n}:00:00.000Z`
+    }));
+    const activities = { _embedded: { activityList: [...list, ...more] } };
+    const previous = {
+      intensityCache: [ACT04, ACT03, ACT02, ...more.map(a => a.id)].map(id => [id, ...HR])
+    };
+    const { output } = await board({ previous }, { activities });
+    expect(output.week.garmin).not.toContain(GARMIN);
+    expect(count(output.attribution, GARMIN)).toBe(1);
+    expect(output.intensity).not.toBeNull();
+  });
+
+  it('stale panels keep the bar', async () => {
+    const first = (await board({ previous: {} }, {}, NOW - 2 * 60 * MINUTE)).output;
+    const { output, calls } = await board({ previous: first }, { efforts: 503 });
+    expect(output.tredict.state).toBe('stale');
+    expect(output.intensity).toEqual(first.intensity);
+    expect(output.intensityCache).toEqual(first.intensityCache);
+    expect(detailIds(calls)).toEqual([]);
+  });
+
+  it('stale panels drop a malformed bar', async () => {
+    const first = (await board({ previous: {} }, {}, NOW - 2 * 60 * MINUTE)).output;
+    const bad = [
+      { ...first.intensity, heading: 5 },
+      { ...first.intensity, segments: [{ kind: 'extreme', x: 0, width: 360 }] },
+      { ...first.intensity, segments: [{ kind: 'low', x: 'x', width: 360 }] },
+      { ...first.intensity, labels: ['a', 'b'] },
+      'x'
+    ];
+    for (const intensity of bad) {
+      const { output } = await board({ previous: { ...first, intensity } }, { efforts: 503 });
+      expect(output.tredict.state).toBe('stale');
+      expect(output.intensity).toBeNull();
+    }
+    const extra = { ...first.intensity, note: TOKEN, segments: first.intensity.segments.map(s => ({ ...s, y: 1 })) };
+    const { output } = await board({ previous: { ...first, intensity: extra } }, { efforts: 503 });
+    expect(output.intensity).toEqual(first.intensity);
+  });
+
+  it.each([
+    ['paused', { plan: 401 }],
+    ['auth', { plan: 403 }],
+    ['payment', { efforts: 402 }]
+  ])('%s shows no bar and carries the cache', async (state, overrides) => {
+    const { output, calls } = await board({ previous: cold.output }, overrides);
+    expect(output.tredict.state).toBe(state);
+    expect(output.intensity).toBeNull();
+    expect(output.intensityCache).toEqual(cold.output.intensityCache);
+    expect(detailIds(calls)).toEqual([]);
+  });
+
+  it('unavailable without stale data shows no bar and carries the cache', async () => {
+    const previous = { intensityCache: cold.output.intensityCache };
+    const { output } = await board({ previous }, { efforts: 503 });
+    expect(output.tredict.state).toBe('unavailable');
+    expect(output.intensity).toBeNull();
+    expect(output.intensityCache).toEqual(cold.output.intensityCache);
+  });
+
+  it('a pause in force carries the bar and the cache', async () => {
+    const previous = { ...cold.output, tredictRetryAt: new Date(NOW + 10 * MINUTE).toISOString() };
+    const { output, calls } = await board({ previous }, {}, NOW + MINUTE);
+    expect(calls).toEqual([]);
+    expect(output.tredict.state).toBe('stale');
+    expect(output.intensity).toEqual(cold.output.intensity);
+    expect(output.intensityCache).toEqual(cold.output.intensityCache);
+  });
+
+  it('a malformed cache is ignored', async () => {
+    for (const intensityCache of ['x', [[1, 2]]]) {
+      const { output, calls } = await board({ previous: { intensityCache } });
+      expect(detailIds(calls)).toHaveLength(3);
+      expect(output.intensity).toEqual(BAR);
+      expect(output.intensityCache).toEqual(cold.output.intensityCache);
+    }
+  });
+
+  it('first run after the upgrade (Review Focus 1)', async () => {
+    const v1 = (await board({ previous: {} }, {}, NOW - 2 * 60 * MINUTE)).output;
+    delete v1.intensityCache;
+    delete v1.tredictRetryAt;
+    delete v1.intensity;
+    const { output, calls } = await board({ previous: v1 });
+    expect(output.tredict).toEqual({ state: 'ok', message: '' });
+    expect(detailIds(calls)).toHaveLength(3);
+    expect(output.intensity).toEqual(BAR);
+    expect(output.tredictRetryAt).toBeNull();
   });
 });

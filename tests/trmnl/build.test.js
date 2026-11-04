@@ -22,8 +22,11 @@ const RUN_TEXT = `async function run(input) {
       tredictAtText: '',
       week: null,
       form: null,
+      intensity: null,
       run: { kind: 'error', heading: 'Weather unavailable', lines: [] },
       weatherRetryAt: null,
+      tredictRetryAt: null,
+      intensityCache: [],
       attribution: ''
     };
   }
@@ -146,8 +149,11 @@ describe('harness', () => {
         tredictAtText: '',
         week: null,
         form: null,
+        intensity: null,
         run: { kind: 'error', heading: 'Weather unavailable', lines: [] },
         weatherRetryAt: null,
+        tredictRetryAt: null,
+        intensityCache: [],
         attribution: ''
       });
       expect(JSON.stringify(result)).not.toContain('boom');

@@ -1,0 +1,15 @@
+{
+  "_id": "SynDetail02xxxxxxxxxxxx",
+  "sportType": "running",
+  "summary": {
+    "distance": 4200,
+    "duration": 1500,
+    "intensityDistribution": {
+      "heartrate": null
+    }
+  },
+  "seriesSampled": {
+    "duration": [0, 500, 1000, 1500],
+    "speed": [2.7, 2.8, 2.8, 2.9]
+  }
+}

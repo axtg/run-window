@@ -1022,14 +1022,17 @@ const ATTRIBUTION_SEPARATOR = ' · ';
 const WEATHER_KINDS = ['window', 'shorter', 'fallback', 'none'];
 const ITEM_KINDS = ['done', 'planned', 'missed', 'unplanned'];
 const REUSED_PATH = /^[ML0-9. -]*$/;
+const INTENSITY_KINDS = ['low', 'moderate', 'high'];
 
 const isObject = value => Boolean(value) && typeof value === 'object' && !Array.isArray(value);
 const textOf = value => (typeof value === 'string' ? value : '');
 const finiteOf = value => (typeof value === 'number' && Number.isFinite(value) ? value : 0);
+const isFiniteNumber = value => typeof value === 'number' && Number.isFinite(value);
 
-// The fixed output for anything unexpected: no input-derived text, never an error's text. Only a valid Tredict pause
-// carries over from the previous output, so a throw can't drop it.
-function errorBoard(now, previous) {
+// The fixed output for anything unexpected: no input-derived text, never an error's text. Only the Tredict pause and
+// the intensity cache carry over, from this run when it got that far, else from the previous output, so a throw can't
+// drop them.
+function errorBoard(now, previous, carry = {}) {
   const at = Number.isFinite(now) ? now : Date.now();
   let fetchedAtText;
   try {
@@ -1039,9 +1042,15 @@ function errorBoard(now, previous) {
   }
   let tredictRetryAt;
   try {
-    tredictRetryAt = recentTredictPause(previous, at);
+    tredictRetryAt = carry.tredictRetryAt || recentTredictPause(previous, at);
   } catch {
     tredictRetryAt = null;
+  }
+  let intensityCache;
+  try {
+    intensityCache = Array.isArray(carry.intensityCache) ? carry.intensityCache : carriedCache(previous);
+  } catch {
+    intensityCache = [];
   }
   return {
     v: BOARD_VERSION,
@@ -1053,9 +1062,11 @@ function errorBoard(now, previous) {
     tredictAtText: '',
     week: null,
     form: null,
+    intensity: null,
     run: { kind: 'error', heading: STRINGS.en.weatherUnavailable, lines: [] },
     weatherRetryAt: null,
     tredictRetryAt,
+    intensityCache,
     attribution: ''
   };
 }
@@ -1115,12 +1126,44 @@ function tredictPauseUntil(now, retryAfterS) {
 }
 
 // Plan, activities, efforts one at a time; the first failure ends the sequence, since the panels fall back as a whole
-async function fetchTredict(sequence, urls) {
+async function fetchPanels(sequence, urls) {
   const plan = embeddedList(await sequence.call(urls.plan), 'plannedWorkoutList');
   if (!plan.ok) return { plan, activities: SKIPPED, efforts: SKIPPED };
   const activities = embeddedList(await sequence.call(urls.activities), 'activityList');
   if (!activities.ok) return { plan, activities, efforts: SKIPPED };
   return { plan, activities, efforts: effortsOf(await sequence.call(urls.efforts)) };
+}
+
+// The panels' calls, then this week's uncached detail calls on the same sequence. The week needs the run's zone,
+// which only the weather retry knows when the user has none.
+async function fetchTredict(sequence, urls, { zone, now, sport, previous }) {
+  const results = await fetchPanels(sequence, urls);
+  if (![results.plan, results.activities, results.efforts].every(part => part.ok)) return results;
+  const week = buildWeek({ plans: results.plan.list, activities: results.activities.list, now, tz: await zone, sport });
+  const ids = [...new Set(week.done.map(entry => entry.id))];
+  const cache = readIntensityCache(isObject(previous) ? previous.intensityCache : null);
+  await fetchIntensity(sequence, ids, cache);
+  return { ...results, week, ids, cache };
+}
+
+// Newest first, within the per-run budget and deadline. A 404 (or a body without the field) is cached as zeros, since
+// asking again won't help; any other failure leaves the id for a later run. A 429 stops the sequence.
+async function fetchIntensity(sequence, ids, cache) {
+  let calls = 0;
+  for (const id of ids) {
+    if (cache.has(id)) continue;
+    if (calls >= INTENSITY_PER_RUN || sequence.stopped() || sequence.remaining() < DETAIL_MIN_MS) return;
+    calls += 1;
+    const result = await sequence.call(detailUrl(id));
+    if (result.ok) cache.set(id, intensityOf(result.data));
+    else if (result.kind === 'missing') cache.set(id, [0, 0, 0]);
+  }
+}
+
+// The previous output's cache as it was, for runs that don't know this week's ids
+function carriedCache(previous) {
+  const cache = readIntensityCache(isObject(previous) ? previous.intensityCache : null);
+  return cacheList(cache, [...cache.keys()]);
 }
 
 const zoneOf = value =>
@@ -1162,6 +1205,24 @@ function reuseWeek(week) {
   };
 }
 
+function reuseIntensity(intensity) {
+  if (!isObject(intensity) || typeof intensity.heading !== 'string') return null;
+  const { segments, labels } = intensity;
+  if (!Array.isArray(segments) || segments.length > INTENSITY_KINDS.length) return null;
+  if (!Array.isArray(labels) || labels.length !== 3 || !labels.every(label => typeof label === 'string')) return null;
+  const valid = segment =>
+    isObject(segment) &&
+    INTENSITY_KINDS.includes(segment.kind) &&
+    isFiniteNumber(segment.x) &&
+    isFiniteNumber(segment.width);
+  if (!segments.every(valid)) return null;
+  return {
+    heading: intensity.heading,
+    segments: segments.map(({ kind, x, width }) => ({ kind, x, width })),
+    labels: labels.slice()
+  };
+}
+
 function reuseForm(form) {
   if (!isObject(form)) return null;
   const labels = isObject(form.labels) ? form.labels : {};
@@ -1186,14 +1247,29 @@ function staleTredict(previous, now, tz) {
   const week = reuseWeek(previous.week);
   const form = reuseForm(previous.form);
   if (!week || !form) return null;
-  return { week, form, tredictAt: previous.tredictAt, tredictAtText: textOf(previous.tredictAtText) };
+  return {
+    week,
+    form,
+    intensity: reuseIntensity(previous.intensity),
+    tredictAt: previous.tredictAt,
+    tredictAtText: textOf(previous.tredictAtText)
+  };
 }
 
-function tredictPanels({ plan, activities, efforts, previous, now, tz, settings, lang, fetchedAt, fetchedAtText }) {
+function tredictPanels({ results, previous, now, tz, lang, fetchedAt, fetchedAtText }) {
   const text = STRINGS[lang];
+  const { plan, activities, efforts } = results;
   const parts = [plan, activities, efforts];
   const failed = kind => parts.some(part => !part.ok && part.kind === kind);
-  const empty = { week: null, form: null, tredictAt: null, tredictAtText: '' };
+  const empty = {
+    week: null,
+    form: null,
+    intensity: null,
+    garmin: [],
+    intensityCache: carriedCache(previous),
+    tredictAt: null,
+    tredictAtText: ''
+  };
 
   if (failed('paused')) return { state: 'paused', message: text.tokenPaused, ...empty };
   if (failed('auth')) return { state: 'auth', message: text.tokenInvalid, ...empty };
@@ -1201,16 +1277,36 @@ function tredictPanels({ plan, activities, efforts, previous, now, tz, settings,
   if (parts.some(part => !part.ok)) {
     const stale = staleTredict(previous, now, tz);
     if (!stale) return { state: 'unavailable', message: text.tredictUnavailable, ...empty };
-    return { state: 'stale', message: fill(text.tredictDataFrom, { time: stale.tredictAtText }), ...stale };
+    return {
+      state: 'stale',
+      message: fill(text.tredictDataFrom, { time: stale.tredictAtText }),
+      ...empty,
+      ...stale,
+      garmin: stale.week.garmin
+    };
   }
 
-  const week = buildWeek({ plans: plan.list, activities: activities.list, now, tz, sport: settings.sport });
+  const { week, ids, cache } = results;
   const series = formSeries({ efforts: efforts.efforts, today: localDate(now, tz) });
+  // The bar only once every run of this week is cached
+  const complete = ids.every(id => cache.has(id));
+  const entries = ids.map(id => cache.get(id));
+  const intensity = complete ? intensityView(entries, lang) : null;
+  // Garmin texts of the runs that add to the bar, after the calendar rows' own
+  const garmin = week.garmin.slice();
+  for (const entry of week.done) {
+    const seconds = cache.get(entry.id);
+    const adds = seconds && seconds.some(value => value > 0);
+    if (adds && entry.garmin !== null && !garmin.includes(entry.garmin)) garmin.push(entry.garmin);
+  }
   return {
     state: 'ok',
     message: '',
     week: weekView(week, lang),
     form: formChart(series, lang),
+    intensity,
+    garmin,
+    intensityCache: cacheList(cache, ids),
     tredictAt: fetchedAt,
     tredictAtText: fetchedAtText
   };
@@ -1226,7 +1322,7 @@ function previousOf(input) {
   }
 }
 
-async function assembleBoard(input, { fetch: fetchFn, now, timeoutMs, clock, previous }) {
+async function assembleBoard(input, { fetch: fetchFn, now, timeoutMs, clock, previous, carry }) {
   const body = isObject(input) ? input : {};
   const trmnl = isObject(body.trmnl) ? body.trmnl : {};
   const user = isObject(trmnl.user) ? trmnl.user : {};
@@ -1244,16 +1340,23 @@ async function assembleBoard(input, { fetch: fetchFn, now, timeoutMs, clock, pre
   const sequence = tredictPause ? null : tredictSequence({ fetch: fetchFn, token: settings.token, clock });
   const pausedRetryAt = recentWeatherRetry(previous, now);
   const retry = !polled && settings.hasLocation && !pausedRetryAt;
+  // Runs alongside the Tredict calls; the detail calls wait for it only when the week's zone depends on it
+  const weatherCall = retry ? fetchWindow(fetchFn, windowUrl(settings), timeoutMs) : Promise.resolve(null);
+  // Calendar, form and intensity: the user's zone, else the zone of the window body used
+  const zone = weatherCall.then(weather => userZone || zoneOf(polled ? body : weather && weather.body) || 'UTC');
   const [results, weather] = await Promise.all([
-    sequence ? fetchTredict(sequence, urls) : { plan: SKIPPED, activities: SKIPPED, efforts: SKIPPED },
-    retry ? fetchWindow(fetchFn, windowUrl(settings), timeoutMs) : null
+    sequence
+      ? fetchTredict(sequence, urls, { zone, now, sport: settings.sport, previous })
+      : { plan: SKIPPED, activities: SKIPPED, efforts: SKIPPED },
+    weatherCall
   ]);
   const rate = sequence ? sequence.rate() : null;
   const tredictRetryAt = rate ? tredictPauseUntil(now, rate.retryAfterS) : tredictPause;
+  carry.tredictRetryAt = tredictRetryAt;
 
   const windowBody = polled ? body : weather && weather.body;
-  // Calendar and form: the user's zone, else the zone of the window body used; the run window: the API's zone
-  const tz = userZone || zoneOf(windowBody) || 'UTC';
+  const tz = await zone;
+  // The run window: the API's zone
   const apiZone = zoneOf(windowBody) || tz;
   let weatherRetryAt = null;
   if (retry) weatherRetryAt = new Date(now).toISOString();
@@ -1262,18 +1365,8 @@ async function assembleBoard(input, { fetch: fetchFn, now, timeoutMs, clock, pre
   const fetchedAt = new Date(now).toISOString();
   const fetchedAtText = dayAndTime(now, tz, text);
   const { plan } = results;
-  const tredict = tredictPanels({
-    plan,
-    activities: results.activities,
-    efforts: results.efforts,
-    previous,
-    now,
-    tz,
-    settings,
-    lang,
-    fetchedAt,
-    fetchedAtText
-  });
+  const tredict = tredictPanels({ results, previous, now, tz, lang, fetchedAt, fetchedAtText });
+  carry.intensityCache = tredict.intensityCache;
 
   const session = pickSession({
     plans: plan.ok ? plan.list : null,
@@ -1290,12 +1383,12 @@ async function assembleBoard(input, { fetch: fetchFn, now, timeoutMs, clock, pre
     hasLocation: settings.hasLocation
   });
 
-  const attribution = tredict.week ? tredict.week.garmin.slice() : [];
+  const attribution = tredict.garmin.slice();
   if (WEATHER_KINDS.includes(run.kind) && isObject(windowBody) && typeof windowBody.attribution === 'string') {
     attribution.push(windowBody.attribution);
   }
 
-  const { state, message, tredictAt, tredictAtText, week, form } = tredict;
+  const { state, message, tredictAt, tredictAtText, week, form, intensity, intensityCache } = tredict;
   return {
     v: BOARD_VERSION,
     lang,
@@ -1306,9 +1399,11 @@ async function assembleBoard(input, { fetch: fetchFn, now, timeoutMs, clock, pre
     tredictAtText,
     week,
     form,
+    intensity,
     run,
     weatherRetryAt,
     tredictRetryAt,
+    intensityCache,
     attribution: attribution.filter(Boolean).join(ATTRIBUTION_SEPARATOR)
   };
 }
@@ -1317,10 +1412,12 @@ async function assembleBoard(input, { fetch: fetchFn, now, timeoutMs, clock, pre
 // take theirs from the sequence's deadline, which `clock` drives.
 async function buildBoard(input, { fetch: fetchFn, now, timeoutMs = REQUEST_TIMEOUT_MS, clock = Date.now } = {}) {
   const previous = previousOf(input);
+  // What this run has worked out so far that must survive a throw: its Tredict pause and its intensity cache
+  const carry = {};
   try {
-    return await assembleBoard(input, { fetch: fetchFn, now, timeoutMs, clock, previous });
+    return await assembleBoard(input, { fetch: fetchFn, now, timeoutMs, clock, previous, carry });
   } catch {
-    return errorBoard(now, previous);
+    return errorBoard(now, previous, carry);
   }
 }
 
@@ -1338,8 +1435,11 @@ async function run(input) {
       tredictAtText: '',
       week: null,
       form: null,
+      intensity: null,
       run: { kind: 'error', heading: 'Weather unavailable', lines: [] },
       weatherRetryAt: null,
+      tredictRetryAt: null,
+      intensityCache: [],
       attribution: ''
     };
   }

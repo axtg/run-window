@@ -21,8 +21,11 @@ const RUN = `async function run(input) {
       tredictAtText: '',
       week: null,
       form: null,
+      intensity: null,
       run: { kind: 'error', heading: 'Weather unavailable', lines: [] },
       weatherRetryAt: null,
+      tredictRetryAt: null,
+      intensityCache: [],
       attribution: ''
     };
   }
