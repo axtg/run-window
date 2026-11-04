@@ -82,11 +82,27 @@ the worker `sw.js`, the manifest and icons.
 - Tailwind scans only `index.html`, `app.js` and `strip.js`: run `npm run build:css` after editing them, comments too.
 - The route file never leaves the browser. The only request the page makes is `/api/window` with `lat` and `lon` at 2
   decimals plus `avail`, `dark`, `rain` and `slots=1`. Nothing from the file goes into storage or the URL.
-- The page is one card: slim settings rows (a pace − / + stepper, or a duration without a route; hours sliders with a
-  night hatch and "+ add hours"; a Dark OK switch; a rain slider), a big answer with key numbers (Sky, Feels, Wind,
-  Climb/Run), one timeline joining strip and graph, and the why line. API and Privacy open in `<dialog>`s from the
-  header. Default hours are `10-16`; there is no one-off duration. Changing pace or duration re-renders from the data
-  already fetched, without a new request; hours, Dark OK and rain change the request.
+- The page is one card with slim settings rows:
+  - Run: the pace − / + stepper is always there. Without a route the row also has the duration, with `≈ 9.2 km`
+    under it; with a route it has the route's distance, with `= 66 min` under it.
+  - Hours: sliders with a night hatch. A round `+` (`#add-hours`, "Add hours") ends the last row; the other rows end
+    in a spacer as wide, so the sliders line up.
+  - Dark: the dark times and an OK switch (`#dark-ok`, `role="switch"`).
+  - Rain: a slider.
+- Under the settings is a big answer with key numbers: Sky, Feels and Wind (Feels and Wind with a context word such as
+  `ideal` or `light`), then Climb or Run.
+  - From `sm:` up, the numbers sit to the right of the time. On a phone they sit under it.
+  - The wind line is in words (`Start east, into the wind`), with a compass that points to where the wind comes from;
+    there is no compass in little wind.
+  - When today has no window and tomorrow has one, a `Try tomorrow →` button shows what tomorrow holds.
+- Below the answer: one timeline joining strip and graph, then the why line.
+- API and Privacy open in `<dialog>`s from the header. Copy API link confirms on the button itself (`Copied` or
+  `Couldn't copy` for 2 s, announced by a hidden polite note), not in `#status`.
+- Default hours are `10-16`; there is no one-off duration.
+- Changing pace or duration re-renders from the data already fetched, without a new request; hours, Dark OK and rain
+  change the request.
+- SVG elements have no `hidden` property: show or hide them with `toggleAttribute('hidden', …)`. The smoke test's fake
+  DOM follows the browser here.
 - Settings (pace, duration, Allow dark, Rain %, Hours) live in `localStorage` only, always in try/catch; the page works
   without it.
 - The service worker has one job: catch `POST /share-target` (a route shared from Android's share sheet), put the file
