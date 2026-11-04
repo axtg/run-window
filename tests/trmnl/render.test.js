@@ -212,6 +212,48 @@ describe('full.liquid: layout', () => {
   });
 });
 
+describe('full.liquid: portrait', () => {
+  const style = template.slice(0, template.indexOf('</style>')).replace(/\/\*[\s\S]*?\*\//g, '');
+  const bodyOf = selector => {
+    const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const rule = style.match(new RegExp(`(?:^|[}\\s])${escaped}\\s*\\{([^}]*)\\}`));
+    return rule ? rule[1] : '';
+  };
+
+  it('stacks the full layout in portrait', () => {
+    expect(bodyOf('.screen--portrait .rb-main')).toMatch(/flex-direction:\s*column/);
+    const left = bodyOf('.screen--portrait .rb-left');
+    expect(left).toMatch(/border-right:\s*0/);
+    expect(left).toMatch(/border-bottom:\s*2px solid #000/);
+    expect(left).toMatch(/padding-right:\s*0/);
+    expect(left).toMatch(/flex:\s*0 0 \d+%/);
+    expect(bodyOf('.screen--portrait .rb-right')).toMatch(/padding-left:\s*0/);
+  });
+
+  it('gives the week a share of the height that holds seven rows plus the footer totals', () => {
+    // 1020 px of view: seven rows of at least 2 lines at 28 px, the title and the totals need about 520 px
+    const share = Number(bodyOf('.screen--portrait .rb-left').match(/flex:\s*0 0 (\d+)%/)[1]);
+    expect(share * 10.2).toBeGreaterThanOrEqual(520);
+    expect(share).toBeLessThanOrEqual(60);
+  });
+
+  it('leaves landscape as it is', () => {
+    expect(bodyOf('.rb-main').trim()).toBe('display: flex; flex: 1 1 auto; min-height: 0; overflow: hidden;');
+    expect(bodyOf('.rb-left').trim()).toBe(
+      [
+        'display: flex; flex-direction: column; flex: 0 0 45%; min-width: 0;',
+        'padding-right: 12px; border-right: 2px solid #000;'
+      ].join(' ')
+    );
+    expect(bodyOf('.rb-right').trim()).toBe(
+      [
+        'display: flex; flex-direction: column; flex: 1 1 auto; min-width: 0; min-height: 0;',
+        'overflow: hidden; padding-left: 14px;'
+      ].join(' ')
+    );
+  });
+});
+
 describe.each(LAYOUTS)('%s.liquid: template rules', layout => {
   const template = layoutTemplate(layout);
 

@@ -8,6 +8,12 @@
   .rb-main { display: flex; flex: 1 1 auto; min-height: 0; overflow: hidden; }
   .rb-left { display: flex; flex-direction: column; flex: 0 0 45%; min-width: 0; padding-right: 12px; border-right: 2px solid #000; }
   .rb-right { display: flex; flex-direction: column; flex: 1 1 auto; min-width: 0; min-height: 0; overflow: hidden; padding-left: 14px; }
+  /* Portrait (TRMNL X): the week on top at full width, then form, bar and run window stacked, then the footer */
+  .screen--portrait .rb-main { flex-direction: column; }
+  .screen--portrait .rb-left { flex: 0 0 52%; padding-right: 0; border-right: 0; border-bottom: 2px solid #000; padding-bottom: 6px; }
+  .screen--portrait .rb-right { flex-direction: row; gap: 16px; padding-left: 0; padding-top: 8px; }
+  .screen--portrait .rb-form { flex: 1 1 0; min-width: 0; border-bottom: 0; padding-bottom: 0; }
+  .screen--portrait .rb-run { flex: 1 1 0; min-width: 0; padding-top: 0; }
   .rb-title { margin-bottom: 4px; }
   .rb-days { flex: 1 1 auto; display: flex; flex-direction: column; }
   .rb-day { display: flex; align-items: center; flex: 1 1 0; min-height: 0; overflow: hidden; padding: 0 6px; border-bottom: 1px solid #000; }
