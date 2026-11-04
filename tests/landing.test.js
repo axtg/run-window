@@ -15,7 +15,8 @@ test('landing page has an example request, the Open-Meteo attribution with a lin
   expect(html).toMatch(/<a\b[^>]*href="https:\/\/open-meteo\.com\/?"[^>]*>\s*Open-Meteo\.com/);
   expect(text).toContain('Authorization');
   expect(text).toContain('3 hours');
-  expect(text).toContain('never stores');
+  expect(text).toContain('needs no token');
+  expect(text).toContain('never read, logged or stored');
 });
 
 test('landing page example uses Amsterdam coordinates', () => {

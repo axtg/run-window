@@ -45,8 +45,12 @@
         <ul class="list-disc space-y-1 pl-5">
           <li>The service receives the coordinates you send.</li>
           <li>
-            TRMNL users also send a Tredict token in the Authorization header. nginx removes it, and the app removes it
-            again. The service never reads, logs or stores it. It never stores tokens.
+            The service needs no token and knows nothing about your training. The TRMNL Running Board calls Tredict from
+            inside TRMNL, so its token never comes here.
+          </li>
+          <li>
+            An Authorization or Cookie header is removed by nginx and again by the app, and is never read, logged or
+            stored.
           </li>
           <li>Weather is requested from Open-Meteo with coordinates rounded to 2 decimals.</li>
           <li>

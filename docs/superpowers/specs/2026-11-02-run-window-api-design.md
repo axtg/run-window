@@ -221,7 +221,8 @@ v1, because all TRMNL users share a few IPs.
 ## Privacy
 
 - **Authorization header:** TRMNL has one polling-headers field per plugin and sends it with every polling URL, so the
-  Running Board plugin will send the user's Tredict token here. Remove it twice:
+  Running Board plugin would have sent the user's Tredict token here. (Since 2026-11-03 it doesn't: the plugin sends
+  no headers and calls Tredict from its transform script. The stripping stays as a safeguard.) Remove it twice:
   - nginx, so it never reaches Node: `proxy_set_header Authorization "";` and `proxy_set_header Cookie "";`.
   - The first middleware, as a backup: delete both from `req.headers` and `req.rawHeaders`, before logging. Never echo
     them.
