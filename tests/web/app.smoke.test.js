@@ -463,6 +463,38 @@ describe('app.js privacy smoke test', () => {
     expect(elements.get('wind-compass').hidden).toBe(true);
   });
 
+  it('offers Try tomorrow when today has no window, and switches day without asking again', async () => {
+    const app = apiWith(i => (i < 24 ? { precipitation_probability: 90, precipitation: 2 } : {}));
+    const { elements, record } = loadPage({ navigator: { geolocation }, app, stored: '{"durationMin":90}' });
+    elements.get('use-location').listeners.click();
+    await answered(elements);
+    expect(rejections).toEqual([]);
+    expect(elements.get('answer-time').textContent).toBe('No dry window of 90 min today');
+    expect(elements.get('tomorrow-hint').hidden).toBe(false);
+    expect(elements.get('tomorrow-text').textContent).toMatch(/^Tomorrow \d\d:\d\d–\d\d:\d\d is dry$/);
+
+    const promised = elements.get('tomorrow-text').textContent.replace(/^Tomorrow (\S+) is dry$/, '$1');
+    focusLog.length = 0;
+    elements.get('try-tomorrow').listeners.click();
+    expect(elements.get('day-tomorrow').attributes['aria-pressed']).toBe('true');
+    expect(elements.get('day-today').attributes['aria-pressed']).toBe('false');
+    expect(elements.get('tomorrow-hint').hidden).toBe(true);
+    expect(elements.get('answer-time').textContent).toBe(promised); // the time the hint promised
+    expect(focusLog.pop()).toBe(elements.get('day-tomorrow')); // the button is gone: focus lands on the toggle
+    await flush();
+    expect(record.fetches).toHaveLength(1);
+  });
+
+  it('shows no Try tomorrow when tomorrow has no window either', async () => {
+    const app = apiWith(() => ({ precipitation_probability: 90, precipitation: 2 }));
+    const { elements } = loadPage({ navigator: { geolocation }, app, stored: '{"durationMin":90}' });
+    elements.get('use-location').listeners.click();
+    await answered(elements);
+    expect(rejections).toEqual([]);
+    expect(elements.get('answer-time').textContent).toBe('No dry window of 90 min today');
+    expect(elements.get('tomorrow-hint').hidden).toBe(true);
+  });
+
   it('reads the rain slider out as a percentage, while dragging too', () => {
     const { elements } = loadPage();
     const rain = elements.get('rain-input');

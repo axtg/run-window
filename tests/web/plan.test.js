@@ -20,7 +20,8 @@ const {
   answerTime,
   noWindowText,
   distanceEstimate,
-  windArrowDeg
+  windArrowDeg,
+  tomorrowHint
 } = RunPlan;
 
 function win(overrides = {}) {
@@ -435,5 +436,35 @@ describe('answer helpers', () => {
   test('noWindowText reuses the goLine wording', () => {
     expect(noWindowText(65, 'today')).toBe('No dry window of 65 min today');
     expect(noWindowText(65, 'today')).toBe(goLine(noneResult, { minutes: 65, dayLabel: 'today', timeZone }));
+  });
+});
+
+describe('tomorrowHint', () => {
+  const timeZone = 'Asia/Tokyo';
+
+  test('says tomorrow is dry for a dry window, with the run time', () => {
+    const result = { kind: 'window', window: win(), key: '60', fits: true };
+    expect(tomorrowHint(result, { minutes: 60, timeZone })).toBe('Tomorrow 21:15–22:15 is dry');
+  });
+
+  test('gives the rain chance when the window is not dry by the dry rule', () => {
+    const wet = { kind: 'window', window: win({ precipProbMax: 45 }), key: '60', fits: true };
+    expect(tomorrowHint(wet, { minutes: 60, timeZone })).toBe('Tomorrow 21:15–22:15, rain 45 %');
+    const unqualified = { kind: 'window', window: win({ qualifies: false, precipProbMax: 10 }), key: '60', fits: true };
+    expect(tomorrowHint(unqualified, { minutes: 60, timeZone })).toBe('Tomorrow 21:15–22:15, rain 10 %');
+  });
+
+  test('shows the whole window when the run is longer than 3 h', () => {
+    const long = { kind: 'window', window: win(), key: '180', fits: false };
+    expect(tomorrowHint(long, { minutes: 200, timeZone })).toBe('Tomorrow 21:15–22:20 is dry');
+  });
+
+  test('names a fallback as least bad', () => {
+    const fallback = { kind: 'fallback', window: win({ precipProbMax: 70 }), key: '60', fits: true };
+    expect(tomorrowHint(fallback, { minutes: 60, timeZone })).toBe('Tomorrow: least bad 21:15–22:20');
+  });
+
+  test('is null when tomorrow has no window either', () => {
+    expect(tomorrowHint({ kind: 'none', window: null, key: '60', fits: true }, { minutes: 60, timeZone })).toBeNull();
   });
 });

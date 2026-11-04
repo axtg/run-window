@@ -56,7 +56,7 @@
     'route-input use-location duration-group run-distance run-minutes run-estimate pace-down pace-input ' +
     'pace-up duration-down duration-value duration-up hours-rows add-hours dark-times dark-ok rain-input ' +
     'rain-fill rain-value prompt answer answer-label answer-time key-numbers wind-line wind-compass ' +
-    'wind-arrow wind-text stale-note status ' +
+    'wind-arrow wind-text tomorrow-hint try-tomorrow tomorrow-text stale-note status ' +
     'result timeline tap-line why-sentence copy-link open-api open-privacy api-dialog privacy-dialog ' +
     'close-api close-privacy'
   ).split(' ');
@@ -580,6 +580,12 @@
     el.timeline.setAttribute('aria-label', line);
   }
 
+  // Today has no window: what tomorrow holds for the same run, or null.
+  function tomorrowHint(minutes, timeZone) {
+    const tomorrow = state.body.days[1];
+    return tomorrow ? Plan.tomorrowHint(Plan.pickResult(tomorrow, minutes), { minutes, timeZone }) : null;
+  }
+
   function renderAnswer(day, timeZone, dayLabel) {
     const minutes = runMinutes();
     const result = Plan.pickResult(day, minutes);
@@ -597,6 +603,9 @@
     const arrow = result.window ? Plan.windArrowDeg(result.window) : null;
     el.windCompass.hidden = arrow === null; // no arrow in little wind
     el.windArrow.setAttribute('transform', `rotate(${arrow || 0} 14 14)`);
+    const hint = none && state.dayIndex === 0 ? tomorrowHint(minutes, timeZone) : null;
+    el.tomorrowHint.hidden = !hint;
+    el.tomorrowText.textContent = hint || '';
     const stale = Plan.staleNote(state.body);
     el.staleNote.hidden = !stale;
     el.staleNote.textContent = stale || '';
@@ -716,6 +725,10 @@
   el.rainInput.addEventListener('change', () => commit({ rain: Number(el.rainInput.value) }));
   el.dayToday.addEventListener('click', () => setDay(0));
   el.dayTomorrow.addEventListener('click', () => setDay(1));
+  el.tryTomorrow.addEventListener('click', () => {
+    setDay(1);
+    el.dayTomorrow.focus(); // the button hides with the switch
+  });
   el.routeInput.addEventListener('change', onFileChosen);
   el.useLocation.addEventListener('click', onUseLocation);
   el.clearSource.addEventListener('click', onClearSource);

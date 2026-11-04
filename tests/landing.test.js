@@ -223,6 +223,16 @@ test('the answer puts the key numbers beside the time from sm up, and the wind l
   expect(wind[1]).toContain('id="wind-text"');
 });
 
+test('the answer has a hidden Try tomorrow button with its hint', () => {
+  const hint = html.match(/<div\b[^>]*id="tomorrow-hint"[^>]*>([\s\S]*?)<\/div>/);
+  expect(hint).not.toBeNull();
+  expect(hint[0]).toMatch(/\shidden\b/);
+  const button = hint[1].match(/<button\b[^>]*id="try-tomorrow"[^>]*>([^<]*)<\/button>/);
+  expect(button).not.toBeNull();
+  expect(button[1].trim()).toBe('Try tomorrow →');
+  expect(hint[1]).toContain('id="tomorrow-text"');
+});
+
 test('the pace field brings up a keyboard with a colon', () => {
   const pace = html.match(/<input\b[^>]*id="pace-input"[^>]*>/)[0];
   expect(pace).not.toMatch(/inputmode="(numeric|decimal)"/);

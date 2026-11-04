@@ -121,6 +121,15 @@
     return `${from}–${formatClock(end, timeZone)}`;
   }
 
+  // Under today's "no dry window": what tomorrow holds for the same run, or null when it holds nothing.
+  function tomorrowHint(result, { minutes, timeZone }) {
+    if (result.kind === 'none') return null;
+    const time = answerTime(result, { minutes, timeZone });
+    if (result.kind === 'fallback') return `Tomorrow: least bad ${time}`;
+    const sky = skyOf(result.window);
+    return sky === 'dry' ? `Tomorrow ${time} is dry` : `Tomorrow ${time}, ${sky}`;
+  }
+
   function noWindowText(minutes, dayLabel) {
     return `No dry window of ${minutes} min ${dayLabel}`;
   }
@@ -208,6 +217,7 @@
     answerLabel,
     answerTime,
     noWindowText,
+    tomorrowHint,
     routeLine,
     zoneNote,
     apiUrl,

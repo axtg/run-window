@@ -280,6 +280,20 @@
               </svg>
               <span id="wind-text"></span>
             </p>
+            <div
+              id="tomorrow-hint"
+              class="[&[hidden]]:hidden mt-3 flex flex-wrap items-center gap-x-3 gap-y-2 sm:col-start-1 sm:row-start-2"
+              hidden
+            >
+              <button
+                id="try-tomorrow"
+                type="button"
+                class="rounded-full bg-primary px-3 py-1 text-xs font-medium text-white hover:bg-gray-700"
+              >
+                Try tomorrow →
+              </button>
+              <span id="tomorrow-text" class="text-xs text-secondary"></span>
+            </div>
             <p id="stale-note" class="mt-1 text-xs text-secondary sm:col-start-1 sm:row-start-3" hidden></p>
           </div>
           <p id="status" class="mt-2 text-sm empty:hidden" role="status" aria-live="polite"></p>
