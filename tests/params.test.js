@@ -19,7 +19,8 @@ test('defaults', () => {
     availText: '06-22',
     dark: 'avoid',
     rain: 40,
-    lang: 'en'
+    lang: 'en',
+    slots: false
   });
 });
 
@@ -192,4 +193,20 @@ test('no error message echoes any invalid value', () => {
   for (const [query, secret] of cases) {
     expect(catchError(query).message).not.toContain(secret);
   }
+});
+
+describe('slots', () => {
+  test("'1' is true, absent and empty are false", () => {
+    expect(parseWindowQuery({ ...ok, slots: '1' }).slots).toBe(true);
+    expect(parseWindowQuery(ok).slots).toBe(false);
+    expect(parseWindowQuery({ ...ok, slots: '' }).slots).toBe(false);
+  });
+
+  test.each([['true'], ['0'], [['1', '1']], [{ x: '1' }]])('%j is a 400 naming slots, not the value', value => {
+    const error = catchError({ ...ok, slots: value });
+
+    expect(error.statusCode).toBe(400);
+    expect(error.message).toMatch(/^Invalid slots: /);
+    expect(error.message).not.toContain('true');
+  });
 });

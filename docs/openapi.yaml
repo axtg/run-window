@@ -86,6 +86,16 @@ paths:
               - ok
               - avoid
             default: avoid
+        - name: slots
+          in: query
+          required: false
+          description: >-
+            `1` adds a `slots` list to each day: every 15-minute slot inside `avail`, with its status and weather.
+            For drawing the day; the windows are unchanged.
+          schema:
+            type: string
+            enum:
+              - '1'
         - name: rain
           in: query
           required: false
@@ -323,6 +333,65 @@ components:
             Present only when `windows["60"]` is null. The least-bad 60 minute window, with `qualifies` false. It may
             break the rain limit but never the available hours, it never starts in the past, and with `dark=avoid` it
             never falls in darkness. Null if even that is impossible.
+        slots:
+          type: array
+          description: Present only with `slots=1`. Every 15-minute slot inside `avail`, in time order.
+          items:
+            $ref: '#/components/schemas/Slot'
+    Slot:
+      type: object
+      required:
+        - start
+        - status
+        - score
+        - apparentTemp
+        - windSpeed
+        - gust
+        - windFrom
+        - precipProb
+        - precip
+        - inDaylight
+      properties:
+        start:
+          type: string
+          format: date-time
+          description: UTC. The slot lasts 15 minutes.
+        status:
+          type: string
+          enum: [ok, past, dark, missing, rain]
+          description: |
+            Why the slot is or is not usable: `ok` qualifies, `past` already started, `dark` is outside daylight with
+            `dark=avoid`, `missing` has no forecast, `rain` is over the rain limit.
+        score:
+          type: number
+          nullable: true
+          description: Lower is better. Null when the forecast is missing.
+        apparentTemp:
+          type: number
+          nullable: true
+          description: °C.
+        windSpeed:
+          type: number
+          nullable: true
+          description: km/h.
+        gust:
+          type: number
+          nullable: true
+          description: km/h.
+        windFrom:
+          type: number
+          nullable: true
+          description: Degrees the wind blows from.
+        precipProb:
+          type: number
+          nullable: true
+          description: Precipitation probability, %.
+        precip:
+          type: number
+          nullable: true
+          description: Precipitation, mm.
+        inDaylight:
+          type: boolean
     Window:
       type: object
       required:

@@ -334,4 +334,46 @@ describe('GET /api/window golden responses', () => {
 
     expect(response.text).toBe(golden(file));
   });
+
+  test.each([
+    ['dry Amsterdam forecast', forecast, 'window-response-amsterdam.json'],
+    ['wet forecast with a fallback', wetForecast, 'window-response-amsterdam-wet.json']
+  ])('an empty slots= is byte-for-byte the golden one too (%s)', async (_label, source, file) => {
+    const weather = fakeWeather({ forecast: source, stale: false });
+    const response = await request(build(weather)).get(`${GOLDEN_URL}&slots=`).expect(200);
+
+    expect(response.text).toBe(golden(file));
+  });
+
+  test.each([
+    ['dry Amsterdam forecast', forecast, 'window-response-amsterdam.json'],
+    ['wet forecast with a fallback', wetForecast, 'window-response-amsterdam-wet.json']
+  ])('slots=1 adds slots to both days and nothing else (%s)', async (_label, source, file) => {
+    const weather = fakeWeather({ forecast: source, stale: false });
+    const { body } = await request(build(weather)).get(`${GOLDEN_URL}&slots=1`).expect(200);
+
+    expect(body.params).toEqual({ avail: '07-09,12-14,17-21', dark: 'avoid', rain: 40 });
+    body.days.forEach(day => {
+      expect(Object.keys(day).at(-1)).toBe('slots');
+      expect(day.slots.length).toBeGreaterThan(0);
+    });
+    const stripped = {
+      ...body,
+      days: body.days.map(day => Object.fromEntries(Object.entries(day).filter(([key]) => key !== 'slots')))
+    };
+    expect(JSON.stringify(stripped)).toBe(golden(file));
+  });
+
+  test('slots=1 on the default avail lists 64 slots tomorrow', async () => {
+    const { body } = await request(build()).get('/api/window?lat=52.37&lon=4.89&slots=1').expect(200);
+
+    expect(body.days[1].slots).toHaveLength(64);
+  });
+
+  test('slots=1 with a bad value is 400', async () => {
+    const { body } = await request(build()).get('/api/window?lat=52.37&lon=4.89&slots=yes').expect(400);
+
+    expect(body.message).toBe('Invalid slots: must be 1 or empty');
+    expect(JSON.stringify(body)).not.toContain('yes');
+  });
 });

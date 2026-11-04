@@ -61,7 +61,7 @@ test('documents every parameter and the 200, 400, 429 and 503 responses', () => 
   const operation = spec.paths['/api/window'].get;
 
   expect(operation.parameters.map(parameter => parameter.name).sort()).toEqual(
-    ['avail', 'dark', 'lang', 'lat', 'lon', 'rain'].sort()
+    ['avail', 'dark', 'lang', 'lat', 'lon', 'rain', 'slots'].sort()
   );
   expect(
     operation.parameters
@@ -153,7 +153,9 @@ describe('a real response has exactly the documented keys', () => {
     expect(Object.keys(body.params).sort()).toEqual(keysOf(schemas.Params));
 
     body.days.forEach(day => {
-      expect(Object.keys(day).sort()).toEqual(keysOf(schemas.WindowDay).filter(key => key !== 'fallback'));
+      expect(Object.keys(day).sort()).toEqual(
+        keysOf(schemas.WindowDay).filter(key => key !== 'fallback' && key !== 'slots')
+      );
       const durations = Object.keys(day.windows);
       expect(durations).toEqual(Array.from({ length: 12 }, (_, i) => String((i + 1) * 15)));
     });
@@ -163,11 +165,35 @@ describe('a real response has exactly the documented keys', () => {
     windows.forEach(window => expect(Object.keys(window).sort()).toEqual(keysOf(schemas.Window)));
   });
 
+  test('a slots=1 response matches the documented Slot schema', async () => {
+    const { body } = await request(build(parseForecast(amsterdamFixture)))
+      .get(`${URL}&slots=1`)
+      .expect(200);
+
+    body.days.forEach(day => {
+      expect(Object.keys(day).sort()).toEqual(keysOf(schemas.WindowDay).filter(key => key !== 'fallback'));
+      expect(day.slots.length).toBeGreaterThan(0);
+      day.slots.forEach(slot => {
+        expect(Object.keys(slot).sort()).toEqual(keysOf(schemas.Slot));
+        expect(schemas.Slot.properties.status.enum).toContain(slot.status);
+      });
+    });
+    expect(schemas.WindowDay.required).not.toContain('slots');
+  });
+
+  test('the slots parameter is documented', () => {
+    const parameter = spec.paths['/api/window'].get.parameters.find(item => item.name === 'slots');
+
+    expect(parameter.in).toBe('query');
+    expect(parameter.required).toBe(false);
+    expect(parameter.schema.enum).toEqual(['1']);
+  });
+
   test('the fallback and warnings keys match when present', async () => {
     const { body } = await request(build(wetForecast)).get(`${URL}&rain=0`).expect(200);
     const [today] = body.days;
 
-    expect(Object.keys(today).sort()).toEqual(keysOf(schemas.WindowDay));
+    expect(Object.keys(today).sort()).toEqual(keysOf(schemas.WindowDay).filter(key => key !== 'slots'));
     expect(Object.keys(today.fallback).sort()).toEqual(keysOf(schemas.Window));
     expect(today.fallback.qualifies).toBe(false);
   });

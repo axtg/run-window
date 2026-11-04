@@ -19,7 +19,7 @@ function createWindowRouter({ weather, now }) {
       const { timezone } = forecast;
       const label = window => (window ? { ...window, label: formatLabel(window, { timezone, lang }) } : window);
       const days = localDates(nowMs, timezone).map(date => {
-        const day = computeDay({ date, forecast, params: query, nowMs });
+        const day = computeDay({ date, forecast, params: query, nowMs, includeSlots: query.slots });
         const windows = Object.fromEntries(Object.entries(day.windows).map(([key, value]) => [key, label(value)]));
         return { ...day, windows, ...('fallback' in day ? { fallback: label(day.fallback) } : {}) };
       });
