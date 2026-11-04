@@ -15,6 +15,7 @@ custom_fields:
     description: Running Board was created by Xander (@axtg). It shows your Tredict week, form and best time to run.
     github_url: https://github.com/axtg/run-window/
     learn_more_url: https://github.com/axtg/run-window/tree/main/integrations/trmnl-running-board
+    email_address: trmnl-plugin@xadi.eu
   - keyname: tredict_token
     name: Tredict token
     field_type: password

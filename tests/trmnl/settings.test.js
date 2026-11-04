@@ -60,6 +60,7 @@ describe('settings.yml', () => {
     const about = loadSettings().custom_fields[0];
     expect(about.field_type).toBe('author_bio');
     expect(about.github_url).toBe('https://github.com/axtg/run-window/');
+    expect(about.email_address).toBe('trmnl-plugin@xadi.eu');
     expect(about.learn_more_url).toMatch(/^https:\/\/github\.com\/axtg\/run-window\//);
   });
 
