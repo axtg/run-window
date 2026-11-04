@@ -23,8 +23,8 @@ The API comes first: the plugin depends on it.
 The API is live at `https://run.xadi.eu` (deployed 2026-11-03). The TRMNL plugin is built and tested; install steps are
 in `integrations/trmnl-running-board/README.md`. The install check on the device (plan Task 12) is pending. Publishing
 it as a recipe waits for Tredict's written agreement (see the plugin spec, "Tredict's terms"). The web interface is
-built on `feat/web-ui`; the manifest's `share_target` ships only after the nginx `/share-target` location is live
-(see "Web interface").
+built; release 1 (no share target yet) awaits deploy. The manifest's `share_target` ships only after the nginx
+`/share-target` location is live (see "Web interface").
 
 ## Sister project
 
