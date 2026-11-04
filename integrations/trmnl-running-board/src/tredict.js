@@ -1,6 +1,9 @@
 const { zonedMidnight, weekDates, addDays, localDate } = require('./time');
 
 const TREDICT_BASE = 'https://www.tredict.com/api/oauth/v2/';
+const DEADLINE_MS = 4000;
+const CALL_TIMEOUT_MS = 3000;
+const MIN_START_MS = 500;
 
 // From the day before this local Monday to the end of the day after next Monday, as UTC ISO strings
 function tredictRange(now, timeZone) {
@@ -20,6 +23,20 @@ function tredictUrls(range) {
   };
 }
 
+function detailUrl(id) {
+  return `${TREDICT_BASE}activity/${encodeURIComponent(id)}?extraValues=1`;
+}
+
+// Whole seconds from a Retry-After header, or null when absent, unreadable or an HTTP date
+function retryAfterSeconds(response) {
+  try {
+    const value = response.headers.get('retry-after');
+    return typeof value === 'string' && /^\d+$/.test(value) ? Number(value) : null;
+  } catch {
+    return null;
+  }
+}
+
 // Never rejects. The fetch races its own timer, so one that ignores the abort signal still settles.
 async function fetchJson(fetchFn, url, token, timeoutMs = 3000) {
   if (!token) return { ok: false, kind: 'auth', status: null };
@@ -35,7 +52,10 @@ async function fetchJson(fetchFn, url, token, timeoutMs = 3000) {
         signal: AbortSignal.timeout(timeoutMs)
       });
       const status = response.status;
-      if (status === 401 || status === 403) return { ok: false, kind: 'auth', status };
+      if (status === 401) return { ok: false, kind: 'paused', status };
+      if (status === 403) return { ok: false, kind: 'auth', status };
+      if (status === 404) return { ok: false, kind: 'missing', status };
+      if (status === 429) return { ok: false, kind: 'rate', status, retryAfterS: retryAfterSeconds(response) };
       if (status === 402) return { ok: false, kind: 'payment', status };
       if (!(status >= 200 && status < 300)) return unavailable(status);
       try {
@@ -53,4 +73,42 @@ async function fetchJson(fetchFn, url, token, timeoutMs = 3000) {
   }
 }
 
-module.exports = { TREDICT_BASE, tredictRange, tredictUrls, fetchJson };
+// Runs Tredict calls strictly one after another under one deadline and stops after a 429. call() never rejects.
+function tredictSequence({ fetch, token, clock = Date.now, deadlineMs = DEADLINE_MS }) {
+  const deadline = clock() + deadlineMs;
+  let last = Promise.resolve();
+  let rate = null;
+
+  const run = async url => {
+    if (rate) return { ok: false, kind: 'skipped' };
+    const remaining = deadline - clock();
+    if (remaining < MIN_START_MS) return { ok: false, kind: 'unavailable', status: null };
+    const result = await fetchJson(fetch, url, token, Math.min(CALL_TIMEOUT_MS, remaining));
+    if (result.kind === 'rate') rate = { retryAfterS: result.retryAfterS };
+    return result;
+  };
+
+  return {
+    call(url) {
+      const result = last.then(() => run(url));
+      last = result.catch(() => {});
+      return result.catch(() => ({ ok: false, kind: 'unavailable', status: null }));
+    },
+    remaining: () => deadline - clock(),
+    stopped: () => rate !== null,
+    rate: () => rate
+  };
+}
+
+module.exports = {
+  TREDICT_BASE,
+  DEADLINE_MS,
+  CALL_TIMEOUT_MS,
+  MIN_START_MS,
+  tredictRange,
+  tredictUrls,
+  detailUrl,
+  retryAfterSeconds,
+  fetchJson,
+  tredictSequence
+};

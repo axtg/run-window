@@ -156,7 +156,7 @@ function tredictPanels({ plan, activities, efforts, previous, now, tz, settings,
   const failed = kind => parts.some(part => !part.ok && part.kind === kind);
   const empty = { week: null, form: null, tredictAt: null, tredictAtText: '' };
 
-  if (failed('auth')) return { state: 'auth', message: text.tokenInvalid, ...empty };
+  if (failed('auth') || failed('paused')) return { state: 'auth', message: text.tokenInvalid, ...empty };
   if (failed('payment')) return { state: 'payment', message: text.tredictPayment, ...empty };
   if (parts.some(part => !part.ok)) {
     const stale = staleTredict(previous, now, tz);

@@ -2,7 +2,10 @@ const {
   TREDICT_BASE,
   tredictRange,
   tredictUrls,
-  fetchJson
+  detailUrl,
+  retryAfterSeconds,
+  fetchJson,
+  tredictSequence
 } = require('../../integrations/trmnl-running-board/src/tredict');
 
 const AMS = 'Europe/Amsterdam';
@@ -55,13 +58,45 @@ describe('fetchJson', () => {
   });
 
   it.each([
-    [401, 'auth'],
+    [401, 'paused'],
     [403, 'auth'],
     [402, 'payment'],
     [500, 'unavailable'],
-    [404, 'unavailable']
+    [404, 'missing']
   ])('classifies %i as %s', async (status, kind) => {
     await expect(fetchJson(respond(status, 'x'), URL_, 't')).resolves.toEqual({ ok: false, kind, status });
+  });
+
+  it('maps 429 to rate with a null Retry-After when there are no headers', async () => {
+    await expect(fetchJson(respond(429, 'x'), URL_, 't')).resolves.toEqual({
+      ok: false,
+      kind: 'rate',
+      status: 429,
+      retryAfterS: null
+    });
+  });
+
+  it('reads Retry-After seconds on a 429', async () => {
+    const withHeader = value =>
+      jest.fn(async () => ({
+        status: 429,
+        text: async () => '',
+        headers: { get: name => (name === 'retry-after' ? value : null) }
+      }));
+    await expect(fetchJson(withHeader('120'), URL_, 't')).resolves.toMatchObject({ kind: 'rate', retryAfterS: 120 });
+    await expect(fetchJson(withHeader('Wed, 21 Oct 2026 07:28:00 GMT'), URL_, 't')).resolves.toMatchObject({
+      retryAfterS: null
+    });
+    expect(retryAfterSeconds({})).toBeNull();
+    expect(
+      retryAfterSeconds({
+        headers: {
+          get: () => {
+            throw new Error('x');
+          }
+        }
+      })
+    ).toBeNull();
   });
 
   it('treats an HTML 200 body as unavailable', async () => {
@@ -112,5 +147,97 @@ describe('fetchJson', () => {
       throw new Error('sync');
     });
     await expect(fetchJson(fetch, URL_, 't')).resolves.toMatchObject({ ok: false, kind: 'unavailable' });
+  });
+});
+
+describe('detailUrl', () => {
+  it('encodes the id', () => {
+    expect(detailUrl('a/b')).toBe(`${TREDICT_BASE}activity/a%2Fb?extraValues=1`);
+  });
+});
+
+describe('tredictSequence', () => {
+  const URL_ = 'https://www.tredict.com/api/oauth/v2/efforts';
+  const ok = { status: 200, text: async () => '{}' };
+  const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+
+  it('starts no call before the previous one settled', async () => {
+    const events = [];
+    let n = 0;
+    const fetch = jest.fn(async () => {
+      const id = ++n;
+      events.push(`start${id}`);
+      await sleep(20);
+      events.push(`end${id}`);
+      return ok;
+    });
+    const sequence = tredictSequence({ fetch, token: 't' });
+    await Promise.all([sequence.call(URL_), sequence.call(URL_), sequence.call(URL_)]);
+    expect(events).toEqual(['start1', 'end1', 'start2', 'end2', 'start3', 'end3']);
+  });
+
+  it('stops after a 429', async () => {
+    const answers = [ok, { status: 429, text: async () => '' }, ok];
+    const fetch = jest.fn(async () => answers.shift());
+    const sequence = tredictSequence({ fetch, token: 't' });
+    await sequence.call(URL_);
+    expect(sequence.stopped()).toBe(false);
+    await expect(sequence.call(URL_)).resolves.toMatchObject({ ok: false, kind: 'rate' });
+    expect(sequence.stopped()).toBe(true);
+    await expect(sequence.call(URL_)).resolves.toEqual({ ok: false, kind: 'skipped' });
+    expect(fetch).toHaveBeenCalledTimes(2);
+    expect(sequence.rate()).toEqual({ retryAfterS: null });
+  });
+
+  it('shrinks timeouts to the deadline', async () => {
+    let now = 0;
+    let calls = 0;
+    const fetch = jest.fn(() => {
+      if (++calls === 1) {
+        now = 3200;
+        return Promise.resolve(ok);
+      }
+      return new Promise(() => {});
+    });
+    const sequence = tredictSequence({ fetch, token: 't', clock: () => now });
+    await sequence.call(URL_);
+    expect(sequence.remaining()).toBe(800);
+    const started = Date.now();
+    await expect(sequence.call(URL_)).resolves.toEqual({ ok: false, kind: 'unavailable', status: null });
+    const waited = Date.now() - started;
+    expect(waited).toBeGreaterThanOrEqual(700);
+    expect(waited).toBeLessThan(1500);
+  });
+
+  it('refuses to start with under 500 ms left', async () => {
+    let now = 0;
+    const fetch = jest.fn();
+    const sequence = tredictSequence({ fetch, token: 't', clock: () => now });
+    now = 3600;
+    await expect(sequence.call(URL_)).resolves.toEqual({ ok: false, kind: 'unavailable', status: null });
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it('ignores a late resolve after the timer (Review Focus 5)', async () => {
+    const begin = Date.now();
+    const starts = [];
+    let n = 0;
+    const fetch = jest.fn(async () => {
+      starts.push(Date.now() - begin);
+      if (++n === 1) {
+        await sleep(900);
+        return ok;
+      }
+      return ok;
+    });
+    // The fake clock leaves 550 ms, so the first call times out at 550 ms although fetch resolves at 900 ms
+    let now = 0;
+    const sequence = tredictSequence({ fetch, token: 't', clock: () => now });
+    now = 3450;
+    const [first, second] = await Promise.all([sequence.call(URL_), sequence.call(URL_)]);
+    expect(first).toEqual({ ok: false, kind: 'unavailable', status: null });
+    expect(second).toEqual({ ok: true, data: {} });
+    expect(starts[1]).toBeGreaterThanOrEqual(500);
+    expect(starts[1]).toBeLessThan(850);
   });
 });
