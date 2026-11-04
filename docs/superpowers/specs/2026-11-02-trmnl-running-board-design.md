@@ -228,6 +228,47 @@ Right top, form graph (an SVG path computed by the transform script, so no JS ru
 - 6 weeks back to 7 days ahead. One line; the future part dashed (built from `unconfirmed` efforts). Today's value as
   a large number top right. No fitness/fatigue lines: three lines turn to grey noise in 1-bit.
 
+## Screens and typography (revised 2026-11-04)
+
+TRMNL's review of the private plugin (2026-11-04) asked for this before publishing. The board must read well on the
+original device (OG, 800x480), the TRMNL X in landscape, and the X in portrait, in all four layouts.
+
+Text:
+
+- Every piece of text uses the framework's text elements (`title`, `value`, `label`, `description`) with their size
+  classes, not custom `font-size` or `font-family` rules. On OG the framework draws them in its bitmap faces, on X it
+  scales them; custom px sizes did neither, so on X the text kept its OG size, rows were mostly white space, and the
+  custom classes fell back to a serif font next to the framework's.
+- On OG each text keeps about today's size (within a few px) and weight, so the OG screen looks as it does now. On X
+  (`lg:` prefixes) each steps up so the screen is as full as on OG. The builder picks the classes per text from the
+  framework's size table (`https://trmnl.com/framework/docs/3.4/element_sizes`).
+- Custom CSS stays for what the framework can't draw: layout (columns, rows, flex), borders, the inverted today row,
+  the form graph and the intensity bar, the theme invert, and the compact run panel's spacing.
+- Bold where it is bold today (done items, the run time, headings), with the framework's weight utilities or the
+  element's own weight, not a custom font-weight on a custom class.
+
+Day rows:
+
+- A plan title shows on one line on OG and on up to two on X, using the framework's clamp (`data-clamp="1"` and
+  `data-clamp-lg="2"` on each item) instead of the CSS ellipsis. A day still shows at most 2 items plus "+N".
+- The day label sizes to its text with a gap after it (done 2026-11-04).
+- On X, when two two-line items don't fit a day's row, the clamp yields (the item drops to one line) rather than the
+  row overflowing; the seven rows keep equal height (design call).
+- Dark mode: every framework text element used (not only `title` and `value`) is pinned to the board's black, so the
+  invert alone decides its colour (design call; the framework recolours them in its dark mode).
+
+Orientation:
+
+- X portrait, full layout: stacked. The week on top at full width, then form, intensity bar and run window below it,
+  side by side or stacked as space allows (builder's call), then the footer. Landscape keeps today's two columns.
+- The half and quadrant layouts keep their content in portrait; only their text scales.
+- The graph and the bar keep filling their width in every orientation.
+
+Verification: the render tests check classes and structure (the harness has no framework CSS). The look is checked in
+TRMNL's editor preview on OG, X and X portrait for each layout, and on the maintainer's OG device. Local screenshots
+load the framework stylesheet (`https://trmnl.com/css/3.4.0/plugins.css`) where the network allows, and say when they
+didn't.
+
 ## Run window
 
 Which day:
@@ -404,6 +445,7 @@ renders the templates from the script's output. Fixtures and cases:
 
 ## Left to the builder
 
-- Exact typography, spacing and row layout, as long as it reads from a few metres in 1-bit.
+- Exact framework size classes, spacing and row layout, as long as it reads from a few metres in 1-bit and follows
+  "Screens and typography".
 - How the graph series reaches the chart JS safely (an escaped data attribute, not script text).
 - Whether missed sessions use strike-through or ✗.
