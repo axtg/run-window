@@ -1,8 +1,9 @@
 # TRMNL plugin: Running Board
 
-Date: 2026-11-02, revised 2026-11-03
+Date: 2026-11-02, revised 2026-11-03 and 2026-11-04
 Status: approved 2026-11-03; data flow revised the same day after "Verify first" (answers in
-`2026-11-03-trmnl-running-board-verify.md`)
+`2026-11-03-trmnl-running-board-verify.md`). Revised 2026-11-04 after Tredict's reply: Tredict calls in sequence with
+429 handling, a paused-token message, and the week's intensity bar (see "Tredict calls" and "Intensity").
 Plugin: `integrations/trmnl-running-board/`
 Depends on: Run-window API (`2026-11-02-run-window-api-design.md`), live at `run.xadi.eu` since 2026-11-03
 
@@ -11,7 +12,8 @@ Depends on: Run-window API (`2026-11-02-run-window-api-design.md`), live at `run
 One full TRMNL screen dedicated to running, for someone who plans their training in Tredict:
 
 - **Left, full height:** this week, Monday to Sunday. Planned sessions, and actuals for what's done.
-- **Right top:** form over the last weeks, with the planned weeks ahead.
+- **Right top:** form over the last weeks, with the planned weeks ahead, and this week's time at low, moderate and
+  high intensity beneath it.
 - **Right bottom:** today's best time to run, sized to today's planned session.
 
 The maintainer uses it first, as a private plugin. Publishing it as a TRMNL recipe for other Tredict users is a goal
@@ -29,7 +31,8 @@ only if Tredict agrees (see "Tredict's terms"). Either way, no backend holds any
 ## Non-goals
 
 - Layouts other than `full` in v1. Half and quadrant layouts (for example only the run window) are a v1.1 candidate.
-- Weekly 80/20 zone split. It needs one activity-detail call per activity; not in v1.
+- Zone-by-zone splits or a pace/power basis for intensity. The intensity bar uses Tredict's three heart-rate ranges
+  only (see "Intensity"; added 2026-11-04 at Tredict's suggestion).
 - HRV, sleep, Whoop or any recovery data.
 - Routes or maps.
 - Imperial units. Metric only.
@@ -72,7 +75,11 @@ can fetch, so it calls Tredict itself and the plugin polls only the run-window A
   endpoints. An invalid token gets 403. The token goes **inactive unless the user opens the Tredict app at least once
   every 10 days**; it reactivates on the next visit.
 - **Tredict rate limits** are per IP, and all TRMNL polls come from TRMNL's few server IPs. Activity download is limited
-  to 10 requests/second. Fine for a handful of installs; note it if the recipe grows.
+  to 10 requests/second. Tredict (2026-11-04): the volume is fine if requests are serialised, not parallel, and HTTP
+  429 is respected with a proper retry; otherwise the IP gets rejected. At recipe scale every install shares TRMNL's
+  IPs, so stopping on a 429 protects all of them (see "Tredict calls").
+- **Paused token:** Tredict answers 401 with "Please log into the Tredict web app to automatically reactivate this
+  token. ..." (2026-11-04). An invalid token or missing scope gets 403.
 - **Run-window API limits:** 20 requests per second per IP, which every TRMNL install shares, since all polls and
   scripts run from TRMNL's servers; and 300 distinct rounded locations per UTC day for the whole service. Both are far above a handful of installs, and
   both are the recipe's ceiling.
@@ -104,13 +111,17 @@ One polling URL, no headers:
 - Its `generatedAt` changes on every poll, so the merge variables change and TRMNL redraws the screen even on days
   Tredict's data doesn't change.
 
-The transform script then fetches, in parallel, each with a 3-second timeout:
+The transform script then calls Tredict one request at a time, in this order (see "Tredict calls"):
 
 | Name | URL | Purpose |
 |------|-----|---------|
 | plan | `https://www.tredict.com/api/oauth/v2/plannedTrainingList?startDate={from}&endDate={to}` | This week's plan, plus tomorrow on a Sunday |
 | activities | `https://www.tredict.com/api/oauth/v2/activityList?pageSize=50&extendedSummary=1` | Actuals; newest first, filtered to this week |
 | efforts | `https://www.tredict.com/api/oauth/v2/efforts` | Daily effort; defaults cover 1 year back to 1 month ahead |
+| detail | `https://www.tredict.com/api/oauth/v2/activity/{id}?extraValues=1` | One per activity of this week not yet cached, for "Intensity" |
+
+The script retries the run-window API itself only when the polled body failed (see "Errors and empty states"). That
+call is not Tredict's, so it runs alongside the Tredict sequence.
 
 - Headers: `Authorization: Bearer {token}` and `Accept: application/json;charset=UTF-8`.
 - `{from}` and `{to}` are UTC ISO strings from the day before this local Monday to the day after next Monday, in the
@@ -129,6 +140,32 @@ Relevant response fields (from Tredict's docs):
   `pace` in s/km, and start coordinates).
 - `efforts` → `trainingEfforts`: `{ "YYYYMMDD": [[effort, {isRace?, unconfirmed?}], ...] }`, keyed by local date. Once
   a planned session is done, its `unconfirmed` entry is replaced by the confirmed one.
+- `activity/{id}?extraValues=1` → `summary.intensityDistribution.heartrate`: `{ "0": s, "1": s, "2": s }`, seconds in
+  Tredict's low, moderate and high ranges; they sum to `summary.duration`. `null` when the activity has no heart rate.
+  Checked on the maintainer's data 2026-11-04: without `extraValues=1` the field is absent, and `activityList` never
+  has it. A response is about 86 KB, almost all of it `seriesSampled`; the script reads only this one field. The id
+  is the list's `id` (the detail calls it `_id`).
+
+## Tredict calls
+
+In sequence, never in parallel (Tredict's condition, see "Constraints"):
+
+- One shared deadline for the whole Tredict sequence: 4 s after the script starts, leaving a second of TRMNL's 5 s
+  for the rest. Each call's timeout is the smaller of 3 s and the time left; a call is not started with under 500 ms
+  left, and counts as a timeout.
+- Order: plan, activities, efforts, then detail calls. The first failure of plan, activities or efforts ends the
+  sequence: later calls would fail the same way, and the panels fall back as a whole anyway.
+- Detail calls: at most 3 per poll, each only with at least 1 s left. Any others wait for the next poll.
+- HTTP 429 from any call ends the sequence at once, with no further Tredict request in that run. The script sets
+  `tredictRetryAt` to now plus the response's `Retry-After` seconds, clamped to 30 minutes .. 6 hours, or 30 minutes
+  without a readable header. Until then, runs make no Tredict calls and show the previous panels under the stale
+  rule ("Errors and empty states"). Like `weatherRetryAt`, it is anchored: skipping doesn't renew it, and a run after
+  it passes calls Tredict again.
+- 429 on a detail call after the panels loaded: the panels show as normal. The pause still applies, so the next run
+  shows them as stale.
+- `Retry-After` as an HTTP date, or anything but whole seconds, counts as unreadable (design call).
+- Every output carries `tredictRetryAt` and `intensityCache` forward while they are valid, including runs that make
+  no Tredict call and the fixed error output, so a throw can't drop a pause (design call).
 
 Real responses are personal training data and never get committed. Capture one of each into the gitignored
 `tests/fixtures/private/` to learn the exact shape. Committed fixtures in `tests/fixtures/tredict/` are synthetic: same
@@ -156,6 +193,9 @@ Quote every select value in YAML (eu-dayahead's lesson: TRMNL's Ruby YAML reads 
 │ Mo ✓ 8.2 km · 5:41 · 142   │  ╭─╮    ╭──╮                       │
 │ Tu ✓ Strength (if "all")   │ ─╯ ╰────╯  ╰──╮- - - (planned)     │
 │ We ▶ 10 km Z2 · 60 min     │ 6 weeks back | today | 7 days ahead│
+│                            │ Intensity this week · 2:42         │
+│                            │ [     low      |///mod///|█high█]  │
+│                            │ low 78%    moderate 17%    high 5% │
 │ Th   Rest                  ├───────────────────────────────────┤
 │ Fr   45 min intervals      │ BEST TIME TODAY · 60 min           │
 │ Sa   —                     │ 12:15–13:15                        │
@@ -231,17 +271,61 @@ Tredict exposes daily efforts, not a form value. Compute in the transform script
 - Label it "Form" / "Vorm". The model was fitted against the form Tredict shows in its app for the maintainer's data
   and matches it on every day (V10).
 
+## Intensity
+
+Tredict's suggestion (2026-11-04): this week's intensity distribution beneath the form curve, in the band that is
+empty today. The maintainer approved a mockup of the layout in "Screen" the same day.
+
+What it counts:
+
+- This week's done activities as the calendar has them: Monday to now, local, the `sport` setting's filter, planned
+  or not, including any beyond the 2 rows a day shows.
+- Per activity, `summary.intensityDistribution.heartrate` from its detail call: seconds at low, moderate and high.
+  Activities without heart rate add nothing. Heart rate because Tredict's own card shows it first and every run
+  with a watch has it.
+
+Cache, so a finished run costs one detail call, once:
+
+- The output carries `intensityCache`: a list of `[id, low, moderate, high]`, the id a string, the three
+  finite non-negative seconds. An activity without heart rate is cached as `[id, 0, 0, 0]`, so it isn't fetched
+  again.
+- Each run reads it from the previous merge variables field by field (as with `reuseWeek`), keeps only this week's
+  ids and adds the new ones. Nothing else from a detail response is kept. It never grows past one week.
+- A run is not re-fetched if Tredict recomputes its zones later. Design call: done runs rarely change.
+- Newest activities are fetched first (design call). A 404, or a 2xx without `summary.intensityDistribution`, is
+  cached as zeros, since asking again won't help; 5xx, timeout and 429 are retried on a later run (design call).
+- `BOARD_VERSION` stays 1; the new fields are read defensively (design call).
+
+What it shows:
+
+- When every activity of this week is in the cache and their total is above zero: a heading "Intensity this week ·
+  {h:mm}" (the total), one bar the width of the graph split low / moderate / high, and "low N%  moderate N%  high N%"
+  beneath it. Percentages round to whole numbers that sum to 100 (largest remainder).
+- 1-bit: low white with a black outline, moderate black diagonal stripes, high solid black, drawn in SVG (no
+  gradients, no dithering). A non-zero range gets at least 4 px so it stays visible.
+- When some activity isn't cached yet (budget, a failed or rate-limited detail call): no bar this run. It appears
+  once the cache is complete, normally the next poll. When the total is zero (Monday morning, no heart rate): no
+  bar.
+- The graph gives up height for it, so the run panel keeps all its lines on the 800x480 screen. Checked in the
+  preview and on the device.
+- Garmin: an activity that adds to the bar with `isFromGarminApi: true` puts its `attribution` in the footer, as
+  calendar rows do.
+- Stale panels (see "Errors and empty states") reuse the previous output's bar with them.
+
 ## Errors and empty states
 
 Decide per panel, so one failure doesn't blank the screen. The script never throws: a throw would silently keep the
 previous screen. Every output carries `fetchedAt`, printed small in the footer, so a frozen screen shows its age.
 
-- Tredict 401 or 403 (any of the three calls): whole left column and graph replaced by "Tredict token paused or
-  invalid. Open the Tredict app, and check the token has the activityRead scope." The 10-day rule makes this the most
-  common failure.
+- Tredict 401 (plan, activities or efforts): the token is paused. Whole left column and graph replaced by "Tredict
+  token paused. Open the Tredict web app to reactivate it." The 10-day rule makes this the most common failure.
+- Tredict 403: "Tredict token invalid. Check it has the activityRead scope."
 - Tredict 402: "Tredict says this account can't use the API."
-- Tredict 5xx, timeout or unreadable body: show the last good Tredict panels from the previous merge variables, with
-  "Tredict data from {time}". With none, "Tredict unavailable".
+- Tredict 5xx, 429, timeout or unreadable body, or a 429 pause in force: show the last good Tredict panels from the
+  previous merge variables, with "Tredict data from {time}". With none, "Tredict unavailable". Last good data is from
+  the same local day only, so a pause past midnight shows "Tredict unavailable" until it ends (design call: an old
+  week is worse than none).
+- A detail call failing in any way only affects the intensity bar (see "Intensity").
 - No plan this week: calendar shows actuals only, footer shows done totals only.
 - Location not set: the bottom-right panel says "Set your location in the plugin settings"; the rest renders.
 - Run-window API error of any kind (the polled body then arrives empty, without `generatedAt`): the bottom-right panel
@@ -251,7 +335,8 @@ previous screen. Every output carries `fetchedAt`, printed small in the footer, 
 
 - The token is stored in TRMNL (masked in the form) and sent only to Tredict, by the transform script. `run.xadi.eu`
   never receives it: the plugin sets no polling headers.
-- No server outside TRMNL and Tredict sees Tredict data. The script keeps only what the screen needs.
+- No server outside TRMNL and Tredict sees Tredict data. The script keeps only what the screen needs, plus this
+  week's activity ids with their three intensity totals (`intensityCache`), held in TRMNL's merge variables.
 - `run.xadi.eu` gets the location rounded to 2 decimals, the availability hours and the two weather settings. It logs
   the location rounded to 1 decimal only.
 
@@ -259,7 +344,9 @@ previous screen. Every output carries `fetchedAt`, printed small in the footer, 
 
 - en and nl in v1. Strings: day abbreviations, "week", headings, the panel messages above, "start into the wind",
   "dark after", "tomorrow", "no session planned", "no duration planned", the null-window lines, "weather may be out of
-  date", "Form".
+  date", "Form", and "Intensity this week" / "Intensiteit deze week" with "low / moderate / high" / "laag / gemiddeld
+  / hoog". The paused-token text in Dutch: "Tredict-token gepauzeerd. Open de Tredict-webapp om het weer te
+  activeren."; the invalid one: "Tredict-token ongeldig. Controleer of het de scope activityRead heeft."
 - Day and month names from the plugin's own en/nl tables, because TRMNL's runtime has English locale data only.
   Timezone conversion uses `Intl.DateTimeFormat` with `timeZone`, which works there.
 
@@ -287,6 +374,15 @@ renders the templates from the script's output. Fixtures and cases:
 - Tredict 401, 403, 402, 5xx and timeout, with and without previous good data; run-window failure (empty body) and
   400; location not set.
 - Garmin attribution present and absent.
+- Tredict calls (a fake fetch that records when each call starts and settles): no Tredict call starts before the
+  previous one settled; a 429 on any call means no later Tredict call that run, `tredictRetryAt` from `Retry-After`
+  (clamped) or 30 minutes, and a following run inside the pause makes none; a run after it calls again; a slow
+  first call shrinks later timeouts, and an exhausted deadline skips the rest; 401 gives the paused text, 403 the
+  invalid one.
+- Intensity: a cold cache with 4 activities fetches 3 and shows no bar, the next run fetches 1 and shows it; a warm
+  cache makes no detail calls; ids from last week drop out; an activity without heart rate is cached as zeros;
+  percentages sum to 100; a Garmin activity adds its attribution; a malformed `intensityCache` is ignored, not
+  trusted. Synthetic detail fixtures, with invented seconds, in `tests/fixtures/tredict/`.
 - en, nl, unknown locale.
 - Form: compare the computed series for a private fixture against values read from the Tredict app on a few dates.
   This is a local check: it reads `tests/fixtures/private/` and must not make `npm test` fail where that folder is
