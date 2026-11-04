@@ -382,6 +382,8 @@ async function fetchJson(fetchFn, url, token, timeoutMs = 3000) {
     const request = (async () => {
       const response = await fetchFn(url, {
         headers: { Authorization: `Bearer ${token}`, Accept: 'application/json;charset=UTF-8' },
+        // Serial calls rely on this signal tearing the request down at the timeout; the race timer only settles the
+        // promise, so without it a timed-out request would overlap the next one.
         signal: AbortSignal.timeout(timeoutMs)
       });
       const status = response.status;
@@ -1148,7 +1150,7 @@ async function fetchTredict(sequence, urls, { zone, now, sport, previous }) {
 }
 
 // Newest first, within the per-run budget and deadline. A 404 (or a body without the field) is cached as zeros, since
-// asking again won't help; any other failure leaves the id for a later run. A 429 stops the sequence.
+// asking again won't help; any other failure leaves the id for a later run and ends the detail calls, as does a 429.
 async function fetchIntensity(sequence, ids, cache) {
   let calls = 0;
   for (const id of ids) {
@@ -1158,6 +1160,7 @@ async function fetchIntensity(sequence, ids, cache) {
     const result = await sequence.call(detailUrl(id));
     if (result.ok) cache.set(id, intensityOf(result.data));
     else if (result.kind === 'missing') cache.set(id, [0, 0, 0]);
+    else return;
   }
 }
 

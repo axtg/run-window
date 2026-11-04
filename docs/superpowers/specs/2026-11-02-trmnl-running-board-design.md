@@ -71,8 +71,9 @@ can fetch, so it calls Tredict itself and the plugin polls only the run-window A
   TRMNL silently keeps the previous merge variables. Its `Intl` has English locale data only, though timezones work.
 - **A failed polled URL** arrives as `{}` (the status is lost); the script still runs.
 - **One headers field** for all polling URLs. The plugin sets none.
-- **Tredict Personal API:** bearer token with chosen scopes. Needs `activityRead` only, which covers all three
-  endpoints. An invalid token gets 403. The token goes **inactive unless the user opens the Tredict app at least once
+- **Tredict Personal API:** bearer token with chosen scopes. Needs `activityRead` only, which covers all four
+  endpoints (the activity detail endpoint was read with the same `activityRead` token on 2026-11-04). An invalid
+  token gets 403. The token goes **inactive unless the user opens the Tredict app at least once
   every 10 days**; it reactivates on the next visit.
 - **Tredict rate limits** are per IP, and all TRMNL polls come from TRMNL's few server IPs. Activity download is limited
   to 10 requests/second. Tredict (2026-11-04): the volume is fine if requests are serialised, not parallel, and HTTP

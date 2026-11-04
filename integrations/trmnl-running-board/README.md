@@ -38,7 +38,8 @@ and the token works again. An invalid token (HTTP 403) gets its own message.
 ## Tredict calls
 
 As Tredict asks, the script calls Tredict one request at a time, within 4 seconds in total. The intensity bar costs one
-extra call per new run of the week, made once and cached in the plugin's own data. As Tredict asks, it respects an HTTP
+extra call per new run of the week. A run's detail is fetched once, when the call succeeds, and cached in the plugin's own
+data; a failed call is tried again on a later poll, and the first failed detail call ends that poll's detail calls. As Tredict asks, it respects an HTTP
 429: it makes no Tredict calls for the `Retry-After` time clamped to 30 minutes .. 6 hours, or 30 minutes when there is
 none, and shows what it has.
 
@@ -47,7 +48,8 @@ none, and shows what it has.
 The token is stored in TRMNL and sent only to Tredict, by the transform script after each poll. `run.xadi.eu` never
 receives it, and the plugin sets no polling headers. It gets the location rounded to 2 decimals, your hours and the
 two weather settings, and logs the location rounded to 1 decimal only. No other server sees Tredict data, and the
-script keeps only what the screen needs.
+script keeps only what the screen needs, plus this week's activity ids with their low/moderate/high heart-rate
+seconds (`intensityCache`) in TRMNL's merge variables.
 
 ## Publishing
 

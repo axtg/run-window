@@ -764,18 +764,23 @@ describe('buildBoard: intensity', () => {
     expect(output.intensity).toBeNull();
   });
 
-  it('a 404 is cached as zeros, a 503 is retried', async () => {
+  it('a 404 is cached as zeros, a 503 is retried and ends the detail calls', async () => {
     const { output, calls } = await board({ previous: {} }, { details: { [ACT04]: 404, [ACT03]: 503 } });
-    expect(detailIds(calls)).toHaveLength(3);
-    expect(output.intensityCache).toEqual([
-      [ACT04, 0, 0, 0],
-      [ACT02, ...HR]
-    ]);
+    expect(detailIds(calls)).toEqual([ACT04, ACT03].map(id => `${id}?extraValues=1`));
+    expect(output.intensityCache).toEqual([[ACT04, 0, 0, 0]]);
     expect(output.intensity).toBeNull();
     expect(output.tredict.state).toBe('ok');
     const next = await board({ previous: output }, {}, NOW + 5 * MINUTE);
-    expect(detailIds(next.calls)).toEqual([`${ACT03}?extraValues=1`]);
+    expect(detailIds(next.calls)).toEqual([ACT03, ACT02].map(id => `${id}?extraValues=1`));
     expect(next.output.intensity.heading).toBe('Intensity this week · 1:30');
+  });
+
+  it('the first 503 on a detail call ends the detail calls', async () => {
+    const { output, calls } = await board({ previous: {} }, { details: { [ACT04]: 503 } });
+    expect(detailIds(calls)).toEqual([`${ACT04}?extraValues=1`]);
+    expect(output.intensity).toBeNull();
+    expect(output.intensityCache).toEqual([]);
+    expect(output.tredict.state).toBe('ok');
   });
 
   it('a 429 on a detail call keeps the panels and pauses', async () => {

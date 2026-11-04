@@ -49,6 +49,8 @@ async function fetchJson(fetchFn, url, token, timeoutMs = 3000) {
     const request = (async () => {
       const response = await fetchFn(url, {
         headers: { Authorization: `Bearer ${token}`, Accept: 'application/json;charset=UTF-8' },
+        // Serial calls rely on this signal tearing the request down at the timeout; the race timer only settles the
+        // promise, so without it a timed-out request would overlap the next one.
         signal: AbortSignal.timeout(timeoutMs)
       });
       const status = response.status;
