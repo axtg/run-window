@@ -23,8 +23,8 @@ The API comes first: the plugin depends on it.
 The API is live at `https://run.xadi.eu` (deployed 2026-11-03). The TRMNL plugin is built and tested; install steps are
 in `integrations/trmnl-running-board/README.md`. The install check on the device (plan Task 12) is pending. Publishing
 it as a recipe waits for Tredict's written agreement (see the plugin spec, "Tredict's terms"). The web interface is
-built; release 1 (no share target yet) awaits deploy. The manifest's `share_target` ships only after the nginx
-`/share-target` location is live (see "Web interface").
+built, and the manifest lists the page in Android's share sheet for route files (`share_target`). It needs the nginx
+`/share-target` location live on the host (see "Web interface").
 
 ## Sister project
 
@@ -91,8 +91,10 @@ the worker `sw.js`, the manifest and icons.
   reaches Node. Express has no body parser and must not get one. It is the only location without `proxy_pass`.
 - A new public path goes in both `LOGGABLE_PATHS` (`middleware/logging.js`) and the nginx `$run_window_path` map;
   `tests/deployConfig.test.js` checks they match.
-- Release order: the manifest's `share_target` entry is added only after the nginx change is live on the host, because
-  until then a share would POST the file to Node. The maintainer applies nginx by hand and reloads it after `nginx -t`.
+- Release order: the manifest's `share_target` entry needs the nginx change live on the host, because without it a
+  share would POST the file to Node. The maintainer applies nginx by hand and reloads it after `nginx -t`.
+- The shared file sits in the Cache API until the page opens it, then is deleted. Over 5 MB the worker redirects to
+  `/?share=too-large`; any other failure is `/?share=failed` (also what nginx answers).
 - Known noise: Chrome logs CSP `style-src` errors when it parses a malformed XML file (its `parsererror` element
   carries inline styles). Harmless: the page shows a plain message.
 
