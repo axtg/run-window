@@ -7,8 +7,9 @@
   const SHARE_KEY = '/shared-route';
   const MAX_FILE_BYTES = 5 * 1024 * 1024;
 
-  function redirect(location) {
-    return new Response(null, { status: 303, headers: { Location: location } });
+  // An absolute Location on the share request's own origin.
+  function redirect(request, location) {
+    return new Response(null, { status: 303, headers: { Location: new URL(location, request.url).href } });
   }
 
   // Resolves to a redirect whatever happens: a rejection inside respondWith would show the browser's error page.
@@ -17,14 +18,14 @@
       const form = await request.formData();
       const file = form.get('route');
       if (!file || typeof file === 'string' || typeof file.size !== 'number' || file.size > MAX_FILE_BYTES) {
-        return redirect('/?share=failed');
+        return redirect(request, '/?share=failed');
       }
       const cache = await caches.open(SHARE_CACHE);
       const headers = { 'X-File-Name': encodeURIComponent(String(file.name || '')) };
       await cache.put(SHARE_KEY, new Response(file, { headers }));
-      return redirect('/?share=1');
+      return redirect(request, '/?share=1');
     } catch {
-      return redirect('/?share=failed');
+      return redirect(request, '/?share=failed');
     }
   }
 

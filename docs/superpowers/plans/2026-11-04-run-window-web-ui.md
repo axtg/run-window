@@ -461,9 +461,10 @@ Web App Manifest + Service Worker, `@xmldom/xmldom` (dev only, for parsing tests
     `/?share=1`; otherwise `303` to `/?share=failed`. Never calls `fetch`.
   - Page hand-off: `caches.open('shared-route')` → `match('/shared-route')` → text and name →
     `caches.delete('shared-route')` → `openRouteText`.
-  - nginx: `location ~* ^/share-target/?$ { return 303 /?share=failed; }` (answers itself, no `proxy_pass`, so a body
-    never reaches Node). Design deviation, recorded here: no `client_max_body_size` in that location, because nginx
-    checks it before `return` and would answer 413 instead of the redirect.
+  - nginx: `location ~* ^/share-target/?$ { client_max_body_size 0; return 303 /?share=failed; }` (answers itself,
+    no `proxy_pass`, so a body never reaches Node). Design deviation, recorded here: the location sets
+    `client_max_body_size 0;`, because nginx checks the size (default 1 MB) before `return` and would answer 413
+    instead of the redirect; 0 turns the check off, so the body is discarded.
 
 - [ ] **Step 1: Write the failing tests:**
   - `tests/web/sw.test.js` (Node 22's `Request`, `Response`, `FormData`, `File`; a fake `caches` with `open/put`;

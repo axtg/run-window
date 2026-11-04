@@ -57,9 +57,13 @@ describe('nginx config', () => {
   test('a shared file that reaches nginx never reaches Node: it answers /share-target itself', () => {
     expect(shareTarget).toBeDefined();
     expect(shareTarget.head).toMatch(/^location ~\* /);
-    expect(shareTarget.body.trim()).toBe('return 303 /?share=failed;');
-    // nginx checks client_max_body_size before return and would answer 413 instead of the redirect
-    expect(shareTarget.body).not.toMatch(/proxy_pass|client_max_body_size/);
+    // Size 0 turns the check off, so nginx discards a body of any size and redirects instead of answering 413
+    const directives = shareTarget.body
+      .split(';')
+      .map(directive => directive.trim().replace(/\s+/g, ' '))
+      .filter(Boolean);
+    expect(directives.sort()).toEqual(['client_max_body_size 0', 'return 303 /?share=failed']);
+    expect(shareTarget.body).not.toMatch(/proxy_pass/);
     const regex = new RegExp(shareTarget.head.match(/~\*\s+(\S+)/)[1], 'i');
     ['/share-target', '/SHARE-TARGET', '/share-target/'].forEach(url => expect(url).toMatch(regex));
     ['/share-targetx', '/x/share-target', '/share-target/x'].forEach(url => expect(url).not.toMatch(regex));

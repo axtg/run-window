@@ -209,8 +209,9 @@ The page is installable (a web app manifest plus a service worker) and lists its
   - If a POST reaches the server anyway (worker not installed yet, or evicted): nginx answers that path itself with a
     redirect to `/` and does not proxy it, so the body never reaches Node; Express has no body parser and must not
     get one. nginx's access log uses the fixed path map, so the path appears as itself and no body is ever logged.
-    No `client_max_body_size` in that location: nginx checks it before `return` and would answer 413 instead of the
-    redirect (changed while planning, 2026-11-04). The page then says
+    The location sets `client_max_body_size 0;`: nginx checks the size before `return` (default 1 MB) and would answer
+    413 instead of the redirect, and 0 turns that check off, so the body is discarded (changed while building,
+    2026-11-04). The page then says
     "Open the route again" because the share didn't arrive.
   - A test proves the worker answers the share POST without calling `fetch` to the network.
 - Share target only works when the page is installed (Android Chrome). Everywhere else, the file picker is the way in.

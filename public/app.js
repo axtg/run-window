@@ -296,22 +296,31 @@
     return { text, fileName };
   }
 
+  async function deleteSharedRoute() {
+    try {
+      if ('caches' in window) await caches.delete(SHARE_CACHE);
+    } catch {
+      // no Cache API here: nothing was stored either
+    }
+  }
+
+  // Every load clears the hand-off once read, or unread (a share whose redirected page never loaded), so a shared
+  // route never lingers on the device.
   async function receiveShare() {
     const share = new URLSearchParams(location.search).get('share');
-    if (share === null) return undefined;
-    history.replaceState(null, '', '/'); // first, so a reload never replays the share
+    if (share !== '1') {
+      await deleteSharedRoute();
+      if (share === null) return undefined;
+    }
+    history.replaceState(null, '', '/'); // before reading, so a reload never replays the share
     let shared = null;
     if (share === '1') {
       try {
-        shared = await readSharedRoute();
+        shared = 'caches' in window ? await readSharedRoute() : null;
       } catch {
         shared = null;
       }
-    }
-    try {
-      await caches.delete(SHARE_CACHE); // read once, gone
-    } catch {
-      // no Cache API here: nothing was stored either
+      await deleteSharedRoute(); // read once, gone
     }
     if (!shared) return setStatus(MESSAGES.shareFailed);
     return openRouteText(shared.text, shared.fileName);

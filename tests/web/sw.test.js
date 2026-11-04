@@ -21,6 +21,13 @@ function fakeCaches() {
   };
 }
 
+// The redirect is an absolute URL on the share request's own origin; this returns its path and query.
+const target = response => {
+  const url = new URL(response.headers.get('Location'));
+  expect(url.origin).toBe(ORIGIN);
+  return url.pathname + url.search;
+};
+
 function sharePost(file) {
   const form = new FormData();
   if (file) form.append('route', file);
@@ -49,7 +56,7 @@ describe('service worker share hand-off', () => {
     const response = await handleShare(sharePost(new File([GPX], 'Morning loop.gpx')), caches);
 
     expect(response.status).toBe(303);
-    expect(response.headers.get('Location')).toBe('/?share=1');
+    expect(target(response)).toBe('/?share=1');
     expect(caches.open).toHaveBeenCalledWith(SHARE_CACHE);
     const stored = caches.stores.get(SHARE_CACHE).get(SHARE_KEY);
     expect(await stored.text()).toBe(GPX);
@@ -65,7 +72,7 @@ describe('service worker share hand-off', () => {
     const response = await handleShare(sharePost(file), caches);
 
     expect(response.status).toBe(303);
-    expect(response.headers.get('Location')).toBe('/?share=failed');
+    expect(target(response)).toBe('/?share=failed');
     expect(caches.stores.size).toBe(0);
     expect(global.fetch).not.toHaveBeenCalled();
   });
@@ -76,7 +83,7 @@ describe('service worker share hand-off', () => {
     const caches = fakeCaches();
     const response = await handleShare(new Request(`${ORIGIN}${SHARE_PATH}`, { method: 'POST', body: form }), caches);
 
-    expect(response.headers.get('Location')).toBe('/?share=failed');
+    expect(target(response)).toBe('/?share=failed');
     expect(caches.stores.size).toBe(0);
   });
 
@@ -85,7 +92,7 @@ describe('service worker share hand-off', () => {
     const request = new Request(`${ORIGIN}${SHARE_PATH}`, { method: 'POST', body: 'plain text' });
     const response = await handleShare(request, caches);
 
-    expect(response.headers.get('Location')).toBe('/?share=failed');
+    expect(target(response)).toBe('/?share=failed');
     expect(caches.stores.size).toBe(0);
   });
 
@@ -93,7 +100,7 @@ describe('service worker share hand-off', () => {
     const caches = { open: jest.fn().mockRejectedValue(new Error('quota')) };
     const response = await handleShare(sharePost(new File([GPX], 'loop.gpx')), caches);
 
-    expect(response.headers.get('Location')).toBe('/?share=failed');
+    expect(target(response)).toBe('/?share=failed');
   });
 });
 
@@ -154,7 +161,7 @@ describe('service worker in a worker scope', () => {
     expect(event.respondWith).toHaveBeenCalledTimes(1);
     const response = await event.respondWith.mock.calls[0][0];
     expect(response.status).toBe(303);
-    expect(response.headers.get('Location')).toBe('/?share=1');
+    expect(target(response)).toBe('/?share=1');
     expect(await caches.stores.get(SHARE_CACHE).get(SHARE_KEY).text()).toBe(GPX);
     expect(fetch).not.toHaveBeenCalled();
   });
