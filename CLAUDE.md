@@ -77,6 +77,7 @@ test approach. Read its `CLAUDE.md` first. Reuse rather than reinvent:
   the input holds the token.
 - `Intl` has English locale data only: format with `en-US` and take day names and decimals from the plugin's own
   tables.
-- Output never holds a raw Tredict response, a token or an activity `summary` (it holds start coordinates). The one
-  thing carried between runs is `intensityCache`: activity ids plus three second totals (per heart-rate zone group).
+- Output never holds a raw Tredict response, a token or an activity `summary` (it holds start coordinates). Between
+  runs it carries only screen-ready fields plus `intensityCache` (activity ids with their low, moderate and high
+  heart-rate seconds) and the two retry times.
   Real Tredict responses go only in the gitignored `tests/fixtures/private/`.

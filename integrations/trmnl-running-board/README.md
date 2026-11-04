@@ -2,8 +2,7 @@
 
 One full screen (800x480) with this week's training from [Tredict](https://www.tredict.com), a form graph
 (Tredict's performance, computed from Tredict efforts), this week's heart-rate intensity as a bar under the graph and
-the best run window today from the
-[run-window API](https://run.xadi.eu). English and Dutch.
+the best run window today from the [run-window API](https://run.xadi.eu). English and Dutch.
 
 ## Install as a private plugin
 
@@ -39,8 +38,9 @@ and the token works again. An invalid token (HTTP 403) gets its own message.
 ## Tredict calls
 
 As Tredict asks, the script calls Tredict one request at a time, within 4 seconds in total. The intensity bar costs one
-extra call per new run of the week, made once and cached in the plugin's own data. After an HTTP 429 the script makes
-no Tredict calls until the `Retry-After` time has passed (at least 30 minutes, at most 6 hours) and shows what it has.
+extra call per new run of the week, made once and cached in the plugin's own data. As Tredict asks, it respects an HTTP
+429: it makes no Tredict calls for the `Retry-After` time clamped to 30 minutes .. 6 hours, or 30 minutes when there is
+none, and shows what it has.
 
 ## Privacy
 
