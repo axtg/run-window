@@ -10,30 +10,54 @@ const NOW = Date.parse('2026-11-04T11:00:00Z');
 const TOKEN = 'synthetic-token-value-123';
 const MINUTE = 60000;
 
-// Routes by URL to fixtures; `overrides` maps a route name to a status, a body, or a function returning a response
+// A synthetic activity detail; Task 5 adds real-shaped fixtures
+const DETAIL_BODY = { id: 'synthetic-detail', heartrate: null };
+
+// Response headers, looked up case-insensitively like fetch's Headers
+const headersOf = (values = {}) => {
+  const lower = Object.fromEntries(Object.entries(values).map(([key, value]) => [key.toLowerCase(), value]));
+  return { get: name => (Object.hasOwn(lower, name.toLowerCase()) ? lower[name.toLowerCase()] : null) };
+};
+
+// Routes by URL to fixtures; `overrides` maps a route name to a status, a body, or a function returning a response.
+// Each call record gets `start` and `end` from one shared counter, with a yield in between, so overlap shows.
 function fakeFetch(overrides = {}) {
   const calls = [];
+  let counter = 0;
   const bodies = {
     plan: plannedWeek,
     activities: activitiesWeek,
     efforts: effortsWeek,
+    detail: DETAIL_BODY,
     window: windowOk
   };
   const route = url => {
     if (url.includes('plannedTrainingList')) return 'plan';
     if (url.includes('activityList')) return 'activities';
+    if (url.includes('/api/oauth/v2/activity/')) return 'detail';
     if (url.includes('/efforts')) return 'efforts';
     if (url.startsWith('https://run.xadi.eu/api/window')) return 'window';
     return 'unknown';
   };
-  const fetch = async (url, options = {}) => {
-    const name = route(url);
-    calls.push({ name, url, options });
+  const respond = (name, url, options) => {
     const override = overrides[name];
     if (typeof override === 'function') return override(url, options);
-    if (typeof override === 'number') return { status: override, text: async () => '{"error":"x"}' };
+    if (typeof override === 'number') {
+      return { status: override, headers: headersOf(), text: async () => '{"error":"x"}' };
+    }
     const body = override !== undefined ? override : bodies[name];
-    return { status: 200, text: async () => JSON.stringify(body) };
+    return { status: 200, headers: headersOf(), text: async () => JSON.stringify(body) };
+  };
+  const fetch = async (url, options = {}) => {
+    const name = route(url);
+    const call = { name, url, options, start: counter++, end: null };
+    calls.push(call);
+    try {
+      await null;
+      return await respond(name, url, options);
+    } finally {
+      call.end = counter++;
+    }
   };
   return { fetch, calls };
 }
@@ -53,10 +77,11 @@ function makeInput({ body = windowOk, fields = {}, previous, user } = {}) {
 
 const roundTrip = value => JSON.parse(JSON.stringify(value));
 
-async function board(options = {}, fetchOverrides = {}, now = NOW) {
+// `clock` (not part of the input) feeds the Tredict sequence's deadline
+async function board({ clock, ...options } = {}, fetchOverrides = {}, now = NOW) {
   const fake = fakeFetch(fetchOverrides);
-  const output = await buildBoard(makeInput(options), { fetch: fake.fetch, now });
+  const output = await buildBoard(makeInput(options), { fetch: fake.fetch, now, clock });
   return { output: roundTrip(output), calls: fake.calls };
 }
 
-module.exports = { windowOk, NOW, TOKEN, MINUTE, fakeFetch, makeInput, roundTrip, board };
+module.exports = { windowOk, NOW, TOKEN, MINUTE, headersOf, fakeFetch, makeInput, roundTrip, board };

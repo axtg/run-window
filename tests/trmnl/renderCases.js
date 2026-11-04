@@ -7,7 +7,8 @@ const GARMIN_NOTICE =
 
 // Overrides and options for the Tredict failure states
 const STATE_CASES = {
-  auth: { plan: 401 },
+  paused: { plan: 401 },
+  auth: { plan: 403 },
   payment: { efforts: 402 },
   unavailable: { efforts: 503 }
 };
@@ -29,6 +30,7 @@ const ERROR_OUTPUT = {
   form: null,
   run: { kind: 'error', heading: 'Weather unavailable', lines: [] },
   weatherRetryAt: null,
+  tredictRetryAt: null,
   attribution: ''
 };
 

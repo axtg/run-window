@@ -150,7 +150,8 @@ describe('full.liquid: template rules', () => {
 
 describe('full.liquid: Tredict states', () => {
   it.each([
-    ['auth', /Tredict token invalid/],
+    ['paused', /Tredict token paused\. Open the Tredict web app to reactivate it\./],
+    ['auth', /Tredict token invalid\. Check it has the activityRead scope\./],
     ['payment', /Tredict says this account can(?:'|&#39;|&#x27;|&apos;)t use the API\./],
     ['unavailable', /Tredict unavailable/]
   ])('%s: shows the message once instead of the week and graph, keeps the run window', async (state, message) => {

@@ -1,6 +1,8 @@
 const { buildBoard } = require('../../integrations/trmnl-running-board/src/board');
 const { loadTransform } = require('./harness');
-const { windowOk, NOW, TOKEN, MINUTE, fakeFetch, makeInput, roundTrip, board } = require('./boardCases');
+const { windowOk, NOW, TOKEN, MINUTE, headersOf, fakeFetch, makeInput, roundTrip, board } = require('./boardCases');
+
+const SECOND = 1000;
 
 describe('buildBoard: normal case', () => {
   let output;
@@ -69,16 +71,42 @@ describe('buildBoard: normal case', () => {
 });
 
 describe('buildBoard: Tredict states', () => {
-  it.each(['plan', 'activities', 'efforts'])('turns a 401 on %s into auth', async name => {
+  it.each(['plan', 'activities', 'efforts'])('401 shows the paused text (on %s)', async name => {
     const { output } = await board({}, { [name]: 401 });
-    expect(output.tredict.state).toBe('auth');
-    expect(output.tredict.message).toContain('Tredict token invalid');
+    expect(output.tredict).toEqual({
+      state: 'paused',
+      message: 'Tredict token paused. Open the Tredict web app to reactivate it.'
+    });
     expect(output.week).toBeNull();
     expect(output.form).toBeNull();
     expect(output.tredictAt).toBeNull();
     expect(output.tredictAtText).toBe('');
+    expect(output.tredictRetryAt).toBeNull();
     expect(output.run.kind).toBe('window');
     if (name === 'plan') expect(output.run.heading).toBe('BEST TIME TODAY · 60 min');
+  });
+
+  it.each(['plan', 'activities', 'efforts'])('403 shows the invalid text (on %s)', async name => {
+    const { output } = await board({}, { [name]: 403 });
+    expect(output.tredict).toEqual({
+      state: 'auth',
+      message: 'Tredict token invalid. Check it has the activityRead scope.'
+    });
+    expect(output.week).toBeNull();
+    expect(output.form).toBeNull();
+    expect(output.tredictAt).toBeNull();
+  });
+
+  it('shows the Dutch paused and invalid texts', async () => {
+    const user = { time_zone_iana: 'Europe/Amsterdam', locale: 'nl-NL' };
+    expect((await board({ user }, { plan: 401 })).output.tredict).toEqual({
+      state: 'paused',
+      message: 'Tredict-token gepauzeerd. Open de Tredict-webapp om het weer te activeren.'
+    });
+    expect((await board({ user }, { plan: 403 })).output.tredict).toEqual({
+      state: 'auth',
+      message: 'Tredict-token ongeldig. Controleer of het de scope activityRead heeft.'
+    });
   });
 
   it('treats a missing token as auth without calling Tredict', async () => {
@@ -95,9 +123,16 @@ describe('buildBoard: Tredict states', () => {
     expect(output.form).toBeNull();
   });
 
-  it('prefers auth over payment over unavailable', async () => {
-    expect((await board({}, { plan: 503, activities: 402, efforts: 401 })).output.tredict.state).toBe('auth');
-    expect((await board({}, { plan: 503, activities: 402 })).output.tredict.state).toBe('payment');
+  it('lets the first failing call decide, without issuing the rest', async () => {
+    const unavailable = await board({ previous: null }, { plan: 503, activities: 402, efforts: 401 });
+    expect(unavailable.output.tredict.state).toBe('unavailable');
+    expect(unavailable.calls.map(call => call.name)).toEqual(['plan']);
+    const paused = await board({}, { plan: 401, activities: 403 });
+    expect(paused.output.tredict.state).toBe('paused');
+    expect(paused.calls.map(call => call.name)).toEqual(['plan']);
+    const payment = await board({}, { activities: 402, efforts: 401 });
+    expect(payment.output.tredict.state).toBe('payment');
+    expect(payment.calls.map(call => call.name)).toEqual(['plan', 'activities']);
   });
 
   describe('stale data', () => {
@@ -211,6 +246,156 @@ describe('buildBoard: Tredict states', () => {
       expect(json).not.toContain('Bearer');
       expect(json).not.toContain(TOKEN);
     });
+  });
+});
+
+describe('buildBoard: Tredict sequence', () => {
+  const tredictNames = calls => calls.filter(call => call.name !== 'window').map(call => call.name);
+  const rateLimited = retryAfter => () => ({
+    status: 429,
+    headers: headersOf(retryAfter === undefined ? {} : { 'Retry-After': retryAfter }),
+    text: async () => '{"error":"x"}'
+  });
+  const at = ms => new Date(ms).toISOString();
+
+  it('calls Tredict one at a time in plan, activities, efforts order', async () => {
+    const { calls, output } = await board();
+    expect(output.tredict.state).toBe('ok');
+    const tredict = calls.filter(call => call.name !== 'window');
+    expect(tredict.map(call => call.name)).toEqual(['plan', 'activities', 'efforts']);
+    for (let i = 1; i < tredict.length; i += 1) expect(tredict[i].start).toBeGreaterThan(tredict[i - 1].end);
+  });
+
+  it('the weather retry runs alongside', async () => {
+    const { calls, output } = await board({ body: {} });
+    expect(output.run.kind).toBe('window');
+    const window = calls.find(call => call.name === 'window');
+    const efforts = calls.find(call => call.name === 'efforts');
+    expect(window.start).toBeLessThan(efforts.end);
+  });
+
+  it('a 429 stops the sequence and pauses', async () => {
+    const { output, calls } = await board({ previous: null }, { activities: rateLimited('3600') });
+    expect(tredictNames(calls)).toEqual(['plan', 'activities']);
+    expect(output.tredictRetryAt).toBe(at(NOW + 3600 * SECOND));
+    expect(output.tredict).toEqual({ state: 'unavailable', message: 'Tredict unavailable' });
+  });
+
+  it.each([
+    ['60', 1800],
+    ['99999', 21600],
+    [undefined, 1800],
+    ['Wed, 04 Nov 2026 12:00:00 GMT', 1800]
+  ])('clamps Retry-After %s to %i s', async (retryAfter, seconds) => {
+    const { output } = await board({}, { activities: rateLimited(retryAfter) });
+    expect(output.tredictRetryAt).toBe(at(NOW + seconds * SECOND));
+  });
+
+  it('shows stale panels from today on a 429', async () => {
+    const first = (await board({}, {}, NOW - 2 * 60 * MINUTE)).output;
+    const { output } = await board({ previous: first }, { plan: rateLimited('3600') });
+    expect(output.tredict).toEqual({ state: 'stale', message: 'Tredict data from We 10:00' });
+    expect(output.week).toEqual(first.week);
+    expect(output.tredictRetryAt).toBe(at(NOW + 3600 * SECOND));
+  });
+
+  describe('a pause in force', () => {
+    let first;
+
+    beforeAll(async () => {
+      first = (await board({}, {}, NOW - 2 * 60 * MINUTE)).output;
+    });
+
+    it('a run inside the pause calls no Tredict', async () => {
+      const tredictRetryAt = at(NOW + 10 * MINUTE);
+      const { output, calls } = await board({ previous: { ...first, tredictRetryAt } });
+      expect(tredictNames(calls)).toEqual([]);
+      expect(output.tredict).toEqual({ state: 'stale', message: 'Tredict data from We 10:00' });
+      expect(output.week).toEqual(first.week);
+      expect(output.form).toEqual(first.form);
+      expect(output.tredictAt).toBe(first.tredictAt);
+      expect(output.tredictRetryAt).toBe(tredictRetryAt);
+      expect(output.run.kind).toBe('window');
+    });
+
+    it('keeps the weather retry while paused', async () => {
+      const tredictRetryAt = at(NOW + 10 * MINUTE);
+      const { output, calls } = await board({ body: {}, previous: { ...first, tredictRetryAt } });
+      expect(calls.map(call => call.name)).toEqual(['window']);
+      expect(output.run.kind).toBe('window');
+    });
+
+    it('is unavailable inside the pause without data from today', async () => {
+      const tredictRetryAt = at(NOW + 10 * MINUTE);
+      const previous = { ...first, tredictAt: '2026-11-03T20:00:00.000Z', tredictRetryAt };
+      const { output, calls } = await board({ previous });
+      expect(tredictNames(calls)).toEqual([]);
+      expect(output.tredict).toEqual({ state: 'unavailable', message: 'Tredict unavailable' });
+      expect(output.tredictRetryAt).toBe(tredictRetryAt);
+    });
+
+    it('a run after the pause calls again', async () => {
+      const { output, calls } = await board({ previous: { ...first, tredictRetryAt: at(NOW - MINUTE) } });
+      expect(tredictNames(calls)).toEqual(['plan', 'activities', 'efforts']);
+      expect(output.tredict.state).toBe('ok');
+      expect(output.tredictRetryAt).toBeNull();
+    });
+
+    it('restarts the pause from now on a 429 after the last one passed', async () => {
+      const previous = { ...first, tredictRetryAt: at(NOW - MINUTE) };
+      const { output } = await board({ previous }, { efforts: rateLimited('3600') });
+      expect(output.tredictRetryAt).toBe(at(NOW + 3600 * SECOND));
+      expect(output.tredict.state).toBe('stale');
+    });
+
+    it('ignores a pause too far ahead (Review Focus 2)', async () => {
+      const { output, calls } = await board({ previous: { ...first, tredictRetryAt: '3000-01-01T00:00:00.000Z' } });
+      expect(tredictNames(calls)).toEqual(['plan', 'activities', 'efforts']);
+      expect(output.tredictRetryAt).toBeNull();
+      const edge = await board({ previous: { ...first, tredictRetryAt: at(NOW + 21600 * SECOND + 1) } });
+      expect(tredictNames(edge.calls)).toHaveLength(3);
+    });
+
+    it('ignores an unreadable pause', async () => {
+      for (const tredictRetryAt of ['soon', 12345, null]) {
+        const { calls, output } = await board({ previous: { ...first, tredictRetryAt } });
+        expect(tredictNames(calls)).toHaveLength(3);
+        expect(output.tredictRetryAt).toBeNull();
+      }
+    });
+
+    it('the error output keeps the pause', async () => {
+      const tredictRetryAt = at(NOW + 10 * MINUTE);
+      const input = makeInput({ previous: { ...first, tredictRetryAt } });
+      Object.defineProperty(input, 'days', {
+        get() {
+          throw new Error('boom');
+        }
+      });
+      const output = roundTrip(await buildBoard(input, { fetch: fakeFetch().fetch, now: NOW }));
+      expect(output.run.kind).toBe('error');
+      expect(output.tredict.state).toBe('unavailable');
+      expect(output.tredictRetryAt).toBe(tredictRetryAt);
+      expect(JSON.stringify(output)).not.toContain('boom');
+    });
+  });
+
+  it('leaves tredictRetryAt null without a pause or a 429', async () => {
+    expect((await board()).output.tredictRetryAt).toBeNull();
+    expect((await board({}, { efforts: 503 })).output.tredictRetryAt).toBeNull();
+  });
+
+  it('a slow plan call leaves less time', async () => {
+    let time = NOW;
+    const clock = () => time;
+    const slowPlan = () => {
+      time += 3600;
+      return { status: 200, headers: headersOf(), text: async () => JSON.stringify({ _embedded: {} }) };
+    };
+    const { output, calls } = await board({ previous: null, clock }, { plan: slowPlan });
+    expect(tredictNames(calls)).toEqual(['plan']);
+    expect(['stale', 'unavailable']).toContain(output.tredict.state);
+    expect(output.tredictRetryAt).toBeNull();
   });
 });
 
@@ -379,14 +564,32 @@ describe('buildBoard: garbage input (Review Focus 5)', () => {
     expect(output.run.kind).toBe('error');
   });
 
-  it('handles a fetch that never resolves within the timeout', async () => {
-    const fetch = () => new Promise(() => {});
-    const started = Date.now();
-    const output = roundTrip(await buildBoard(makeInput({ body: {} }), { fetch, now: NOW, timeoutMs: 50 }));
-    expect(Date.now() - started).toBeLessThan(1000);
-    expectBasic(output);
-    expect(output.tredict.state).toBe('unavailable');
-    expect(output.run.kind).toBe('error');
+  it('handles a fetch that never resolves within the timeouts', async () => {
+    jest.useFakeTimers();
+    try {
+      const calls = [];
+      const fetch = url => {
+        calls.push(url);
+        return new Promise(() => {});
+      };
+      const pending = buildBoard(makeInput({ body: {} }), { fetch, now: NOW, timeoutMs: 50 });
+      let settled = false;
+      pending.then(() => {
+        settled = true;
+      });
+      // The weather retry gives up at 50 ms; the plan call at 3000 ms ends the Tredict sequence
+      await jest.advanceTimersByTimeAsync(2999);
+      expect(settled).toBe(false);
+      await jest.advanceTimersByTimeAsync(1);
+      expect(settled).toBe(true);
+      const output = roundTrip(await pending);
+      expect(calls.filter(url => url.includes('tredict.com'))).toHaveLength(1);
+      expectBasic(output);
+      expect(output.tredict.state).toBe('unavailable');
+      expect(output.run.kind).toBe('error');
+    } finally {
+      jest.useRealTimers();
+    }
   });
 
   it('returns the fixed error output when something unexpected throws', async () => {
@@ -409,6 +612,7 @@ describe('buildBoard: garbage input (Review Focus 5)', () => {
       form: null,
       run: { kind: 'error', heading: 'Weather unavailable', lines: [] },
       weatherRetryAt: null,
+      tredictRetryAt: null,
       attribution: ''
     });
     expect(JSON.stringify(output)).not.toContain('boom');

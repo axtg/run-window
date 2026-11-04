@@ -1,7 +1,7 @@
 const { STRINGS, resolveLanguage, fill } = require('./strings');
 const { localDate, localTime, dayOfWeek } = require('./time');
 const { readSettings, windowUrl } = require('./settings');
-const { tredictRange, tredictUrls, fetchJson } = require('./tredict');
+const { tredictRange, tredictUrls, tredictSequence } = require('./tredict');
 const { isZone, buildWeek, weekView } = require('./week');
 const { formSeries, formChart } = require('./form');
 const { pickSession, windowPanel } = require('./runWindow');
@@ -9,6 +9,10 @@ const { pickSession, windowPanel } = require('./runWindow');
 const BOARD_VERSION = 1;
 const REQUEST_TIMEOUT_MS = 3000;
 const RETRY_PAUSE_MS = 30 * 60000;
+// A Tredict 429 pauses calls for Retry-After seconds, clamped to this range
+const TREDICT_PAUSE_MIN_S = 1800;
+const TREDICT_PAUSE_MAX_S = 21600;
+const SKIPPED = { ok: false, kind: 'skipped' };
 const ATTRIBUTION_SEPARATOR = ' · ';
 // Run panel kinds that used weather data, so they carry its attribution
 const WEATHER_KINDS = ['window', 'shorter', 'fallback', 'none'];
@@ -19,14 +23,21 @@ const isObject = value => Boolean(value) && typeof value === 'object' && !Array.
 const textOf = value => (typeof value === 'string' ? value : '');
 const finiteOf = value => (typeof value === 'number' && Number.isFinite(value) ? value : 0);
 
-// The fixed output for anything unexpected: no input-derived text, never an error's text
-function errorBoard(now) {
+// The fixed output for anything unexpected: no input-derived text, never an error's text. Only a valid Tredict pause
+// carries over from the previous output, so a throw can't drop it.
+function errorBoard(now, previous) {
   const at = Number.isFinite(now) ? now : Date.now();
   let fetchedAtText;
   try {
     fetchedAtText = dayAndTime(at, 'UTC', STRINGS.en);
   } catch {
     fetchedAtText = '';
+  }
+  let tredictRetryAt;
+  try {
+    tredictRetryAt = recentTredictPause(previous, at);
+  } catch {
+    tredictRetryAt = null;
   }
   return {
     v: BOARD_VERSION,
@@ -40,6 +51,7 @@ function errorBoard(now) {
     form: null,
     run: { kind: 'error', heading: STRINGS.en.weatherUnavailable, lines: [] },
     weatherRetryAt: null,
+    tredictRetryAt,
     attribution: ''
   };
 }
@@ -84,6 +96,29 @@ function recentWeatherRetry(previous, now) {
   return age >= 0 && age < RETRY_PAUSE_MS ? new Date(at).toISOString() : null;
 }
 
+// The previous Tredict pause while it is in force: anchored to the 429, so skipping doesn't renew it. A pause more
+// than the longest clamp ahead (hand-edited, clock skew) is ignored rather than pausing the board for good.
+function recentTredictPause(previous, now) {
+  if (!isObject(previous) || typeof previous.tredictRetryAt !== 'string') return null;
+  const at = Date.parse(previous.tredictRetryAt);
+  const ahead = at - now;
+  return ahead > 0 && ahead <= TREDICT_PAUSE_MAX_S * 1000 ? new Date(at).toISOString() : null;
+}
+
+function tredictPauseUntil(now, retryAfterS) {
+  const seconds = Number.isFinite(retryAfterS) ? retryAfterS : TREDICT_PAUSE_MIN_S;
+  return new Date(now + Math.min(Math.max(seconds, TREDICT_PAUSE_MIN_S), TREDICT_PAUSE_MAX_S) * 1000).toISOString();
+}
+
+// Plan, activities, efforts one at a time; the first failure ends the sequence, since the panels fall back as a whole
+async function fetchTredict(sequence, urls) {
+  const plan = embeddedList(await sequence.call(urls.plan), 'plannedWorkoutList');
+  if (!plan.ok) return { plan, activities: SKIPPED, efforts: SKIPPED };
+  const activities = embeddedList(await sequence.call(urls.activities), 'activityList');
+  if (!activities.ok) return { plan, activities, efforts: SKIPPED };
+  return { plan, activities, efforts: effortsOf(await sequence.call(urls.efforts)) };
+}
+
 const zoneOf = value =>
   isObject(value) && isObject(value.location) && isZone(value.location.timezone) ? value.location.timezone : null;
 
@@ -96,7 +131,7 @@ function embeddedList(result, key) {
 }
 
 // No keys is an empty account. It only gives the empty form when the plan and activity calls also succeeded: any
-// other failure already makes the Tredict state unavailable, stale, auth or payment.
+// other failure already makes the Tredict state unavailable, stale, paused, auth or payment.
 function effortsOf(result) {
   if (!result.ok) return { ok: false, kind: result.kind };
   const efforts = isObject(result.data) ? result.data.trainingEfforts : null;
@@ -156,7 +191,8 @@ function tredictPanels({ plan, activities, efforts, previous, now, tz, settings,
   const failed = kind => parts.some(part => !part.ok && part.kind === kind);
   const empty = { week: null, form: null, tredictAt: null, tredictAtText: '' };
 
-  if (failed('auth') || failed('paused')) return { state: 'auth', message: text.tokenInvalid, ...empty };
+  if (failed('paused')) return { state: 'paused', message: text.tokenPaused, ...empty };
+  if (failed('auth')) return { state: 'auth', message: text.tokenInvalid, ...empty };
   if (failed('payment')) return { state: 'payment', message: text.tredictPayment, ...empty };
   if (parts.some(part => !part.ok)) {
     const stale = staleTredict(previous, now, tz);
@@ -176,11 +212,20 @@ function tredictPanels({ plan, activities, efforts, previous, now, tz, settings,
   };
 }
 
-async function assembleBoard(input, { fetch: fetchFn, now, timeoutMs }) {
+// Read before assembly, so the fixed error output can still carry the previous pause
+function previousOf(input) {
+  try {
+    const trmnl = isObject(input) && isObject(input.trmnl) ? input.trmnl : {};
+    return isObject(trmnl.previous_merge_variables) ? trmnl.previous_merge_variables : null;
+  } catch {
+    return null;
+  }
+}
+
+async function assembleBoard(input, { fetch: fetchFn, now, timeoutMs, clock, previous }) {
   const body = isObject(input) ? input : {};
   const trmnl = isObject(body.trmnl) ? body.trmnl : {};
   const user = isObject(trmnl.user) ? trmnl.user : {};
-  const previous = isObject(trmnl.previous_merge_variables) ? trmnl.previous_merge_variables : null;
   const settings = readSettings(body);
   const lang = resolveLanguage(settings.language, user.locale);
   const text = STRINGS[lang];
@@ -190,15 +235,17 @@ async function assembleBoard(input, { fetch: fetchFn, now, timeoutMs }) {
   const rangeZone = userZone || zoneOf(body) || 'UTC';
 
   const urls = tredictUrls(tredictRange(now, rangeZone));
-  const tredictCall = url => fetchJson(fetchFn, url, settings.token, timeoutMs);
+  // While a 429 pause is in force no Tredict call is made at all, and the panels take the stale path
+  const tredictPause = recentTredictPause(previous, now);
+  const sequence = tredictPause ? null : tredictSequence({ fetch: fetchFn, token: settings.token, clock });
   const pausedRetryAt = recentWeatherRetry(previous, now);
   const retry = !polled && settings.hasLocation && !pausedRetryAt;
-  const [planResult, activityResult, effortResult, weather] = await Promise.all([
-    tredictCall(urls.plan),
-    tredictCall(urls.activities),
-    tredictCall(urls.efforts),
+  const [results, weather] = await Promise.all([
+    sequence ? fetchTredict(sequence, urls) : { plan: SKIPPED, activities: SKIPPED, efforts: SKIPPED },
     retry ? fetchWindow(fetchFn, windowUrl(settings), timeoutMs) : null
   ]);
+  const rate = sequence ? sequence.rate() : null;
+  const tredictRetryAt = rate ? tredictPauseUntil(now, rate.retryAfterS) : tredictPause;
 
   const windowBody = polled ? body : weather && weather.body;
   // Calendar and form: the user's zone, else the zone of the window body used; the run window: the API's zone
@@ -210,11 +257,11 @@ async function assembleBoard(input, { fetch: fetchFn, now, timeoutMs }) {
 
   const fetchedAt = new Date(now).toISOString();
   const fetchedAtText = dayAndTime(now, tz, text);
-  const plan = embeddedList(planResult, 'plannedWorkoutList');
+  const { plan } = results;
   const tredict = tredictPanels({
     plan,
-    activities: embeddedList(activityResult, 'activityList'),
-    efforts: effortsOf(effortResult),
+    activities: results.activities,
+    efforts: results.efforts,
     previous,
     now,
     tz,
@@ -257,17 +304,20 @@ async function assembleBoard(input, { fetch: fetchFn, now, timeoutMs }) {
     form,
     run,
     weatherRetryAt,
+    tredictRetryAt,
     attribution: attribution.filter(Boolean).join(ATTRIBUTION_SEPARATOR)
   };
 }
 
-// Never rejects: anything unexpected gives the fixed error output
-async function buildBoard(input, { fetch: fetchFn, now, timeoutMs = REQUEST_TIMEOUT_MS } = {}) {
+// Never rejects: anything unexpected gives the fixed error output. `timeoutMs` is the weather retry's; Tredict calls
+// take theirs from the sequence's deadline, which `clock` drives.
+async function buildBoard(input, { fetch: fetchFn, now, timeoutMs = REQUEST_TIMEOUT_MS, clock = Date.now } = {}) {
+  const previous = previousOf(input);
   try {
-    return await assembleBoard(input, { fetch: fetchFn, now, timeoutMs });
+    return await assembleBoard(input, { fetch: fetchFn, now, timeoutMs, clock, previous });
   } catch {
-    return errorBoard(now);
+    return errorBoard(now, previous);
   }
 }
 
-module.exports = { buildBoard };
+module.exports = { buildBoard, recentTredictPause };
