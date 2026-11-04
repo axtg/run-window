@@ -454,6 +454,11 @@ describe('app.js privacy smoke test', () => {
     expect(elements.get('wind-arrow').attributes.transform).toBe('rotate(90 14 14)');
     const wind = elements.get('key-numbers').children.find(item => item.children[0].textContent === 'Wind');
     expect(wind.children[1].textContent).toBe('16 km/h E');
+    expect(wind.children[2].textContent).toBe('light'); // a small word under the value
+    const item = label => elements.get('key-numbers').children.find(node => node.children[0].textContent === label);
+    expect(item('Feels').children[2].textContent).toBe('ideal'); // 10 °C
+    expect(item('Sky').children).toHaveLength(2); // no word under Sky or Run
+    expect(item('Run').children).toHaveLength(2);
   });
 
   it('shows no compass in little wind', async () => {

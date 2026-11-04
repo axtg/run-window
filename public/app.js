@@ -561,10 +561,11 @@
 
   function renderKeyNumbers(numbers) {
     el.keyNumbers.replaceChildren();
-    numbers.forEach(({ label, value }) => {
+    numbers.forEach(({ label, value, note }) => {
       const item = html('div');
       item.appendChild(html('dt', 'text-[11px] text-secondary', label));
       item.appendChild(html('dd', 'text-base font-semibold', value));
+      if (note) item.appendChild(html('dd', 'text-[11px] text-secondary', note));
       el.keyNumbers.appendChild(item);
     });
     el.keyNumbers.hidden = numbers.length === 0;

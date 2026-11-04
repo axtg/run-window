@@ -69,6 +69,35 @@
     return dry ? 'dry' : `rain ${window.precipProbMax} %`;
   }
 
+  // A word under the Wind and Feels numbers, from the whole values they show. Each list is [upper bound, word].
+  const WIND_WORDS = [
+    [5, 'calm'],
+    [19, 'light'],
+    [28, 'moderate'],
+    [38, 'fresh'],
+    [49, 'strong']
+  ];
+  const FEELS_WORDS = [
+    [0, 'freezing'],
+    [5, 'cold'],
+    [16, 'ideal'],
+    [22, 'warm'],
+    [27, 'hot']
+  ];
+
+  function wordFor(words, value, top) {
+    const found = words.find(([max]) => value <= max);
+    return found ? found[1] : top;
+  }
+
+  function windWord(kmh) {
+    return wordFor(WIND_WORDS, Math.round(kmh), 'very strong');
+  }
+
+  function feelsWord(celsius) {
+    return wordFor(FEELS_WORDS, Math.round(celsius), 'very hot');
+  }
+
   function tempOf(window) {
     return `${Math.round(window.apparentTempAvg) || 0} °C`; // `|| 0` turns -0 into 0
   }
@@ -100,8 +129,8 @@
       : { label: 'Run', value: `${minutes} min` };
     return [
       { label: 'Sky', value: skyValue(w) },
-      { label: 'Feels', value: tempOf(w) },
-      { label: 'Wind', value: `${Math.round(w.windAvg)} km/h ${w.windFromCardinal}` },
+      { label: 'Feels', value: tempOf(w), note: feelsWord(w.apparentTempAvg) },
+      { label: 'Wind', value: `${Math.round(w.windAvg)} km/h ${w.windFromCardinal}`, note: windWord(w.windAvg) },
       last
     ];
   }
@@ -213,6 +242,8 @@
     goLine,
     windLine,
     windArrowDeg,
+    windWord,
+    feelsWord,
     keyNumbers,
     answerLabel,
     answerTime,

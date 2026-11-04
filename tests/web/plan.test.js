@@ -21,7 +21,9 @@ const {
   noWindowText,
   distanceEstimate,
   windArrowDeg,
-  tomorrowHint
+  tomorrowHint,
+  windWord,
+  feelsWord
 } = RunPlan;
 
 function win(overrides = {}) {
@@ -389,8 +391,8 @@ describe('answer helpers', () => {
   test('keyNumbers with a route', () => {
     expect(keyNumbers(windowResult, route, 65)).toEqual([
       { label: 'Sky', value: 'Dry' },
-      { label: 'Feels', value: '7 °C' },
-      { label: 'Wind', value: '14 km/h E' },
+      { label: 'Feels', value: '7 °C', note: 'ideal' },
+      { label: 'Wind', value: '14 km/h E', note: 'light' },
       { label: 'Climb', value: '+45 m' }
     ]);
   });
@@ -408,7 +410,7 @@ describe('answer helpers', () => {
     const wet = { kind: 'window', window: win({ qualifies: false, precipProbMax: 10 }), key: '60', fits: true };
     expect(keyNumbers(wet, route, 60)[0].value).toBe('Rain 10 %');
     const cold = { ...windowResult, window: win({ apparentTempAvg: -0.4 }) };
-    expect(keyNumbers(cold, route, 60)[1].value).toBe('0 °C');
+    expect(keyNumbers(cold, route, 60)[1]).toEqual({ label: 'Feels', value: '0 °C', note: 'freezing' });
   });
 
   test('keyNumbers is empty for none', () => {
@@ -466,5 +468,49 @@ describe('tomorrowHint', () => {
 
   test('is null when tomorrow has no window either', () => {
     expect(tomorrowHint({ kind: 'none', window: null, key: '60', fits: true }, { minutes: 60, timeZone })).toBeNull();
+  });
+});
+
+describe('windWord and feelsWord', () => {
+  test.each([
+    [0, 'calm'],
+    [5, 'calm'],
+    [5.4, 'calm'],
+    [5.6, 'light'],
+    [6, 'light'],
+    [19, 'light'],
+    [20, 'moderate'],
+    [28, 'moderate'],
+    [29, 'fresh'],
+    [38, 'fresh'],
+    [39, 'strong'],
+    [49, 'strong'],
+    [50, 'very strong'],
+    [80, 'very strong']
+  ])('wind %p km/h is %p', (kmh, word) => expect(windWord(kmh)).toBe(word));
+
+  test.each([
+    [-12, 'freezing'],
+    [-0, 'freezing'],
+    [0, 'freezing'],
+    [0.4, 'freezing'],
+    [0.6, 'cold'],
+    [1, 'cold'],
+    [5, 'cold'],
+    [6, 'ideal'],
+    [16, 'ideal'],
+    [17, 'warm'],
+    [22, 'warm'],
+    [23, 'hot'],
+    [27, 'hot'],
+    [28, 'very hot'],
+    [35, 'very hot']
+  ])('feels %p °C is %p', (celsius, word) => expect(feelsWord(celsius)).toBe(word));
+
+  test('the key numbers use the rounded values they show', () => {
+    const result = { kind: 'window', window: win({ windAvg: 19.6, apparentTempAvg: 16.5 }), key: '60', fits: true };
+    const [, feels, wind] = keyNumbers(result, null, 60);
+    expect(feels).toEqual({ label: 'Feels', value: '17 °C', note: 'warm' });
+    expect(wind).toEqual({ label: 'Wind', value: '20 km/h E', note: 'moderate' });
   });
 });
