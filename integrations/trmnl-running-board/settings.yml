@@ -1,6 +1,6 @@
 ---
 name: Running Board
-description: This week's training and form from Tredict, and today's best time to run.
+description: Training, form and best time to run
 strategy: polling
 polling_verb: get
 framework_version: 3.4.0
