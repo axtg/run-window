@@ -56,3 +56,11 @@ custom_fields:
       - Nederlands: 'nl'
     description: Device language falls back to English when it is not supported.
     default: 'device'
+  - keyname: theme
+    name: Theme
+    field_type: select
+    options:
+      - Light: 'light'
+      - Dark: 'dark'
+    description: Dark shows the board in white on black.
+    default: 'light'

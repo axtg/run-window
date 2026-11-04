@@ -42,6 +42,8 @@ function readSettings(input) {
     rain: textOr(values.rain, DEFAULT_RAIN),
     sport: textOr(values.sport, DEFAULT_SPORT),
     language: textOr(values.language, DEFAULT_LANGUAGE),
+    // Only 'dark' darkens the board; anything else is the light default
+    theme: values.theme === 'dark' ? 'dark' : 'light',
     hasLocation: lat !== null && lon !== null
   };
 }

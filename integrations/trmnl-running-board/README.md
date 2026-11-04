@@ -26,6 +26,7 @@ the best run window today from the [run-window API](https://run.xadi.eu). Englis
 | Maximum chance of rain | 40%                 | 20, 40 or 60%.                                                                 |
 | Calendar sports        | Running only        | The form graph always counts all sports.                                       |
 | Language               | Device language     | Falls back to English when the device language is not supported.               |
+| Theme                  | Light               | Dark shows the board in white on black. TRMNL's own dark mode also inverts it. |
 
 The plugin polls `run.xadi.eu` every 30 minutes.
 

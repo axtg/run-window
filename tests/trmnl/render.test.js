@@ -89,6 +89,19 @@ describe('full.liquid: normal case', () => {
   });
 });
 
+describe('full.liquid: theme', () => {
+  it('marks the board dark only for the dark theme', async () => {
+    expect((await rendered({ fields: { theme: 'dark' } })).html).toContain('<div class="rb rb--dark">');
+    expect((await rendered()).html).toContain('<div class="rb">');
+  });
+
+  it("inverts the board in TRMNL's dark mode, or for the dark theme outside it, never twice", () => {
+    expect(template).toMatch(
+      /\.screen--dark-mode \.rb, \.screen:not\(\.screen--dark-mode\) \.rb--dark \{ filter: invert\(1\); \}/
+    );
+  });
+});
+
 describe('full.liquid: intensity bar', () => {
   it('draws the bar, its labels and yields the graph height', async () => {
     const { output, html } = await rendered();

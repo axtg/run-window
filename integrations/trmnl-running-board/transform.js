@@ -321,6 +321,8 @@ function readSettings(input) {
     rain: textOr(values.rain, DEFAULT_RAIN),
     sport: textOr(values.sport, DEFAULT_SPORT),
     language: textOr(values.language, DEFAULT_LANGUAGE),
+    // Only 'dark' darkens the board; anything else is the light default
+    theme: values.theme === 'dark' ? 'dark' : 'light',
     hasLocation: lat !== null && lon !== null
   };
 }
@@ -1035,7 +1037,7 @@ const union = (...lists) => [...new Set(lists.flat())];
 // The fixed output for anything unexpected: no input-derived text, never an error's text. Only the Tredict pause and
 // the intensity cache carry over, from this run when it got that far, else from the previous output, so a throw can't
 // drop them.
-function errorBoard(now, previous, carry = {}) {
+function errorBoard(now, previous, carry = {}, theme = 'light') {
   const at = Number.isFinite(now) ? now : Date.now();
   let fetchedAtText;
   try {
@@ -1058,6 +1060,7 @@ function errorBoard(now, previous, carry = {}) {
   return {
     v: BOARD_VERSION,
     lang: 'en',
+    theme,
     fetchedAt: new Date(at).toISOString(),
     fetchedAtText,
     tredict: { state: 'unavailable', message: STRINGS.en.tredictUnavailable },
@@ -1395,6 +1398,7 @@ async function assembleBoard(input, { fetch: fetchFn, now, timeoutMs, clock, pre
   return {
     v: BOARD_VERSION,
     lang,
+    theme: settings.theme,
     fetchedAt,
     fetchedAtText,
     tredict: { state, message },
@@ -1420,7 +1424,8 @@ async function buildBoard(input, { fetch: fetchFn, now, timeoutMs = REQUEST_TIME
   try {
     return await assembleBoard(input, { fetch: fetchFn, now, timeoutMs, clock, previous, carry });
   } catch {
-    return errorBoard(now, previous, carry);
+    // readSettings never throws, so even the error output keeps the chosen theme
+    return errorBoard(now, previous, carry, readSettings(input).theme);
   }
 }
 

@@ -30,7 +30,7 @@ describe('settings.yml', () => {
 
   it('quotes every select option value in the raw YAML', () => {
     const lines = RAW_YAML.split('\n').filter(line => /^ {6}- .+: /.test(line));
-    expect(lines).toHaveLength(10);
+    expect(lines).toHaveLength(12);
     for (const line of lines) expect(line).toMatch(/: '[^']+'$/);
   });
 
@@ -42,7 +42,8 @@ describe('settings.yml', () => {
       'dark',
       'rain',
       'sport',
-      'language'
+      'language',
+      'theme'
     ]);
     expect(field('lat_lon').field_type).toBe('lat_lon');
     expect(field('availability').default).toBe('07-09,12-14,17-21');
@@ -50,6 +51,7 @@ describe('settings.yml', () => {
     expect(field('rain').default).toBe('40');
     expect(field('sport').default).toBe('running');
     expect(field('language').default).toBe('device');
+    expect(field('theme').default).toBe('light');
     expect(field('rain').options.map(o => Object.values(o)[0])).toEqual(['20', '40', '60']);
   });
 
@@ -120,8 +122,16 @@ describe('readSettings', () => {
       rain: '40',
       sport: 'running',
       language: 'device',
+      theme: 'light',
       hasLocation: true
     });
+  });
+
+  it('reads the theme: only dark is dark', () => {
+    expect(readSettings(inputWith({ theme: 'dark' })).theme).toBe('dark');
+    for (const theme of ['light', 'Dark', '', 5, undefined]) {
+      expect(readSettings(inputWith({ theme })).theme).toBe('light');
+    }
   });
 
   it('removes spaces from availability', () => {

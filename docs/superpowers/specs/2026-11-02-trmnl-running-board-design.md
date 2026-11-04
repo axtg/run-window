@@ -183,6 +183,7 @@ structure, invented ids, dates, titles, notes and metrics, no token anywhere.
 | `rain` | select: 20 / 40 / 60 % | `40` | Max chance of rain in a window |
 | `sport` | select: Running only (`running`), All sports (`all`) | `running` | Calendar filter. Form always uses all sports, since effort is cumulative |
 | `language` | select: Device language (`device`), English (`en`), Nederlands (`nl`) | `device` | Same resolution rules as eu-dayahead's plugin; unsupported locales fall back to English |
+| `theme` | select: Light (`light`), Dark (`dark`) | `light` | Added 2026-11-04, as in eu-dayahead's plugin. The board paints its own black and white, which TRMNL's dark mode (framework 3.x remaps colour tokens only) can't reach, so the whole board is inverted with CSS `filter: invert(1)`: in TRMNL's dark mode, or for the dark theme outside it, never twice |
 
 Quote every select value in YAML (eu-dayahead's lesson: TRMNL's Ruby YAML reads unquoted `no` as `false`).
 

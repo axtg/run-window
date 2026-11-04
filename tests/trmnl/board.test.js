@@ -626,6 +626,20 @@ describe('buildBoard: garbage input (Review Focus 5)', () => {
     }
   });
 
+  it('keeps the dark theme in the normal and the fixed error output', async () => {
+    const { output } = await board({ fields: { theme: 'dark' } });
+    expect(output.theme).toBe('dark');
+    const input = makeInput({ fields: { theme: 'dark' } });
+    Object.defineProperty(input, 'days', {
+      get() {
+        throw new Error('boom');
+      }
+    });
+    const error = roundTrip(await buildBoard(input, { fetch: fakeFetch().fetch, now: NOW }));
+    expect(error.run.kind).toBe('error');
+    expect(error.theme).toBe('dark');
+  });
+
   it('returns the fixed error output when something unexpected throws', async () => {
     const input = makeInput();
     Object.defineProperty(input, 'days', {
@@ -637,6 +651,7 @@ describe('buildBoard: garbage input (Review Focus 5)', () => {
     expect(output).toEqual({
       v: 1,
       lang: 'en',
+      theme: 'light',
       fetchedAt: '2026-11-04T11:00:00.000Z',
       fetchedAtText: 'We 11:00',
       tredict: { state: 'unavailable', message: 'Tredict unavailable' },
