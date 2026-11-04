@@ -13,6 +13,10 @@ const inputWith = values => ({ trmnl: { plugin_settings: { custom_fields_values:
 const queryOf = url => Object.fromEntries(new URL(url).searchParams);
 
 describe('settings.yml', () => {
+  it('has a name, which the TRMNL import requires', () => {
+    expect(loadSettings().name).toBe('Running Board');
+  });
+
   it('polls every 30 minutes without headers', () => {
     const settings = loadSettings();
     expect(settings.strategy).toBe('polling');
