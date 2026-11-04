@@ -256,8 +256,8 @@ describe('whySentence', () => {
     expect(whySentence(day(8, 8.5, 10, 13), range, opts)).toBe('Less windy than the rest of the day.');
   });
 
-  it('falls back to the earliest-good-time line', () => {
-    expect(whySentence(day(8, 8.5, 10, 11), range, opts)).toBe('Similar all day; this is the earliest good time.');
+  it('says similar all day when nothing stands out', () => {
+    expect(whySentence(day(8, 8.5, 10, 11), range, opts)).toBe('Similar all day.');
   });
 
   it('says the only dry stretch when no ok slots lie outside the range', () => {

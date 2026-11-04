@@ -152,7 +152,7 @@
       if (warmer && calmer) first = 'Warmer and less windy than the rest of the day.';
       else if (warmer) first = 'Warmer than the rest of the day.';
       else if (calmer) first = 'Less windy than the rest of the day.';
-      else first = 'Similar all day; this is the earliest good time.';
+      else first = 'Similar all day.';
     }
 
     const notes = [];
