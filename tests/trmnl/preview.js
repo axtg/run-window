@@ -21,7 +21,9 @@ function page(body, layout) {
   return `<!doctype html><html><head><meta charset="utf-8"><link rel="stylesheet" href="${FRAMEWORK_CSS}"><style>
 body{margin:0;background:#fff}
 </style></head><body class="environment trmnl">
-<div class="screen screen--og screen--1bit"><div class="view view--${layout}" style="width:${width}px;height:${height}px">${body}</div></div>
+<div class="screen screen--og screen--1bit">
+<div class="view view--${layout}" style="width:${width}px;height:${height}px">${body}</div>
+</div>
 </body></html>`;
 }
 
