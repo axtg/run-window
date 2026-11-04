@@ -16,6 +16,11 @@ const REQUIRED_KEYS = [
   'headingToday',
   'headingTomorrow',
   'tokenInvalid',
+  'tokenPaused',
+  'intensityHeading',
+  'intensityLow',
+  'intensityModerate',
+  'intensityHigh',
   'tredictPayment',
   'tredictUnavailable',
   'tredictDataFrom',
@@ -41,6 +46,13 @@ const flatten = value => (Array.isArray(value) ? value : [value]);
 describe('STRINGS', () => {
   it('has identical keys in en and nl', () => {
     expect(Object.keys(STRINGS.nl).sort()).toEqual(Object.keys(STRINGS.en).sort());
+  });
+
+  it('words the token messages', () => {
+    expect(STRINGS.en.tokenPaused).toBe('Tredict token paused. Open the Tredict web app to reactivate it.');
+    expect(STRINGS.en.tokenInvalid).toBe('Tredict token invalid. Check it has the activityRead scope.');
+    expect(STRINGS.nl.tokenPaused).toBe('Tredict-token gepauzeerd. Open de Tredict-webapp om het weer te activeren.');
+    expect(STRINGS.nl.tokenInvalid).toBe('Tredict-token ongeldig. Controleer of het de scope activityRead heeft.');
   });
 
   it('covers the spec strings and has no empty value', () => {

@@ -72,7 +72,7 @@ describe('buildBoard: Tredict states', () => {
   it.each(['plan', 'activities', 'efforts'])('turns a 401 on %s into auth', async name => {
     const { output } = await board({}, { [name]: 401 });
     expect(output.tredict.state).toBe('auth');
-    expect(output.tredict.message).toContain('Tredict token paused or invalid');
+    expect(output.tredict.message).toContain('Tredict token invalid');
     expect(output.week).toBeNull();
     expect(output.form).toBeNull();
     expect(output.tredictAt).toBeNull();

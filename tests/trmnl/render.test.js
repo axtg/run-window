@@ -150,7 +150,7 @@ describe('full.liquid: template rules', () => {
 
 describe('full.liquid: Tredict states', () => {
   it.each([
-    ['auth', /Tredict token paused or invalid/],
+    ['auth', /Tredict token invalid/],
     ['payment', /Tredict says this account can(?:'|&#39;|&#x27;|&apos;)t use the API\./],
     ['unavailable', /Tredict unavailable/]
   ])('%s: shows the message once instead of the week and graph, keeps the run window', async (state, message) => {
