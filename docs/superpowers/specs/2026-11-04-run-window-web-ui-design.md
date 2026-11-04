@@ -1,5 +1,7 @@
 # Run-window web interface
 
+The current layout is in `2026-11-04-run-window-web-ui-redesign-design.md` (one card); this is the first version.
+
 Date: 2026-11-04
 Status: approved 2026-11-04
 Builds on: `2026-11-02-run-window-api-design.md` (the API), live at `https://run.xadi.eu`

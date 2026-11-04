@@ -13,8 +13,9 @@ Three things in one repo:
    (Tredict), a form graph (Tredict efforts) and today's run window (the API above).
    Spec: `docs/superpowers/specs/2026-11-02-trmnl-running-board-design.md`.
 3. **Web interface** (`public/`, served at `/`): a page where someone opens a GPX/KML route (or uses their location)
-   and sees the best window for that run on a day strip. It reads the file in the browser and calls the API with
-   `slots=1`. Spec: `docs/superpowers/specs/2026-11-04-run-window-web-ui-design.md`.
+   and sees the best window for that run on one card. It reads the file in the browser and calls the API with
+   `slots=1`. Spec (current layout): `docs/superpowers/specs/2026-11-04-run-window-web-ui-redesign-design.md`; the
+   first version is `docs/superpowers/specs/2026-11-04-run-window-web-ui-design.md`.
 
 The API comes first: the plugin depends on it.
 
@@ -81,6 +82,11 @@ the worker `sw.js`, the manifest and icons.
 - Tailwind scans only `index.html`, `app.js` and `strip.js`: run `npm run build:css` after editing them, comments too.
 - The route file never leaves the browser. The only request the page makes is `/api/window` with `lat` and `lon` at 2
   decimals plus `avail`, `dark`, `rain` and `slots=1`. Nothing from the file goes into storage or the URL.
+- The page is one card: slim settings rows (a pace − / + stepper, or a duration without a route; hours sliders with a
+  night hatch and "+ add hours"; a Dark OK switch; a rain slider), a big answer with key numbers (Sky, Feels, Wind,
+  Climb/Run), one timeline joining strip and graph, and the why line. API and Privacy open in `<dialog>`s from the
+  header. Default hours are `10-16`; there is no one-off duration. Changing pace or duration re-renders from the data
+  already fetched, without a new request; hours, Dark OK and rain change the request.
 - Settings (pace, duration, Allow dark, Rain %, Hours) live in `localStorage` only, always in try/catch; the page works
   without it.
 - The service worker has one job: catch `POST /share-target` (a route shared from Android's share sheet), put the file
