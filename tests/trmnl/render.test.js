@@ -100,6 +100,14 @@ describe('full.liquid: theme', () => {
       /\.screen--dark-mode \.rb, \.screen:not\(\.screen--dark-mode\) \.rb--dark \{ filter: invert\(1\); \}/
     );
   });
+
+  it("pins every framework text class it uses to black, so TRMNL's dark mode can't recolour them", () => {
+    expect(template).toMatch(/\.screen \.rb \.title, \.screen \.rb \.value \{ color: #000; \}/);
+    const classes = [...template.matchAll(/class="([^"]*)"/g)].map(m => m[1].replace(/\{[{%][\s\S]*?[}%]\}/g, ' '));
+    const used = new Set(classes.flatMap(text => text.split(/\s+/)).filter(Boolean));
+    const framework = [...used].filter(name => !name.startsWith('rb'));
+    expect(framework.sort()).toEqual(['layout', 'title', 'value']);
+  });
 });
 
 describe('full.liquid: intensity bar', () => {
