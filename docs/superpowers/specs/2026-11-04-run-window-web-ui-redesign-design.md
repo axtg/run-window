@@ -1,7 +1,7 @@
 # Run-window web interface: one-card redesign
 
 Date: 2026-11-04
-Status: draft, awaiting the maintainer's approval
+Status: builder check done; implementation authorised by the maintainer ("if the reviewer and you agree, proceed")
 Builds on: `2026-11-04-run-window-web-ui-design.md` (the page as built and live). Everything there still holds unless
 this document changes it.
 
@@ -114,6 +114,27 @@ For a fallback window the time gets the "Least bad" label and the outline is das
   `max-w-xl`), not stretched.
 - Landing tests: the privacy text and the API example move into dialogs but stay in `index.html`, so the existing text
   assertions keep working; the "tool first" structure assertions change on purpose.
+
+## Settled after the builder check (my calls, made while the maintainer was away)
+
+- **No one-off duration with a route.** The "This run only (min)" field goes. With a route, the run time is always
+  distance × pace, and the maintainer's own way for intervals ("I'd add an average one") is to change the pace, which
+  is remembered. The `oneoff-input` landing and smoke assertions are removed on purpose. Without a route, Duration stays
+  (remembered, as now).
+- **Sources and states.**
+  - Day row, no source yet: "Open route" and "Use my location" buttons. With a route: name, distance, ✕. With the
+    location: "Near you", ✕. ✕ clears the source and brings the two buttons back (the file picker and location button
+    are always one tap away).
+  - Before any source, the answer area shows the prompt "Open a route file or use your location." in the answer's
+    place; the timeline and why area are hidden.
+  - The status line (`#status`, `aria-live`) stays, directly under the answer, for messages (bad file, location off,
+    errors, share hand-off). Error texts from the base design go there, and the answer area shows nothing stale.
+  - The stale-data note ("Weather from up to 3 hours ago") sits under the key numbers, small.
+  - The zone note ("Asia/Tokyo time") sits after Today / Tomorrow on the day row.
+  - The old route line (`10.2 km · +45 m`) is gone: distance is on the day row, climb in the key numbers.
+- **Hours that aren't whole hours.** A stored `07:30-09` is kept as it is and shown as `07:30–09`; the handle sits at
+  the nearest position. Only when the user moves that handle does it snap to a whole hour. Loading never rewrites a
+  stored value.
 
 ## Left to the builder
 
