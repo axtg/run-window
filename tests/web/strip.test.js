@@ -181,13 +181,51 @@ describe('chartModel', () => {
     ]);
   });
 
+  describe('with a gap between available hours', () => {
+    // 07:00-08:45 then 17:00-18:45 UTC
+    const starts = [];
+    for (const hour of [7, 17]) {
+      for (let i = 0; i < 8; i++) {
+        const minutes = hour * 60 + i * 15;
+        starts.push(
+          `2026-11-04T${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}:00Z`
+        );
+      }
+    }
+    const gapSlots = starts.map(s => slot(s, { inDaylight: false }));
+
+    it('reports the first slot after the gap', () => {
+      expect(chartModel(gapSlots, options).gaps).toEqual([8]);
+      expect(
+        chartModel(
+          series(4, s => slot(s)),
+          options
+        ).gaps
+      ).toEqual([]);
+    });
+
+    it('starts a new path segment after the gap', () => {
+      const model = chartModel(gapSlots, options);
+      expect(model.feels.match(/M/g)).toHaveLength(2);
+      expect(model.feels.match(/L/g)).toHaveLength(14);
+      expect(model.wind.match(/M/g)).toHaveLength(2);
+    });
+
+    it('splits dark runs at the gap', () => {
+      expect(chartModel(gapSlots, options).dark).toEqual([
+        { x: 0, width: 50 },
+        { x: 50, width: 50 }
+      ]);
+    });
+  });
+
   it('copes with flat values and an empty list', () => {
     const flat = chartModel(
       series(3, s => slot(s)),
       options
     );
     expect(flat.feels).not.toMatch(/NaN/);
-    expect(chartModel([], options)).toEqual({ feels: '', wind: '', rain: [], window: null, dark: [] });
+    expect(chartModel([], options)).toEqual({ feels: '', wind: '', rain: [], window: null, dark: [], gaps: [] });
   });
 });
 

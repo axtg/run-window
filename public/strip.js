@@ -74,7 +74,15 @@
   }
 
   // One SVG path over the slots, scaled min..max with padding, broken (new M) across slots without a value.
-  function linePath(slots, key, step, height) {
+  function gapIndices(slots) {
+    const gaps = [];
+    for (let i = 1; i < slots.length; i++) {
+      if (Date.parse(slots[i].start) - Date.parse(slots[i - 1].start) > SLOT_MS) gaps.push(i);
+    }
+    return gaps;
+  }
+
+  function linePath(slots, key, step, height, gaps) {
     const values = slots.filter(hasData).map(s => s[key]);
     if (values.length === 0) return '';
     const min = Math.min(...values);
@@ -85,6 +93,7 @@
     let path = '';
     let pen = false;
     slots.forEach((slot, index) => {
+      if (gaps.includes(index)) pen = false;
       if (!hasData(slot)) {
         pen = false;
         return;
@@ -96,23 +105,24 @@
     return path;
   }
 
-  function darkRuns(slots, step) {
+  function darkRuns(slots, step, gaps) {
     const runs = [];
     let start = -1;
     for (let i = 0; i <= slots.length; i++) {
       const dark = i < slots.length && slots[i].inDaylight === false;
-      if (dark && start === -1) start = i;
-      if (!dark && start !== -1) {
+      if ((!dark || gaps.includes(i)) && start !== -1) {
         runs.push({ x: start * step, width: (i - start) * step });
         start = -1;
       }
+      if (dark && start === -1) start = i;
     }
     return runs;
   }
 
   function chartModel(slots, { width, height, range }) {
-    if (slots.length === 0) return { feels: '', wind: '', rain: [], window: null, dark: [] };
+    if (slots.length === 0) return { feels: '', wind: '', rain: [], window: null, dark: [], gaps: [] };
     const step = width / slots.length;
+    const gaps = gapIndices(slots);
     const rain = [];
     slots.forEach((slot, index) => {
       if (!hasData(slot)) return;
@@ -120,11 +130,12 @@
       rain.push({ x: index * step, y: height - barHeight, width: step, height: barHeight });
     });
     return {
-      feels: linePath(slots, 'apparentTemp', step, height),
-      wind: linePath(slots, 'windSpeed', step, height),
+      feels: linePath(slots, 'apparentTemp', step, height, gaps),
+      wind: linePath(slots, 'windSpeed', step, height, gaps),
       rain,
       window: range ? { x: range.first * step, width: (range.last - range.first + 1) * step } : null,
-      dark: darkRuns(slots, step)
+      dark: darkRuns(slots, step, gaps),
+      gaps
     };
   }
 
