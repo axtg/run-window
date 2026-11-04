@@ -1,5 +1,6 @@
 // Writes one HTML page per render case, for checking the screen in a browser, plus the smaller layouts for a few
-// cases. Usage: node tests/trmnl/preview.js <outDir> [--screen og|og-portrait|x|x-portrait]
+// cases. Usage: node tests/trmnl/preview.js <outDir> [--screen og|og-portrait|x|x-portrait] [--no-script]
+// (--no-script leaves out TRMNL's framework script, so no clamp runs)
 const fs = require('fs');
 const path = require('path');
 const { LAYOUTS, renderLayout } = require('./harness');
@@ -74,7 +75,9 @@ function parseArgs(argv) {
 async function main() {
   const { outDir, screen, noScript } = parseArgs(process.argv.slice(2));
   if (!outDir || !SCREENS[screen]) {
-    console.error(`Usage: node tests/trmnl/preview.js <outDir> [--screen ${Object.keys(SCREENS).join('|')}]`);
+    const screens = Object.keys(SCREENS).join('|');
+    console.error(`Usage: node tests/trmnl/preview.js <outDir> [--screen ${screens}] [--no-script]`);
+    console.error("--no-script: skip TRMNL's clamp script");
     process.exit(1);
   }
   fs.mkdirSync(outDir, { recursive: true });
