@@ -1,7 +1,7 @@
 # Run-window web interface
 
 Date: 2026-11-04
-Status: draft, awaiting the maintainer's approval (builder check done)
+Status: approved 2026-11-04
 Builds on: `2026-11-02-run-window-api-design.md` (the API), live at `https://run.xadi.eu`
 
 ## Intent
