@@ -23,11 +23,20 @@ function renderPollingUrl(fieldValues) {
   return createEngine().parseAndRender(loadSettings().polling_url, fieldValues || {});
 }
 
-// The screen is rendered with the transform output's keys as top-level names
-function renderFull(output) {
-  const template = fs.readFileSync(path.join(PLUGIN_DIR, 'full.liquid'), 'utf8');
-  return createEngine().parseAndRender(template, output || {});
+const LAYOUTS = ['full', 'half_horizontal', 'half_vertical', 'quadrant'];
+
+// TRMNL puts shared.liquid in front of each layout's markup
+function layoutTemplate(layout) {
+  const read = name => fs.readFileSync(path.join(PLUGIN_DIR, `${name}.liquid`), 'utf8');
+  return `${read('shared')}\n${read(layout)}`;
 }
+
+// The screen is rendered with the transform output's keys as top-level names
+function renderLayout(layout, output) {
+  return createEngine().parseAndRender(layoutTemplate(layout), output || {});
+}
+
+const renderFull = output => renderLayout('full', output);
 
 // Runs the built transform.js in a vm context. Date.now() and new Date() return the injected now;
 // Date.parse, Date.UTC and new Date(arg) keep working. Compare results after a JSON round trip,
@@ -61,4 +70,4 @@ function loadTransform({ fetch, now, code }) {
   return input => vm.runInContext('run', context)(input);
 }
 
-module.exports = { loadSettings, renderPollingUrl, renderFull, loadTransform };
+module.exports = { LAYOUTS, loadSettings, renderPollingUrl, layoutTemplate, renderLayout, renderFull, loadTransform };

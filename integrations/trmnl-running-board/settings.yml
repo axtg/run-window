@@ -9,6 +9,12 @@ dark_mode: 'no'
 no_screen_padding: 'yes'
 polling_url: "https://run.xadi.eu/api/window?{% assign ll = lat_lon | split: ',' %}{% if ll.size == 2 %}lat={{ ll[0] | strip | round: 2 }}&lon={{ ll[1] | strip | round: 2 }}&{% endif %}avail={{ availability | default: '07-09,12-14,17-21' | remove: ' ' | url_encode }}&dark={{ dark | default: 'avoid' }}&rain={{ rain | default: '40' }}"
 custom_fields:
+  - keyname: xadi.eu
+    name: About this plugin
+    field_type: author_bio
+    description: Running Board was created by Xander (@axtg). It shows your Tredict week, form and best time to run.
+    github_url: https://github.com/axtg/run-window/
+    learn_more_url: https://github.com/axtg/run-window/tree/main/integrations/trmnl-running-board
   - keyname: tredict_token
     name: Tredict token
     field_type: password

@@ -1,0 +1,19 @@
+<div class="layout">
+  <div class="rb{% if theme == 'dark' %} rb--dark{% endif %}">
+    <div class="rb-solo">
+      <div class="rb-run rb-run--compact">
+        <div class="rb-run__heading">{{ run.heading | escape }}</div>
+        {% for line in run.lines %}
+          <div class="rb-run__line{% if forloop.first %} rb-run__line--first{% endif %}">{{ line | escape }}</div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <div class="rb-foot">
+      <span class="rb-foot__source">{{ attribution | escape }}</span>
+      {% if fetchedAtText and fetchedAtText != '' %}
+        <span class="rb-foot__time">data {{ fetchedAtText | escape }}</span>
+      {% endif %}
+    </div>
+  </div>
+</div>

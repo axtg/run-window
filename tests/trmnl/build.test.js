@@ -105,7 +105,8 @@ describe('build', () => {
   });
 
   it('keeps plugin files within the size limit', () => {
-    for (const file of ['settings.yml', 'full.liquid', 'transform.js']) {
+    const layouts = ['shared', 'full', 'half_horizontal', 'half_vertical', 'quadrant'].map(name => `${name}.liquid`);
+    for (const file of ['settings.yml', ...layouts, 'transform.js']) {
       const filePath = path.join(PLUGIN_DIR, file);
       if (fs.existsSync(filePath)) {
         expect(fs.statSync(filePath).size).toBeLessThanOrEqual(MAX_BYTES);

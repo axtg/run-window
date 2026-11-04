@@ -36,6 +36,7 @@ describe('settings.yml', () => {
 
   it('has the documented fields and defaults', () => {
     expect(loadSettings().custom_fields.map(f => f.keyname)).toEqual([
+      'xadi.eu',
       'tredict_token',
       'lat_lon',
       'availability',
@@ -53,6 +54,13 @@ describe('settings.yml', () => {
     expect(field('language').default).toBe('device');
     expect(field('theme').default).toBe('light');
     expect(field('rain').options.map(o => Object.values(o)[0])).toEqual(['20', '40', '60']);
+  });
+
+  it('starts with the author field TRMNL requires for published recipes', () => {
+    const about = loadSettings().custom_fields[0];
+    expect(about.field_type).toBe('author_bio');
+    expect(about.github_url).toBe('https://github.com/axtg/run-window/');
+    expect(about.learn_more_url).toMatch(/^https:\/\/github\.com\/axtg\/run-window\//);
   });
 
   it('makes the token a password field whose help text names the scope and the 10 days', () => {

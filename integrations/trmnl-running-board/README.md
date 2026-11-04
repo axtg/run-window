@@ -6,8 +6,8 @@ the best run window today from the [run-window API](https://run.xadi.eu). Englis
 
 ## Install as a private plugin
 
-1. In TRMNL, go to Plugins, then Private Plugin, and import a zip of `settings.yml`, `full.liquid` and `transform.js`
-   from this folder. Leave the serverless language on the default.
+1. In TRMNL, go to Plugins, then Private Plugin, and import a zip of `settings.yml`, `transform.js` and the five
+   `.liquid` files from this folder. Leave the serverless language on the default.
 2. Fill in the settings (below).
 3. Add the plugin to a playlist. Set the device refresh to 30 minutes or less: the screen shows the last image until
    the next refresh.

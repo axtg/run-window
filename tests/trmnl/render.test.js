@@ -1,11 +1,9 @@
-const fs = require('fs');
-const path = require('path');
-const { renderFull } = require('./harness');
+const { LAYOUTS, layoutTemplate, renderLayout, renderFull } = require('./harness');
 const { board, MINUTE, NOW } = require('./boardCases');
 const { EMPTY_ACCOUNT_OVERRIDES, ERROR_OUTPUT, STATE_CASES, longAttributionOutput } = require('./renderCases');
 
-const TEMPLATE_PATH = path.join(__dirname, '..', '..', 'integrations', 'trmnl-running-board', 'full.liquid');
-const template = fs.readFileSync(TEMPLATE_PATH, 'utf8');
+// What TRMNL renders for the full layout: shared.liquid, then full.liquid
+const template = layoutTemplate('full');
 // Ruby Liquid escapes " as &quot;, liquidjs as &#34;
 const QUOTE = '(?:&quot;|&#34;)';
 
@@ -212,7 +210,9 @@ describe('full.liquid: layout', () => {
   });
 });
 
-describe('full.liquid: template rules', () => {
+describe.each(LAYOUTS)('%s.liquid: template rules', layout => {
+  const template = layoutTemplate(layout);
+
   it('escapes every printed value except the validated SVG data', () => {
     const allowed = [
       'form.pastPath',
@@ -225,7 +225,7 @@ describe('full.liquid: template rules', () => {
       'patternId'
     ];
     const tags = [...template.matchAll(/\{\{\s*([\s\S]*?)\s*\}\}/g)].map(match => match[1]);
-    expect(tags.length).toBeGreaterThan(10);
+    expect(tags.length).toBeGreaterThan(3);
     const unescaped = tags.filter(tag => !/\|\s*escape$/.test(tag) && !allowed.includes(tag));
     expect(unescaped).toEqual([]);
   });
@@ -324,5 +324,53 @@ describe('full.liquid: Dutch', () => {
     expect(text).toContain('data wo 12:00');
     expect(text).toContain('droog');
     expect(text).toContain('6 weken terug');
+  });
+});
+
+describe('smaller layouts', () => {
+  let output;
+
+  beforeAll(async () => {
+    ({ output } = await board());
+  });
+
+  const text = async (layout, value) => textOf(await renderLayout(layout, value));
+
+  it.each(LAYOUTS)('%s shows the run window, the attribution and the dark theme', async layout => {
+    const shown = await text(layout, output);
+    expect(shown).toContain(output.run.heading);
+    for (const line of output.run.lines) expect(shown).toContain(line);
+    expect(shown).toContain(output.attribution);
+    expect(await renderLayout(layout, { ...output, theme: 'dark' })).toContain('<div class="rb rb--dark">');
+  });
+
+  it('half vertical shows the form graph and the intensity bar, not the week', async () => {
+    const html = await renderLayout('half_vertical', output);
+    expect(html).toContain('rb-form__graph');
+    expect(textOf(html)).toContain(output.intensity.heading);
+    expect(textOf(html)).not.toContain(output.week.title);
+  });
+
+  it('half horizontal shows the form graph beside the run window, without the bar or the week', async () => {
+    const html = await renderLayout('half_horizontal', output);
+    expect(html).toContain('rb-form__graph');
+    expect(textOf(html)).toContain(output.form.today);
+    expect(textOf(html)).not.toContain(output.intensity.heading);
+    expect(textOf(html)).not.toContain(output.week.title);
+  });
+
+  it('quadrant shows only the run window', async () => {
+    const html = await renderLayout('quadrant', output);
+    expect(html.slice(html.indexOf('</style>'))).not.toContain('rb-form');
+    expect(textOf(html)).not.toContain(output.week.title);
+  });
+
+  it.each(['half_vertical', 'half_horizontal'])('%s shows the Tredict message when there is no data', async layout => {
+    const { output: auth } = await board({ previous: null }, STATE_CASES.paused);
+    expect(await text(layout, auth)).toContain(auth.tredict.message);
+  });
+
+  it.each(LAYOUTS)('%s renders the fixed error output', async layout => {
+    expect(await text(layout, ERROR_OUTPUT)).toContain('Weather unavailable');
   });
 });

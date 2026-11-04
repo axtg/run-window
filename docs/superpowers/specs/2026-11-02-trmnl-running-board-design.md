@@ -30,7 +30,10 @@ only if Tredict agrees (see "Tredict's terms"). Either way, no backend holds any
 
 ## Non-goals
 
-- Layouts other than `full` in v1. Half and quadrant layouts (for example only the run window) are a v1.1 candidate.
+- Full screens other than the 800x480 board. Since 2026-11-04 the smaller layouts get a basic treatment, as TRMNL's
+  publishing rules ask: half vertical shows the right column (form, intensity, run window), half horizontal the run
+  window beside the form graph, quadrant the run window only, each with a compact run panel and the footer. Styles live
+  in `shared.liquid`.
 - Zone-by-zone splits or a pace/power basis for intensity. The intensity bar uses Tredict's three heart-rate ranges
   only (see "Intensity"; added 2026-11-04 at Tredict's suggestion).
 - HRV, sleep, Whoop or any recovery data.
