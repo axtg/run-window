@@ -241,6 +241,8 @@
     if (!row || !view) return;
     view.start.value = String(Math.round(row.startMin / 60));
     view.end.value = String(Math.round(row.endMin / 60));
+    view.start.setAttribute('aria-valuetext', row.start); // read out as stored: 07:30, not 8
+    view.end.setAttribute('aria-valuetext', row.end);
     view.fill.setAttribute('x', percent(row.startMin));
     view.fill.setAttribute('width', percent(row.endMin - row.startMin));
     view.value.textContent = `${row.start}–${row.end}`;
@@ -257,6 +259,7 @@
   function onRemoveRow(index) {
     state.rows = removeRow(state.rows, index);
     buildHours();
+    state.rowViews[Math.min(index, state.rowViews.length - 1)].start.focus(); // not back to <body>
     return commit({ hours: joinHours(state.rows) });
   }
 
@@ -468,7 +471,7 @@
   function drawGraph(model, step) {
     const graph = svg('g', { transform: `translate(0 ${PLOT_TOP})` });
     model.dark.forEach(run => {
-      graph.appendChild(svg('rect', { x: run.x, y: 0, width: run.width, height: PLOT_HEIGHT, class: 'fill-gray-100' }));
+      graph.appendChild(svg('rect', { x: run.x, y: 0, width: run.width, height: PLOT_HEIGHT, class: 'fill-gray-200' }));
     });
     if (model.window) {
       const { x, width } = model.window;

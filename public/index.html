@@ -273,7 +273,7 @@
               <span><span class="text-red-600">—</span> feels-like °C</span>
               <span><span class="text-blue-700">- -</span> wind km/h</span>
               <span><span class="text-blue-300">▮</span> rain %</span>
-              <span><span class="text-gray-300">▮</span> dark</span>
+              <span><span class="text-gray-200">▮</span> dark</span>
             </p>
             <p id="why-sentence" class="text-sm text-gray-700"></p>
           </div>
@@ -283,7 +283,21 @@
           class="flex flex-wrap items-center justify-between gap-2 border-t border-gray-100 px-4 py-3 text-xs text-secondary"
         >
           <p>Weather: <a class="underline" href="https://open-meteo.com/">Open-Meteo.com</a> (CC BY 4.0)</p>
-          <button id="copy-link" type="button" class="hover:text-gray-900">Copy API link ⧉</button>
+          <button id="copy-link" type="button" class="inline-flex items-center gap-1 hover:text-gray-900">
+            Copy API link
+            <svg
+              viewBox="0 0 16 16"
+              class="h-3.5 w-3.5"
+              aria-hidden="true"
+              focusable="false"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.5"
+            >
+              <rect x="5.5" y="5.5" width="8" height="8" rx="1.5" />
+              <path d="M10.5 3.5v-.5a1.5 1.5 0 0 0-1.5-1.5H4A1.5 1.5 0 0 0 2.5 3v5A1.5 1.5 0 0 0 4 9.5h.5" />
+            </svg>
+          </button>
         </footer>
       </section>
     </main>

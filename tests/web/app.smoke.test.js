@@ -43,6 +43,8 @@ const api = createApp({ weather, now: () => NOW });
 
 // Only what app.js touches on its elements. Elements from createElement are kept too, so a test can reach the
 // controls app.js builds (the hour rows).
+const focusLog = [];
+
 function fakeElement(tagName = 'div') {
   const listeners = {};
   return {
@@ -79,7 +81,9 @@ function fakeElement(tagName = 'div') {
     close() {
       this.open = false;
     },
-    focus() {},
+    focus() {
+      focusLog.push(this);
+    },
     getBoundingClientRect: () => ({ width: 360, left: 0 })
   };
 }
@@ -90,11 +94,12 @@ class QuietDOMParser extends DOMParser {
   }
 }
 
-function loadPage({ navigator = {} } = {}) {
+function loadPage({ navigator = {}, stored = null } = {}) {
   const elements = new Map();
   const created = [];
   const record = { fetches: [], storage: [], history: [] };
   const store = new Map();
+  if (stored !== null) store.set('run-window-settings', stored);
   const sandbox = {
     URL,
     URLSearchParams,
@@ -252,6 +257,7 @@ describe('app.js privacy smoke test', () => {
     await flush();
     const end = created.find(node => node.tagName === 'input' && node.attributes['aria-label'] === 'End of hours 1');
     expect(end).toBeDefined();
+    expect(end.attributes['aria-valuetext']).toBe('16'); // the stored text, read out instead of the number
     end.value = '18';
     end.listeners.input();
     end.value = '20';
@@ -273,5 +279,17 @@ describe('app.js privacy smoke test', () => {
     expect(rejections).toEqual([]);
     expect(elements.get('status').textContent).toBe('Location is off. Open a route file instead.');
     expect(record.fetches).toHaveLength(0);
+  });
+  it('reads a half-hour bound out as stored and moves focus to a remaining row after a removal', async () => {
+    const { created } = loadPage({ stored: JSON.stringify({ hours: '07:30-09,12-14' }) });
+    const label = name => created.filter(node => node.attributes['aria-label'] === name).pop();
+    expect(label('Start of hours 1').attributes['aria-valuetext']).toBe('07:30');
+    expect(label('Start of hours 1').value).toBe('8');
+    expect(label('End of hours 2').attributes['aria-valuetext']).toBe('14');
+    focusLog.length = 0;
+    label('Remove hours 2').listeners.click();
+    await flush();
+    expect(rejections).toEqual([]);
+    expect(focusLog.pop()).toBe(label('Start of hours 1'));
   });
 });

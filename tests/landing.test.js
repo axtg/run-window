@@ -171,6 +171,20 @@ test('an element with a display class still hides with the hidden attribute', ()
   }
 });
 
+test('Copy API link carries a hidden SVG icon, not a glyph some fonts lack', () => {
+  const button = html.match(/<button\b[^>]*id="copy-link"[^>]*>([\s\S]*?)<\/button>/);
+  expect(button).not.toBeNull();
+  expect(button[1]).not.toContain('⧉');
+  expect(button[1]).toMatch(/<svg\b[^>]*aria-hidden="true"/);
+});
+
+test("the legend's dark swatch is the graph's dark shade", () => {
+  const app = fs.readFileSync(path.join(PUBLIC, 'app.js'), 'utf8');
+  const shade = app.match(/height: PLOT_HEIGHT, class: 'fill-(gray-\d+)' \}\)\);\n\s*\}\);/);
+  expect(shade).not.toBeNull();
+  expect(html).toMatch(new RegExp(`<span class="text-${shade[1]}">▮</span> dark`));
+});
+
 test('the one-off duration and the chips are gone', () => {
   expect(html).not.toContain('oneoff-input');
   expect(html).not.toMatch(/id="chip-/);
