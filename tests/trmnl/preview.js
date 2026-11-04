@@ -10,7 +10,9 @@ const FRAMEWORK_CSS = `${FRAMEWORK_URL}css/3.4.0/plugins.css`;
 // The framework's runtime applies data-clamp. It measures text, so it is loaded once the fonts are in. The stylesheet
 // references its fonts by root-relative paths, hence the <base> in the page.
 const FRAMEWORK_JS = `${FRAMEWORK_URL}js/3.4.0/plugins.js`;
-const FRAMEWORK_LOADER = `<script>Promise.all(['400', '700'].map(weight => document.fonts.load(weight + ' 16px "Inter Variable"'))).then(() => {
+const FRAMEWORK_LOADER = `<script>
+const faces = ['400', '700'].map(weight => document.fonts.load(weight + ' 16px "Inter Variable"'));
+Promise.all(faces).then(() => {
   const script = document.createElement('script');
   script.src = '${FRAMEWORK_JS}';
   document.body.appendChild(script);
@@ -42,7 +44,8 @@ function viewSize(screen, layout) {
 function page(body, layout, screen, scriptTag) {
   const [width, height] = viewSize(screen, layout);
   const [screenWidth, screenHeight] = SCREENS[screen].size;
-  return `<!doctype html><html><head><meta charset="utf-8"><base href="${FRAMEWORK_URL}"><link rel="stylesheet" href="${FRAMEWORK_CSS}"><style>
+  return `<!doctype html><html><head><meta charset="utf-8"><base href="${FRAMEWORK_URL}">
+<link rel="stylesheet" href="${FRAMEWORK_CSS}"><style>
 body{margin:0;background:#fff}
 </style></head><body class="environment trmnl" data-screen="${screenWidth}x${screenHeight}">
 <div class="screen ${SCREENS[screen].classes}">
