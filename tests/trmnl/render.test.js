@@ -247,6 +247,34 @@ describe('full.liquid: portrait', () => {
     expect(share).toBeLessThanOrEqual(60);
   });
 
+  it('on an OG turned to portrait hides the intensity block and gives the week 52%', () => {
+    expect(bodyOf('.screen--portrait:not(.screen--lg) .rb-left')).toMatch(/flex-basis:\s*52%/);
+    expect(bodyOf('.screen--portrait:not(.screen--lg) .rb-intensity')).toMatch(/display:\s*none/);
+    // the X keeps its own share and the bar, and nothing hides it in landscape
+    expect(bodyOf('.screen--lg.screen--portrait .rb-left')).toMatch(/flex-basis:\s*52%/);
+    expect(bodyOf('.screen--lg.screen--portrait .rb-intensity')).toBe('');
+    const hiding = [...style.matchAll(/([^{}]*)\{[^}]*display:\s*none/g)].map(match => match[1].trim());
+    expect(hiding.filter(selector => selector.includes('.rb-intensity'))).toEqual([
+      '.screen--portrait:not(.screen--lg) .rb-intensity'
+    ]);
+    expect(bodyOf('.rb-left')).toMatch(/flex:\s*0 0 45%/);
+  });
+
+  it('wraps the whole intensity block (heading, bar and labels) in .rb-intensity', async () => {
+    const { output } = await board();
+    const html = await renderFull(output);
+    const block = html.match(
+      /<div class="rb-intensity">([\s\S]*?)<div class="rb-intensity__labels">[\s\S]*?<\/div>\s*<\/div>/
+    );
+    expect(block).not.toBeNull();
+    expect(block[1]).toContain('rb-intensity__heading');
+    expect(block[1]).toContain('rb-intensity__bar');
+  });
+
+  it('keeps a gap above the run panel in half_vertical on the X in portrait', () => {
+    expect(bodyOf('.screen--lg.screen--portrait .view--half_vertical .rb-run')).toMatch(/padding-top:\s*8px/);
+  });
+
   it('leaves landscape as it is', () => {
     expect(bodyOf('.rb-main').trim()).toBe('display: flex; flex: 1 1 auto; min-height: 0; overflow: hidden;');
     expect(bodyOf('.rb-left').trim()).toBe(
