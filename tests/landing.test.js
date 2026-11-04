@@ -178,6 +178,19 @@ test('Copy API link carries a hidden SVG icon, not a glyph some fonts lack', () 
   expect(button[1]).toMatch(/<svg\b[^>]*aria-hidden="true"/);
 });
 
+test('Copy API link confirms on the button: a label, a hidden check icon and a polite hidden note', () => {
+  const button = html.match(/<button\b[^>]*id="copy-link"[^>]*>([\s\S]*?)<\/button>/)[1];
+  expect(button).toMatch(/<span\b[^>]*id="copy-label"[^>]*>\s*Copy API link\s*<\/span>/);
+  expect(button).toMatch(/<svg\b[^>]*id="copy-icon"[^>]*aria-hidden="true"/);
+  expect(button).toMatch(
+    /<svg\b[^>]*id="copy-check"[^>]*aria-hidden="true"[^>]*hidden|<svg\b[^>]*id="copy-check"[^>]*hidden/
+  );
+  const note = html.match(/<span\b[^>]*id="copy-note"[^>]*>/);
+  expect(note).not.toBeNull();
+  expect(note[0]).toMatch(/class="sr-only"/);
+  expect(note[0]).toMatch(/aria-live="polite"/);
+});
+
 test("the legend's dark swatch is the graph's dark shade", () => {
   const app = fs.readFileSync(path.join(PUBLIC, 'app.js'), 'utf8');
   const shade = app.match(/height: PLOT_HEIGHT, class: 'fill-(gray-\d+)' \}\)\);\n\s*\}\);/);

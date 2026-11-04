@@ -18,6 +18,8 @@
   const PACE_RANGE = [180, 900];
   const DURATION_STEP = 15;
   const DURATION_RANGE = [15, 300];
+  const COPY_LABEL = 'Copy API link';
+  const COPY_FEEDBACK_MS = 2000;
   const TAP_HINT = 'Tap the timeline, or use the arrow keys, for each slot.';
 
   // Hour sliders: two overlaid native range inputs per row. Only their thumbs take the pointer.
@@ -43,6 +45,7 @@
     loading: 'Checking the weather…',
     locating: 'Finding your location…',
     copied: 'Copied',
+    copyFailed: "Couldn't copy",
     pace: 'Pace is m:ss per km, from 3:00 to 15:00.',
     shareFailed: "The shared route didn't arrive. Open it again."
   };
@@ -58,7 +61,7 @@
     'rain-fill rain-value prompt answer answer-label answer-time key-numbers wind-line wind-compass ' +
     'wind-arrow wind-text tomorrow-hint try-tomorrow tomorrow-text stale-note status ' +
     'result timeline tap-line why-sentence copy-link open-api open-privacy api-dialog privacy-dialog ' +
-    'close-api close-privacy'
+    'close-api close-privacy copy-label copy-icon copy-check copy-note'
   ).split(' ');
   const camel = id => id.replace(/-(\w)/g, (_, letter) => letter.toUpperCase());
   const el = Object.fromEntries(IDS.map(id => [camel(id), document.getElementById(id)]));
@@ -684,15 +687,26 @@
 
   // ---- Copy API link: the same answer from the API, without slots=1.
 
+  // The button itself says Copied (with a check) or Couldn't copy for 2 s; a hidden polite note announces it.
+  let copyTimer = null;
+  function showCopyResult(text, ok) {
+    clearTimeout(copyTimer);
+    el.copyLabel.textContent = text || COPY_LABEL;
+    el.copyCheck.hidden = !ok;
+    el.copyIcon.hidden = Boolean(ok);
+    el.copyNote.textContent = text;
+    if (text) copyTimer = setTimeout(() => showCopyResult('', false), COPY_FEEDBACK_MS);
+  }
+
   async function onCopyLink() {
     if (!state.location) return setStatus(MESSAGES.noLocation);
-    const url = Plan.apiUrl(location.origin, query());
     try {
-      await navigator.clipboard.writeText(url);
-      setStatus(MESSAGES.copied);
+      await navigator.clipboard.writeText(Plan.apiUrl(location.origin, query()));
+      showCopyResult(MESSAGES.copied, true);
     } catch {
-      setStatus(`Copy failed. The link: ${url}`);
+      showCopyResult(MESSAGES.copyFailed, false);
     }
+    return undefined;
   }
 
   // ---- The API and Privacy dialogs: ✕, Escape (native) or a click on the backdrop closes them.

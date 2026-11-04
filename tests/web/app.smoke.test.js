@@ -159,6 +159,8 @@ function loadPage({ navigator = {}, stored = null, app = api } = {}) {
       delete: async () => true
     },
     addEventListener() {},
+    setTimeout: (handler, ms) => setTimeout(handler, ms), // looked up per call, so Jest's fake timers apply
+    clearTimeout: id => clearTimeout(id),
     async fetch(url) {
       record.fetches.push(String(url));
       const target = new URL(url);
@@ -493,6 +495,59 @@ describe('app.js privacy smoke test', () => {
     expect(rejections).toEqual([]);
     expect(elements.get('answer-time').textContent).toBe('No dry window of 90 min today');
     expect(elements.get('tomorrow-hint').hidden).toBe(true);
+  });
+
+  it('confirms Copy API link on the button itself for 2 s, announced politely, not in the status line', async () => {
+    const copied = [];
+    const clipboard = { writeText: async text => copied.push(text) };
+    const { sandbox, elements } = loadPage({ navigator: { clipboard } });
+    await sandbox.RunApp.openRouteText(GPX, FILE_NAME);
+    await flush();
+    const status = elements.get('status').textContent;
+    jest.useFakeTimers();
+    try {
+      await elements.get('copy-link').listeners.click();
+      expect(copied).toHaveLength(1);
+      expect(new URL(copied[0]).searchParams.has('slots')).toBe(false);
+      expect(elements.get('copy-label').textContent).toBe('Copied');
+      expect(elements.get('copy-check').hidden).toBe(false);
+      expect(elements.get('copy-icon').hidden).toBe(true);
+      expect(elements.get('copy-note').textContent).toBe('Copied');
+      expect(elements.get('status').textContent).toBe(status);
+
+      jest.advanceTimersByTime(1500);
+      await elements.get('copy-link').listeners.click(); // a second copy restarts the 2 s
+      jest.advanceTimersByTime(1500);
+      expect(elements.get('copy-label').textContent).toBe('Copied');
+      jest.advanceTimersByTime(500);
+      expect(elements.get('copy-label').textContent).toBe('Copy API link');
+      expect(elements.get('copy-check').hidden).toBe(true);
+      expect(elements.get('copy-icon').hidden).toBe(false);
+      expect(elements.get('copy-note').textContent).toBe('');
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  it("says Couldn't copy on the button when the clipboard refuses", async () => {
+    const clipboard = { writeText: async () => Promise.reject(new Error('denied')) };
+    const { sandbox, elements } = loadPage({ navigator: { clipboard } });
+    await sandbox.RunApp.openRouteText(GPX, FILE_NAME);
+    await flush();
+    const status = elements.get('status').textContent;
+    jest.useFakeTimers();
+    try {
+      await elements.get('copy-link').listeners.click();
+      expect(elements.get('copy-label').textContent).toBe("Couldn't copy");
+      expect(elements.get('copy-check').hidden).toBe(true);
+      expect(elements.get('copy-note').textContent).toBe("Couldn't copy");
+      expect(elements.get('status').textContent).toBe(status);
+      jest.advanceTimersByTime(2000);
+      expect(elements.get('copy-label').textContent).toBe('Copy API link');
+    } finally {
+      jest.useRealTimers();
+    }
+    expect(rejections).toEqual([]);
   });
 
   it('reads the rain slider out as a percentage, while dragging too', () => {
