@@ -70,10 +70,13 @@ test approach. Read its `CLAUDE.md` first. Reuse rather than reinvent:
 
 - Built-ins only (`fetch`, `AbortSignal`, `Intl`, `URLSearchParams`). No `require` in the built file, no npm packages.
   In `src/`, modules use only `const { a } = require('./other');` and one `module.exports = { ... };`.
-- `run` never throws and finishes well within 5 s (parallel calls, 3 s timeouts). A throw makes TRMNL keep the old screen.
+- `run` never throws and finishes within 5 s: Tredict is called one request at a time (Tredict's condition) within a 4 s
+  shared deadline, each call with a timeout of at most 3 s, and the sequence stops and pauses on HTTP 429. A throw makes
+  TRMNL keep the old screen.
 - No `console.*`, and outputs carry fixed strings only, never an `error.message`: TRMNL logs what a script prints and
   the input holds the token.
 - `Intl` has English locale data only: format with `en-US` and take day names and decimals from the plugin's own
   tables.
-- Output never holds a raw Tredict response, a token or an activity `summary` (it holds start coordinates). Real
-  Tredict responses go only in the gitignored `tests/fixtures/private/`.
+- Output never holds a raw Tredict response, a token or an activity `summary` (it holds start coordinates). The one
+  thing carried between runs is `intensityCache`: activity ids plus three second totals (per heart-rate zone group).
+  Real Tredict responses go only in the gitignored `tests/fixtures/private/`.

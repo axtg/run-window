@@ -1,7 +1,8 @@
 # TRMNL Running Board
 
 One full screen (800x480) with this week's training from [Tredict](https://www.tredict.com), a form graph
-(Tredict's performance, computed from Tredict efforts) and the best run window today from the
+(Tredict's performance, computed from Tredict efforts), this week's heart-rate intensity as a bar under the graph and
+the best run window today from the
 [run-window API](https://run.xadi.eu). English and Dutch.
 
 ## Install as a private plugin
@@ -32,7 +33,14 @@ The plugin polls `run.xadi.eu` every 30 minutes.
 ## The token
 
 Tredict pauses a Personal API token unless the Tredict app is opened at least every 10 days. When it pauses, the
-screen says so; open the app and the token works again.
+screen says "Tredict token paused. Open the Tredict web app to reactivate it." (Tredict answers HTTP 401); open the app
+and the token works again. An invalid token (HTTP 403) gets its own message.
+
+## Tredict calls
+
+As Tredict asks, the script calls Tredict one request at a time, within 4 seconds in total. The intensity bar costs one
+extra call per new run of the week, made once and cached in the plugin's own data. After an HTTP 429 the script makes
+no Tredict calls until the `Retry-After` time has passed (at least 30 minutes, at most 6 hours) and shows what it has.
 
 ## Privacy
 

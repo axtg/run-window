@@ -35,7 +35,10 @@ poll in TRMNL's Node runtime, with `fetch`, and whatever it returns becomes the 
 | V11 | Token in the query string | Moot (no polling headers). | | |
 | V12 | Re-render skipped on unchanged data | Moot: `generatedAt` changes every poll. | | |
 | Scope | `activityRead` covers all three endpoints | Yes: `plannedTrainingList`, `activityList` and `efforts` all 200. | Probe with the maintainer's token | Help text: `activityRead` only |
-| Auth | Invalid token | 403 with body `Forbidden` (not 401). Paused-token status not seen. | Probe with an invalid token | 401 and 403 share one message; 402 keeps its own |
+| Auth | Invalid token | 403 with body `Forbidden` (not 401). | Probe with an invalid token | 403 is an invalid token; 402 keeps its own message |
+| Auth | Paused token (Step 1b) | Tredict answered on 2026-11-04: a paused token returns HTTP 401 with "Please log into the Tredict web app to automatically reactivate this token. ...". | Tredict's answer | 401 is a paused token, 403 an invalid one; two messages |
+| Calls | Serialisation | Tredict's condition, answered 2026-11-04: one request at a time per token, not in parallel. | Tredict's answer | The script calls Tredict one request at a time within a 4 s deadline |
+| Calls | HTTP 429 | Tredict's condition, answered 2026-11-04: after a 429, stop calling and wait; honour `Retry-After`. | Tredict's answer | The script stops at once and pauses all Tredict calls (`Retry-After` clamped to 30 min .. 6 h, else 30 min) |
 | Runtime | Script environment | Node v24.18.1, ICU 76.1, `AbortSignal.timeout` present, process TZ `UTC`. Timezone conversion works (`Pacific/Auckland`, `America/New_York` checked), but locale data is English only: `nl-NL` formats in English. Docs: 128 MB, 5 s, no packages. | Probe | Built-ins only, no `require`; Dutch strings from our own table; dates via `formatToParts` in `en-US` |
 | Files | Export format | `settings.yml`, `full.liquid`, `transform.js`; `serverless_language` empty means the default runtime used here. The language can't be set over the API. | `getPluginSettingFiles` | Build writes these three files (plus `shared.liquid` if used) |
 | Edits | API guard | `polling_url` can't move to another host while `polling_headers` is set. | Probe | Install note only |
@@ -62,7 +65,6 @@ poll in TRMNL's Node runtime, with `fetch`, and whatever it returns becomes the 
 ## Not verified
 
 - Scheduled polls run the script: only forced refreshes were tested. Checked in Task 12 on the device.
-- The status Tredict returns for a token paused after 10 days of inactivity.
 - That the default runtime has the same 5 s / 128 MB limits as the documented Serverless runtime (same
   `[TransformRuntime]` pool in the logs).
 - Recipe use: every install would fetch `/api/window` from TRMNL's egress addresses, so the API's per-IP rate limit
