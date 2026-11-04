@@ -230,9 +230,19 @@ describe('full.liquid: portrait', () => {
     expect(bodyOf('.screen--portrait .rb-right')).toMatch(/padding-left:\s*0/);
   });
 
+  it('puts form and run window side by side only on the X, and stacks them on an OG turned to portrait', () => {
+    expect(bodyOf('.screen--lg.screen--portrait .rb-right')).toMatch(/flex-direction:\s*row/);
+    expect(bodyOf('.screen--portrait .rb-right')).not.toMatch(/flex-direction/);
+    expect(bodyOf('.rb-right')).toMatch(/flex-direction:\s*column/);
+    const unscoped = [...style.matchAll(/(?:^|[}\s])\.screen--portrait\s+\.rb-(?:form|run|right)\s*\{([^}]*)\}/g)];
+    for (const rule of unscoped) expect(rule[1]).not.toMatch(/flex-direction:\s*row|flex:\s*1 1 0/);
+    for (const selector of ['.rb-form', '.rb-run'])
+      expect(bodyOf(`.screen--lg.screen--portrait ${selector}`)).toMatch(/flex:\s*1 1 0/);
+  });
+
   it('gives the week a share of the height that holds seven rows plus the footer totals', () => {
     // 1020 px of view: seven rows of at least 2 lines at 28 px, the title and the totals need about 520 px
-    const share = Number(bodyOf('.screen--portrait .rb-left').match(/flex:\s*0 0 (\d+)%/)[1]);
+    const share = Number(bodyOf('.screen--lg.screen--portrait .rb-left').match(/flex-basis:\s*(\d+)%/)[1]);
     expect(share * 10.2).toBeGreaterThanOrEqual(520);
     expect(share).toBeLessThanOrEqual(60);
   });
