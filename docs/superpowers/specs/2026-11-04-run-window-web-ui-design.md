@@ -91,7 +91,8 @@ dap.xadi.eu (design call: keeps one URL to list, and the landing tests' privacy 
    - Tapping a slot shows its time, feels-like, wind and rain % in one line under the strip. Exploring only: it does not
      move the outline.
 5. **Overview,** three lines:
-   - `Go 13:15–14:20 · dry · 7 °C` (window start–end in local time, "dry" or the max rain %, average feels-like).
+   - `Go 13:15–14:20 · dry · 7 °C`: the window's start plus the run's own time (a 65-minute run uses the API's 75-minute
+     key, but shows 13:15–14:20), "dry" or the max rain %, and the window's average feels-like.
    - Which way first (see "Wind").
    - `10.2 km · +45 m` (distance and climb; climb left out when the file has no elevation; the line is left out
      without a route).
@@ -104,7 +105,7 @@ dap.xadi.eu (design call: keeps one URL to list, and the landing tests' privacy 
 ### When there is no good answer
 
 - No dry window of the chosen length: the overview says "No dry window of 65 min today" and the strip shows why. For a
-  60-minute run the API's `fallback` exists; show it as "Least bad: 13:00–14:00 · 60 % rain" with the outline dashed.
+  run whose key is `"60"` (46–60 minutes) the API's `fallback` exists; show it as "Least bad: 13:00–14:00 · 60 % rain" with the outline dashed.
   For other lengths there is no fallback; the page does not invent one.
 - Over 180 minutes: use the API's `"180"` key and say the run doesn't fully fit ("Best 3 h: ..."), as the API spec
   advises clients.
@@ -123,7 +124,9 @@ dap.xadi.eu (design call: keeps one URL to list, and the landing tests' privacy 
 
 The API gives `windFromCardinal` for the window (the direction the wind comes from).
 
-- **Loop** (first and last point within 200 m, design call): compare the route's direction of travel over its first
+- **Loop or out-and-back:** first and last point within 200 m (design call). It's an out-and-back when the route
+  retraces itself: at least 80 % of the second half's points lie within 30 m of a first-half point (design call).
+- **Loop:** compare the route's direction of travel over its first
   quarter with the wind. If the file's direction starts into the wind (bearing within 90° of `windFrom`), say "As drawn:
   into the E wind first"; otherwise "Reverse it: into the E wind first". Design call: "as drawn / reverse" instead of
   clockwise/counter-clockwise, because a loop's shape (figure-eights, lollipops) makes clockwise ambiguous.
@@ -157,8 +160,9 @@ duration without a route (default 60 min), Allow dark, Rain %, Hours. Never the 
 the response is byte-for-byte what it is today; a route test asserts this against the current output.
 
 - Valid values: `1` or empty (empty = off, as with the other parameters). Anything else is a 400 naming `slots`.
-- One entry per 15-minute slot of the local day whose start lies inside the `avail` ranges (the strip shows only the
-  hours the person can run). Uses the same DST-safe walk over UTC quarters as `buildDaySlots`.
+- One entry per 15-minute slot of the local day that fits entirely inside an `avail` range, the same rule as
+  `buildDaySlots` (`minuteOfDay + 15 <= endMin`), so every listed slot could be part of a window. The strip shows only
+  the hours the person can run. Uses the same DST-safe walk over UTC quarters as `buildDaySlots`.
 - Each slot:
 
   ```json
@@ -253,13 +257,24 @@ The page is installable (a web app manifest plus a service worker) and lists its
 - Manual check on the maintainer's Android phone before calling it done: install, share a route from Trail Router,
   see the page answer. Recorded in a short verify doc like `2026-11-03-trmnl-running-board-verify.md`.
 
+## Release order
+
+The maintainer pushes and deploys; nginx config is applied on the host by hand (as in the API plan's deploy step).
+So the share target ships in two releases (design call):
+
+1. Everything else, plus the nginx `/share-target` location (answers itself, never proxies; `tests/deployConfig.test.js`
+   changes on purpose to allow this one non-proxied location). The maintainer applies the nginx change.
+2. Only after that is live: the manifest's `share_target` entry. The plan states this as a gate, and the phone check
+   (and "done") waits for the maintainer.
+
 ## Docs and housekeeping
 
 - Privacy section of the page and of the API spec: add what the page does (file stays in the browser, location rounded,
   settings in `localStorage`, share target handled on the device).
 - `readme.md` and `CLAUDE.md`: mention the web interface.
 - Branch `fix/privacy-text` (commit b647e0f) also edits `public/index.html`'s privacy bullets, `tests/landing.test.js`
-  and the API spec's Privacy section. Rebase on `main` once it lands, before touching those files.
+  and the API spec's Privacy section. The plan does the API, the route-file modules and the worker first; the
+  landing-page and privacy tasks come after rebasing on `main` once it lands (design call: no cherry-pick).
 
 ## Left to the builder
 
