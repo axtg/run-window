@@ -78,6 +78,7 @@ the worker `sw.js`, the manifest and icons.
 - Same-origin only: external `<script src="/...">` files, no inline script, `<style>`, `style=` attribute or
   `setAttribute('style', ...)`. The CSP is unchanged (`script-src 'self'`, `style-src 'self'`, `connect-src 'self'`,
   no hashes). Styling is Tailwind classes in `public/tailwind.css`.
+- Tailwind scans only `index.html`, `app.js` and `strip.js`: run `npm run build:css` after editing them, comments too.
 - The route file never leaves the browser. The only request the page makes is `/api/window` with `lat` and `lon` at 2
   decimals plus `avail`, `dark`, `rain` and `slots=1`. Nothing from the file goes into storage or the URL.
 - Settings (pace, duration, Allow dark, Rain %, Hours) live in `localStorage` only, always in try/catch; the page works
