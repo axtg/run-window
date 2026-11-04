@@ -1,6 +1,18 @@
 const RunSettings = require('../../public/settings');
 
-const { STORAGE_KEY, DEFAULTS, validHours, loadSettings, saveSettings } = RunSettings;
+const {
+  STORAGE_KEY,
+  DEFAULTS,
+  validHours,
+  splitHours,
+  joinHours,
+  hourText,
+  moveHandle,
+  addRow,
+  removeRow,
+  loadSettings,
+  saveSettings
+} = RunSettings;
 
 function fakeStorage(initial = null) {
   const data = new Map();
@@ -23,7 +35,7 @@ function throwingStorage(method) {
 describe('constants', () => {
   test('storage key and defaults', () => {
     expect(STORAGE_KEY).toBe('run-window-settings');
-    expect(DEFAULTS).toEqual({ paceSec: 360, durationMin: 60, allowDark: false, rain: 40, hours: '06-22' });
+    expect(DEFAULTS).toEqual({ paceSec: 360, durationMin: 60, allowDark: false, rain: 40, hours: '10-16' });
   });
 });
 
@@ -179,5 +191,93 @@ describe('saveSettings', () => {
     const storage = fakeStorage();
     saveSettings(storage, { paceSec: 5, durationMin: 60, allowDark: 'x', rain: 40, hours: 'bad' });
     expect(JSON.parse(storage.data.get(STORAGE_KEY))).toEqual(DEFAULTS);
+  });
+});
+
+test('loadSettings keeps a stored 06-22', () => {
+  const storage = fakeStorage(JSON.stringify({ hours: '06-22' }));
+  expect(loadSettings(storage).hours).toBe('06-22');
+});
+
+describe('hour rows', () => {
+  const texts = rows => rows.map(row => `${row.start}-${row.end}`);
+
+  test('splitHours sorts and keeps the text of each bound', () => {
+    expect(splitHours('12-14,07:30-09')).toEqual([
+      { start: '07:30', end: '09', startMin: 450, endMin: 540 },
+      { start: '12', end: '14', startMin: 720, endMin: 840 }
+    ]);
+  });
+
+  test('splitHours gives [] for invalid text', () => {
+    expect(splitHours('nope')).toEqual([]);
+    expect(splitHours('10-12,11-13')).toEqual([]);
+  });
+
+  test('joinHours round-trips a stored value', () => {
+    expect(joinHours(splitHours('07:30-09,12-14'))).toBe('07:30-09,12-14');
+  });
+
+  test('hourText pads whole hours and maps 1440 to 24', () => {
+    expect(hourText(0)).toBe('00');
+    expect(hourText(600)).toBe('10');
+    expect(hourText(1440)).toBe('24');
+  });
+
+  test('moveHandle stops at a neighbour', () => {
+    const rows = splitHours('10-12,14-16');
+    expect(joinHours(moveHandle(rows, 0, 'end', 15))).toBe('10-14,14-16');
+    expect(joinHours(moveHandle(rows, 1, 'start', 9))).toBe('10-12,12-16');
+  });
+
+  test('moveHandle keeps at least one hour', () => {
+    const rows = splitHours('10-16');
+    expect(joinHours(moveHandle(rows, 0, 'start', 20))).toBe('15-16');
+    expect(joinHours(moveHandle(rows, 0, 'end', 3))).toBe('10-11');
+  });
+
+  test('moveHandle clamps to 0..24', () => {
+    const rows = splitHours('10-16');
+    expect(joinHours(moveHandle(rows, 0, 'start', -4))).toBe('00-16');
+    expect(joinHours(moveHandle(rows, 0, 'end', 30))).toBe('10-24');
+  });
+
+  test('moveHandle snaps a moved 07:30 and leaves other bounds alone', () => {
+    const rows = splitHours('07:30-09,12-14');
+    expect(joinHours(moveHandle(rows, 0, 'start', 7))).toBe('07-09,12-14');
+    expect(joinHours(moveHandle(rows, 0, 'end', 10))).toBe('07:30-10,12-14');
+  });
+
+  test('moveHandle never lets a whole hour overlap a half-hour neighbour', () => {
+    const rows = splitHours('07:30-09,12-14');
+    expect(joinHours(moveHandle(rows, 1, 'start', 5))).toBe('07:30-09,09-14');
+  });
+
+  test('moveHandle does not mutate its input', () => {
+    const rows = splitHours('10-12,14-16');
+    const copy = JSON.parse(JSON.stringify(rows));
+    moveHandle(rows, 0, 'end', 11);
+    expect(rows).toEqual(copy);
+  });
+
+  test('addRow appends a one-hour row after the last row', () => {
+    expect(joinHours(addRow(splitHours('10-16')))).toBe('10-16,16-17');
+    expect(joinHours(addRow(splitHours('07:30-09')))).toBe('07:30-09,09-10');
+  });
+
+  test('addRow falls back to the first free hour from 00', () => {
+    expect(joinHours(addRow(splitHours('00-02,20-24')))).toBe('00-02,02-03,20-24');
+    expect(joinHours(addRow(splitHours('01-24')))).toBe('00-01,01-24');
+  });
+
+  test('addRow leaves a full day unchanged', () => {
+    const rows = splitHours('00-24');
+    expect(addRow(rows)).toEqual(rows);
+  });
+
+  test('removeRow removes a row but keeps the last one', () => {
+    const rows = splitHours('10-12,14-16');
+    expect(texts(removeRow(rows, 0))).toEqual(['14-16']);
+    expect(texts(removeRow(removeRow(rows, 0), 0))).toEqual(['14-16']);
   });
 });

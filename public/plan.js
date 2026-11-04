@@ -59,7 +59,7 @@
   }
 
   function goLine(result, { minutes, dayLabel, timeZone }) {
-    if (result.kind === 'none') return `No dry window of ${minutes} min ${dayLabel}`;
+    if (result.kind === 'none') return noWindowText(minutes, dayLabel);
     const w = result.window;
     const from = formatClock(w.start, timeZone);
     if (result.kind === 'fallback') {
@@ -70,6 +70,44 @@
     }
     const end = new Date(new Date(w.start).getTime() + minutes * 60000).toISOString();
     return `Go ${from}–${formatClock(end, timeZone)} · ${skyOf(w)} · ${tempOf(w)}`;
+  }
+
+  function skyValue(window) {
+    const sky = skyOf(window);
+    return sky === 'dry' ? 'Dry' : `Rain${sky.slice('rain'.length)}`;
+  }
+
+  function keyNumbers(result, summary, minutes) {
+    if (result.kind === 'none') return [];
+    const w = result.window;
+    const last = summary
+      ? { label: 'Climb', value: summary.climbM === null ? '–' : `+${summary.climbM} m` }
+      : { label: 'Run', value: `${minutes} min` };
+    return [
+      { label: 'Sky', value: skyValue(w) },
+      { label: 'Feels', value: tempOf(w) },
+      { label: 'Wind', value: `${Math.round(w.windAvg)} ${w.windFromCardinal}` },
+      last
+    ];
+  }
+
+  function answerLabel(result, minutes) {
+    if (result.kind === 'none') return '';
+    if (result.kind === 'fallback') return `Least bad · ${minutes} min`;
+    return result.fits ? `Best time · ${minutes} min` : 'Best 3 h · run is longer';
+  }
+
+  function answerTime(result, { minutes, timeZone }) {
+    if (result.kind === 'none') return '';
+    const w = result.window;
+    const from = formatClock(w.start, timeZone);
+    if (result.kind === 'fallback' || !result.fits) return `${from}–${formatClock(w.end, timeZone)}`;
+    const end = new Date(new Date(w.start).getTime() + minutes * 60000).toISOString();
+    return `${from}–${formatClock(end, timeZone)}`;
+  }
+
+  function noWindowText(minutes, dayLabel) {
+    return `No dry window of ${minutes} min ${dayLabel}`;
   }
 
   // Smallest angle between two compass bearings, 0..180.
@@ -143,6 +181,10 @@
     formatClock,
     goLine,
     windLine,
+    keyNumbers,
+    answerLabel,
+    answerTime,
+    noWindowText,
     routeLine,
     zoneNote,
     apiUrl,

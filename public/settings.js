@@ -1,7 +1,7 @@
 // Remembers the page's chip settings on this device only. Runs in the browser and in the Jest tests.
 (function () {
   const STORAGE_KEY = 'run-window-settings';
-  const DEFAULTS = Object.freeze({ paceSec: 360, durationMin: 60, allowDark: false, rain: 40, hours: '06-22' });
+  const DEFAULTS = Object.freeze({ paceSec: 360, durationMin: 60, allowDark: false, rain: 40, hours: '10-16' });
   const CLOCK = /^(\d{2})(?::(\d{2}))?$/;
 
   // Mirrors lib/params.js: 'HH' or 'HH:MM' → minutes since midnight. 24:00 is only valid as an end.
@@ -33,6 +33,73 @@
       if (ranges[i].startMin < ranges[i - 1].endMin) return false;
     }
     return true;
+  }
+
+  const MIN_ROW_MIN = 60;
+  const DAY_MIN = 1440;
+
+  function hourText(min) {
+    return String(Math.round(min / 60)).padStart(2, '0');
+  }
+
+  // Valid hours text → rows sorted by start, each keeping the original text of its bounds. [] when invalid.
+  function splitHours(text) {
+    if (!validHours(text)) return [];
+    const rows = text.split(',').map(part => {
+      const [start, end] = part.split('-');
+      return { start, end, startMin: parseClock(start, false), endMin: parseClock(end, true) };
+    });
+    return rows.sort((a, b) => a.startMin - b.startMin);
+  }
+
+  function joinHours(rows) {
+    return rows.map(row => `${row.start}-${row.end}`).join(',');
+  }
+
+  function wholeRow(startMin, endMin) {
+    return { start: hourText(startMin), end: hourText(endMin), startMin, endMin };
+  }
+
+  // Sets one bound to a whole hour, clamped to keep the row at least 1 h and clear of its neighbours.
+  function moveHandle(rows, index, which, hour) {
+    const row = rows[index];
+    if (!row || !Number.isFinite(hour)) return rows.slice();
+    const wanted = Math.min(24, Math.max(0, Math.round(hour)));
+    const prevEnd = index > 0 ? rows[index - 1].endMin : 0;
+    const nextStart = index < rows.length - 1 ? rows[index + 1].startMin : DAY_MIN;
+    let startMin = row.startMin;
+    let endMin = row.endMin;
+    if (which === 'start') {
+      const lo = Math.ceil(prevEnd / 60);
+      const hi = Math.floor((endMin - MIN_ROW_MIN) / 60);
+      if (lo > hi) return rows.slice();
+      startMin = Math.min(hi, Math.max(lo, wanted)) * 60;
+    } else {
+      const lo = Math.ceil((startMin + MIN_ROW_MIN) / 60);
+      const hi = Math.floor(nextStart / 60);
+      if (lo > hi) return rows.slice();
+      endMin = Math.min(hi, Math.max(lo, wanted)) * 60;
+    }
+    const moved =
+      which === 'start' ? { ...row, start: hourText(startMin), startMin } : { ...row, end: hourText(endMin), endMin };
+    return rows.map((existing, i) => (i === index ? moved : existing));
+  }
+
+  // Appends a 1 h row in the first free whole hour at or after the last row's end, else the first free hour.
+  function addRow(rows) {
+    const isFree = hour => rows.every(row => row.endMin <= hour * 60 || row.startMin >= (hour + 1) * 60);
+    const last = rows.length ? rows[rows.length - 1].endMin : 0;
+    const from = Math.ceil(last / 60);
+    const candidates = [];
+    for (let hour = from; hour < 24; hour++) candidates.push(hour);
+    for (let hour = 0; hour < from && hour < 24; hour++) candidates.push(hour);
+    const hour = candidates.find(isFree);
+    if (hour === undefined) return rows.slice();
+    return [...rows, wholeRow(hour * 60, (hour + 1) * 60)].sort((a, b) => a.startMin - b.startMin);
+  }
+
+  function removeRow(rows, index) {
+    return rows.length <= 1 ? rows.slice() : rows.filter((row, i) => i !== index);
   }
 
   function isInteger(value, min, max) {
@@ -81,6 +148,12 @@
     STORAGE_KEY,
     DEFAULTS,
     validHours,
+    splitHours,
+    joinHours,
+    hourText,
+    moveHandle,
+    addRow,
+    removeRow,
     loadSettings,
     saveSettings
   };

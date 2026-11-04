@@ -14,7 +14,11 @@ const {
   zoneNote,
   apiUrl,
   errorMessage,
-  staleNote
+  staleNote,
+  keyNumbers,
+  answerLabel,
+  answerTime,
+  noWindowText
 } = RunPlan;
 
 function win(overrides = {}) {
@@ -330,5 +334,66 @@ describe('staleNote', () => {
     expect(staleNote({})).toBeNull();
     expect(staleNote({ warnings: [] })).toBeNull();
     expect(staleNote(null)).toBeNull();
+  });
+});
+
+describe('answer helpers', () => {
+  const timeZone = 'Asia/Tokyo';
+  const windowResult = { kind: 'window', window: win(), key: '75', fits: true };
+  const fallbackResult = { kind: 'fallback', window: win({ precipProbMax: 35 }), key: '60', fits: true };
+  const longResult = { kind: 'window', window: win(), key: '180', fits: false };
+  const noneResult = { kind: 'none', window: null, key: '75', fits: true };
+  const route = { climbM: 45 };
+
+  test('keyNumbers with a route', () => {
+    expect(keyNumbers(windowResult, route, 65)).toEqual([
+      { label: 'Sky', value: 'Dry' },
+      { label: 'Feels', value: '7 °C' },
+      { label: 'Wind', value: '14 E' },
+      { label: 'Climb', value: '+45 m' }
+    ]);
+  });
+
+  test('keyNumbers without a route shows the run time', () => {
+    expect(keyNumbers(windowResult, null, 60)[3]).toEqual({ label: 'Run', value: '60 min' });
+  });
+
+  test('keyNumbers shows a dash when the file has no climb', () => {
+    expect(keyNumbers(windowResult, { climbM: null }, 65)[3]).toEqual({ label: 'Climb', value: '–' });
+  });
+
+  test('keyNumbers shows rain for a fallback and a likely-rain window, and turns -0 into 0', () => {
+    expect(keyNumbers(fallbackResult, route, 60)[0]).toEqual({ label: 'Sky', value: 'Rain 35 %' });
+    const wet = { kind: 'window', window: win({ qualifies: false, precipProbMax: 10 }), key: '60', fits: true };
+    expect(keyNumbers(wet, route, 60)[0].value).toBe('Rain 10 %');
+    const cold = { ...windowResult, window: win({ apparentTempAvg: -0.4 }) };
+    expect(keyNumbers(cold, route, 60)[1].value).toBe('0 °C');
+  });
+
+  test('keyNumbers is empty for none', () => {
+    expect(keyNumbers(noneResult, route, 65)).toEqual([]);
+  });
+
+  test('answerLabel per kind', () => {
+    expect(answerLabel(windowResult, 65)).toBe('Best time · 65 min');
+    expect(answerLabel(fallbackResult, 60)).toBe('Least bad · 60 min');
+    expect(answerLabel(longResult, 200)).toBe('Best 3 h · run is longer');
+    expect(answerLabel(noneResult, 65)).toBe('');
+  });
+
+  test('answerTime per kind in the location timezone', () => {
+    expect(answerTime(windowResult, { minutes: 65, timeZone })).toBe('21:15–22:20');
+    expect(answerTime(fallbackResult, { minutes: 60, timeZone })).toBe('21:15–22:20');
+    expect(answerTime(longResult, { minutes: 200, timeZone })).toBe('21:15–22:20');
+    expect(answerTime(noneResult, { minutes: 65, timeZone })).toBe('');
+  });
+
+  test('answerTime ends a fitting run at start + minutes', () => {
+    expect(answerTime(windowResult, { minutes: 50, timeZone })).toBe('21:15–22:05');
+  });
+
+  test('noWindowText reuses the goLine wording', () => {
+    expect(noWindowText(65, 'today')).toBe('No dry window of 65 min today');
+    expect(noWindowText(65, 'today')).toBe(goLine(noneResult, { minutes: 65, dayLabel: 'today', timeZone }));
   });
 });
