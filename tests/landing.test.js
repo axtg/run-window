@@ -198,19 +198,21 @@ test("the legend's dark swatch is the graph's dark shade", () => {
   expect(html).toMatch(new RegExp(`<span class="text-${shade[1]}">▮</span> dark`));
 });
 
-test('pace sits in the one Run row, with or without a route', () => {
+test('the Run row holds duration, distance and pace, with the run minutes under it', () => {
   expect(html).not.toContain('id="pace-row"');
   expect(html).not.toContain('id="duration-row"');
-  const row = html.match(/<div\b[^>]*id="run-row"[^>]*>([\s\S]*?)<p\b[^>]*id="run-estimate"/);
+  expect(html).not.toContain('id="run-estimate"'); // no distance estimate without a route
+  const row = html.match(/<div\b[^>]*id="run-row"[^>]*>([\s\S]*?)<p\b[^>]*id="run-minutes"/);
   expect(row).not.toBeNull();
-  for (const id of ['duration-group', 'run-distance', 'pace-down', 'pace-input', 'pace-up'])
+  for (const id of ['duration-group', 'run-distance', 'pace-group', 'pace-down', 'pace-input', 'pace-up'])
     expect(row[1]).toContain(`id="${id}"`);
-  // The run's minutes sit under the row like the estimate, so the row itself is distance, at, pace.
-  const under = html.match(/<p\b[^>]*id="run-minutes"[^>]*>/);
-  expect(under).not.toBeNull();
-  const estimate = html.match(/<p\b[^>]*id="run-estimate"[^>]*>/)[0];
-  expect(under[0].match(/class="([^"]*)"/)[1]).toBe(estimate.match(/class="([^"]*)"/)[1]);
-  expect(html.indexOf('id="run-minutes"')).toBeGreaterThan(html.indexOf('id="pace-up"'));
+  // app.js hides the pace group without a route: the class must let [hidden] win over flex.
+  expect(html.match(/<div\b[^>]*id="pace-group"[^>]*>/)[0]).toContain('[&[hidden]]:hidden');
+});
+
+test('the route name stays on one line, without the distance beside it', () => {
+  expect(html).not.toContain('id="source-distance"');
+  expect(html.match(/<span\b[^>]*id="source"[^>]*>/)[0]).toContain('truncate');
 });
 
 test("the compass arrow's tip stays clear of the N when it points north", () => {

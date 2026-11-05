@@ -20,7 +20,11 @@
   const DURATION_RANGE = [15, 300];
   const COPY_LABEL = 'Copy API link';
   const COPY_FEEDBACK_MS = 2000;
-  const TAP_HINT = 'Tap the timeline, or use the arrow keys, for each slot.';
+  // A phone has no arrow keys: name them only where there is a mouse to hover with.
+  function tapHint() {
+    const touch = typeof window.matchMedia === 'function' && window.matchMedia('(hover: none)').matches;
+    return touch ? 'Tap the timeline for each slot.' : 'Tap the timeline, or use the arrow keys, for each slot.';
+  }
 
   // Hour sliders: two overlaid native range inputs per row. Only their thumbs take the pointer.
   const HANDLE_CLASS =
@@ -55,8 +59,8 @@
 
   // Every element app.js uses, by id; el.sourceSet is #source-set.
   const IDS = (
-    'source source-distance source-set source-pick clear-source day-today day-tomorrow zone-note ' +
-    'route-input use-location duration-group run-distance run-minutes run-estimate pace-down pace-input ' +
+    'source source-set source-pick clear-source day-today day-tomorrow zone-note ' +
+    'route-input use-location duration-group run-distance run-minutes pace-group pace-down pace-input ' +
     'pace-up duration-down duration-value duration-up hours-rows add-hours dark-times dark-ok rain-input ' +
     'rain-fill rain-value prompt answer answer-label answer-time key-numbers wind-line wind-compass ' +
     'wind-arrow wind-text tomorrow-hint try-tomorrow tomorrow-text stale-note status ' +
@@ -148,13 +152,13 @@
   function renderRunRow() {
     const withRoute = Boolean(state.summary);
     const { paceSec, durationMin } = state.settings;
+    // Without a route the run is set in minutes, so pace would only feed an estimate: it shows with a route only.
     el.durationGroup.hidden = withRoute;
-    el.runEstimate.hidden = withRoute;
+    el.paceGroup.hidden = !withRoute;
     el.runDistance.hidden = !withRoute;
     el.runMinutes.hidden = !withRoute;
     el.paceInput.value = Plan.formatPace(paceSec);
     el.durationValue.textContent = `${durationMin} min`;
-    el.runEstimate.textContent = withRoute ? '' : Plan.distanceEstimate(durationMin, paceSec);
     el.runDistance.textContent = withRoute ? `${state.summary.distanceKm.toFixed(1)} km` : '';
     el.runMinutes.textContent = withRoute ? `= ${runMinutes()} min` : '';
   }
@@ -341,7 +345,7 @@
     el.sourceSet.hidden = !known;
     el.sourcePick.hidden = known;
     el.source.textContent = state.summary ? state.summary.name || 'Route' : known ? 'Near you' : '';
-    el.sourceDistance.textContent = state.summary ? `· ${state.summary.distanceKm.toFixed(1)} km` : '';
+    el.source.title = state.summary ? el.source.textContent : ''; // the full name when it is cut short
   }
 
   function openRouteText(text, fileName) {
@@ -582,7 +586,7 @@
   // when tapped or reached with the arrow keys. With nothing selected the label is the answer.
   function renderTapLine(slots, timeZone, label) {
     if (state.selected === null || !slots[state.selected]) {
-      el.tapLine.textContent = TAP_HINT;
+      el.tapLine.textContent = tapHint();
       el.timeline.setAttribute('aria-label', label);
       return;
     }

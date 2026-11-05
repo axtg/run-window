@@ -83,8 +83,9 @@ the worker `sw.js`, the manifest and icons.
 - The route file never leaves the browser. The only request the page makes is `/api/window` with `lat` and `lon` at 2
   decimals plus `avail`, `dark`, `rain` and `slots=1`. Nothing from the file goes into storage or the URL.
 - The page is one card with slim settings rows:
-  - Run: the pace − / + stepper is always there. Without a route the row also has the duration, with `≈ 9.2 km`
-    under it; with a route it has the route's distance, with `= 66 min` under it.
+  - Run: without a route, only the duration stepper (pace would only feed an estimate, so it is hidden but kept in
+    storage). With a route: the route's distance and the pace − / + stepper, with `= 66 min` under it.
+  - The route name sits next to the ✕ on one line (cut short with `…`, full name in `title`), without its distance.
   - Hours: sliders with a night hatch. A round `+` (`#add-hours`, "Add hours") ends the last row; the other rows end
     in a spacer as wide, so the sliders line up.
   - Dark: the dark times and an OK switch (`#dark-ok`, `role="switch"`).
@@ -96,6 +97,7 @@ the worker `sw.js`, the manifest and icons.
     there is no compass in little wind.
   - When today has no window and tomorrow has one, a `Try tomorrow →` button shows what tomorrow holds.
 - Below the answer: one timeline joining strip and graph, then the why line.
+- The hint under the timeline names the arrow keys only where the screen can hover (`(hover: none)` drops them).
 - API and Privacy open in `<dialog>`s from the header. Copy API link confirms on the button itself (`Copied` or
   `Couldn't copy` for 2 s, announced by a hidden polite note), not in `#status`.
 - Default hours are `10-16`; there is no one-off duration.

@@ -136,6 +136,13 @@ For a fallback window the time gets the "Least bad" label and the outline is das
   the nearest position. Only when the user moves that handle does it snap to a whole hour. Loading never rewrites a
   stored value.
 
+## Changed after the phone check (2026-11-05)
+
+- **Run row without a route:** the duration only. The pace stepper and the `≈ km` estimate went: the run is set in
+  minutes, so pace added nothing but the estimate, and the row took two lines. Pace stays stored for routes.
+- **Route name:** next to the ✕ on one line, cut short with `…`, without the distance (the Run row has it).
+- **Tap hint:** on touch-only screens (`hover: none`) it reads "Tap the timeline for each slot." without the arrow keys.
+
 ## Left to the builder
 
 - Exact colours, spacing, shadows (follow the mockup and dap.xadi.eu's card style: white `rounded-2xl` card on a light

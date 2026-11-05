@@ -36,11 +36,6 @@
     return Math.round((distanceKm * paceSec) / 60);
   }
 
-  // Without a route: how far the run's minutes go at the pace.
-  function distanceEstimate(minutes, paceSec) {
-    return `≈ ${((minutes * 60) / paceSec).toFixed(1)} km`;
-  }
-
   function durationKey(minutes) {
     const rounded = Math.max(KEY_STEP_MIN, Math.ceil(minutes / KEY_STEP_MIN) * KEY_STEP_MIN);
     if (rounded > MAX_KEY_MIN) return { key: String(MAX_KEY_MIN), fits: false };
@@ -244,7 +239,6 @@
     parsePace,
     formatPace,
     runMinutes,
-    distanceEstimate,
     durationKey,
     pickResult,
     formatClock,

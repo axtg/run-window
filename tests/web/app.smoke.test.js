@@ -132,7 +132,7 @@ class QuietDOMParser extends DOMParser {
   }
 }
 
-function loadPage({ navigator = {}, stored = null, app = api } = {}) {
+function loadPage({ navigator = {}, stored = null, app = api, matchMedia } = {}) {
   const elements = new Map();
   const created = [];
   const record = { fetches: [], storage: [], history: [] };
@@ -197,6 +197,7 @@ function loadPage({ navigator = {}, stored = null, app = api } = {}) {
       };
     }
   };
+  if (matchMedia) sandbox.matchMedia = matchMedia;
   sandbox.window = sandbox;
   vm.createContext(sandbox);
   for (const name of SCRIPTS) {
@@ -240,6 +241,7 @@ describe('app.js privacy smoke test', () => {
 
     expect(rejections).toEqual([]);
     expect(elements.get('source').textContent).toBe(ROUTE_NAME); // the route was read
+    expect(elements.get('source').title).toBe(ROUTE_NAME); // the full name, for when it is cut short
     expect(elements.get('result').hidden).toBe(false); // and the answer drawn
 
     expect(record.fetches).toHaveLength(1);
@@ -328,28 +330,20 @@ describe('app.js privacy smoke test', () => {
     expect(JSON.parse(store.get(sandbox.RunSettings.STORAGE_KEY)).hours).toBe('10-20');
   });
 
-  it('keeps pace in the Run row without a route: an estimate under it, pace edits redraw without asking', async () => {
+  it('shows only the duration in the Run row without a route; duration edits redraw without asking', async () => {
     const { elements, record } = loadPage({ navigator: { geolocation }, stored: JSON.stringify({ paceSec: 390 }) });
     elements.get('use-location').listeners.click();
     await flush();
     expect(rejections).toEqual([]);
     expect(record.fetches).toHaveLength(1);
     expect(elements.get('duration-group').hidden).toBe(false);
+    expect(elements.get('pace-group').hidden).toBe(true); // set in minutes, pace adds nothing
     expect(elements.get('run-distance').hidden).toBe(true);
     expect(elements.get('run-minutes').hidden).toBe(true);
-    expect(elements.get('pace-input').value).toBe('6:30');
-    expect(elements.get('run-estimate').hidden).toBe(false);
-    expect(elements.get('run-estimate').textContent).toBe('≈ 9.2 km');
+    expect(elements.get('pace-input').value).toBe('6:30'); // kept for when a route is opened
 
-    elements.get('pace-down').listeners.click();
-    await flush();
-    expect(elements.get('pace-input').value).toBe('6:25');
-    expect(elements.get('run-estimate').textContent).toBe('≈ 9.4 km');
-    elements.get('pace-input').value = '5:00';
-    elements.get('pace-input').listeners.change();
-    expect(elements.get('run-estimate').textContent).toBe('≈ 12.0 km');
     elements.get('duration-up').listeners.click();
-    expect(elements.get('run-estimate').textContent).toBe('≈ 15.0 km');
+    expect(elements.get('duration-value').textContent).toBe('75 min');
     await flush();
     expect(record.fetches).toHaveLength(1);
   });
@@ -362,7 +356,7 @@ describe('app.js privacy smoke test', () => {
       sandbox.RouteFile.parseRoute(GPX, FILE_NAME, QuietDOMParser).route
     );
     expect(elements.get('duration-group').hidden).toBe(true);
-    expect(elements.get('run-estimate').hidden).toBe(true);
+    expect(elements.get('pace-group').hidden).toBe(false);
     expect(elements.get('run-distance').hidden).toBe(false);
     expect(elements.get('run-distance').textContent).toBe(`${summary.distanceKm.toFixed(1)} km`);
     const minutes = Math.max(1, sandbox.RunPlan.runMinutes(summary.distanceKm, 390));
@@ -496,6 +490,24 @@ describe('app.js privacy smoke test', () => {
     expect(item('Feels').children[2].textContent).toBe('ideal'); // 10 °C
     expect(item('Sky').children).toHaveLength(2); // no word under Sky or Run
     expect(item('Run').children).toHaveLength(2);
+  });
+
+  it('names the arrow keys under the timeline only where the screen is not touch-only', async () => {
+    const desktop = loadPage({ navigator: { geolocation } });
+    desktop.elements.get('use-location').listeners.click();
+    await answered(desktop.elements);
+    expect(desktop.elements.get('tap-line').textContent).toBe(
+      'Tap the timeline, or use the arrow keys, for each slot.'
+    );
+
+    const phone = loadPage({
+      navigator: { geolocation },
+      matchMedia: query => ({ matches: query === '(hover: none)' })
+    });
+    phone.elements.get('use-location').listeners.click();
+    await answered(phone.elements);
+    expect(rejections).toEqual([]);
+    expect(phone.elements.get('tap-line').textContent).toBe('Tap the timeline for each slot.');
   });
 
   it('shows no compass in little wind', async () => {

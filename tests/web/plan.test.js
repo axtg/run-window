@@ -20,7 +20,6 @@ const {
   answerLabel,
   answerTime,
   noWindowText,
-  distanceEstimate,
   windArrowDeg,
   tomorrowHint,
   windWord,
@@ -80,15 +79,6 @@ describe('runMinutes', () => {
   test('rounds distance times pace to whole minutes', () => {
     expect(runMinutes(10.2, 380)).toBe(65);
     expect(runMinutes(5, 360)).toBe(30);
-  });
-});
-
-describe('distanceEstimate', () => {
-  test('is the distance the duration covers at the pace, to 1 decimal', () => {
-    expect(distanceEstimate(60, 390)).toBe('≈ 9.2 km');
-    expect(distanceEstimate(60, 360)).toBe('≈ 10.0 km');
-    expect(distanceEstimate(15, 900)).toBe('≈ 1.0 km');
-    expect(distanceEstimate(300, 180)).toBe('≈ 100.0 km');
   });
 });
 
