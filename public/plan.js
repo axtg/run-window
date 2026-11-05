@@ -135,6 +135,15 @@
     ];
   }
 
+  // A key number split so the page can set its units smaller: '16 km/h E' → 16, ' km/h' (unit), ' E'.
+  const UNIT = /(\s?(?:km\/h|°C|min|m|%)(?=\s|$))/;
+  function valueParts(value) {
+    return value
+      .split(UNIT)
+      .filter(Boolean)
+      .map(text => ({ text, unit: UNIT.test(text) }));
+  }
+
   function answerLabel(result, minutes) {
     if (result.kind === 'none') return '';
     if (result.kind === 'fallback') return `Least bad · ${minutes} min`;
@@ -245,6 +254,7 @@
     windWord,
     feelsWord,
     keyNumbers,
+    valueParts,
     answerLabel,
     answerTime,
     noWindowText,

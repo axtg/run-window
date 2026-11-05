@@ -16,6 +16,7 @@ const {
   errorMessage,
   staleNote,
   keyNumbers,
+  valueParts,
   answerLabel,
   answerTime,
   noWindowText,
@@ -411,6 +412,32 @@ describe('answer helpers', () => {
     expect(keyNumbers(wet, route, 60)[0].value).toBe('Rain 10 %');
     const cold = { ...windowResult, window: win({ apparentTempAvg: -0.4 }) };
     expect(keyNumbers(cold, route, 60)[1]).toEqual({ label: 'Feels', value: '0 °C', note: 'freezing' });
+  });
+
+  test('valueParts marks the units so they can be set smaller', () => {
+    expect(valueParts('16 km/h E')).toEqual([
+      { text: '16', unit: false },
+      { text: ' km/h', unit: true },
+      { text: ' E', unit: false }
+    ]);
+    expect(valueParts('6 °C')).toEqual([
+      { text: '6', unit: false },
+      { text: ' °C', unit: true }
+    ]);
+    expect(valueParts('45 min')).toEqual([
+      { text: '45', unit: false },
+      { text: ' min', unit: true }
+    ]);
+    expect(valueParts('+45 m')).toEqual([
+      { text: '+45', unit: false },
+      { text: ' m', unit: true }
+    ]);
+    expect(valueParts('Rain 35 %')).toEqual([
+      { text: 'Rain 35', unit: false },
+      { text: ' %', unit: true }
+    ]);
+    expect(valueParts('Dry')).toEqual([{ text: 'Dry', unit: false }]);
+    expect(valueParts('–')).toEqual([{ text: '–', unit: false }]);
   });
 
   test('keyNumbers is empty for none', () => {

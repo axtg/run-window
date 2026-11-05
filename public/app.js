@@ -567,7 +567,11 @@
     numbers.forEach(({ label, value, note }) => {
       const item = html('div');
       item.appendChild(html('dt', 'text-[11px] text-secondary', label));
-      item.appendChild(html('dd', 'text-base font-semibold', value));
+      const dd = html('dd', 'text-base font-semibold whitespace-nowrap');
+      Plan.valueParts(value).forEach(part =>
+        dd.appendChild(html('span', part.unit ? 'text-xs font-medium text-secondary' : '', part.text))
+      );
+      item.appendChild(dd);
       if (note) item.appendChild(html('dd', 'text-[11px] text-secondary', note));
       el.keyNumbers.appendChild(item);
     });
