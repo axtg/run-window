@@ -36,6 +36,18 @@
     return Math.round((distanceKm * paceSec) / 60);
   }
 
+  // "Near you" opens OpenStreetMap at the rounded location the page sends to the API.
+  function mapUrl(lat, lon) {
+    return `https://www.openstreetmap.org/?mlat=${lat}&mlon=${lon}#map=12/${lat}/${lon}`;
+  }
+
+  // The browser's accuracy (metres) past 5 km means a guess, as from an IP address: say so next to "Near you".
+  const ROUGH_FROM_M = 5000;
+  function roughNote(accuracyM) {
+    if (!Number.isFinite(accuracyM) || accuracyM <= ROUGH_FROM_M) return '';
+    return `· rough, ±${Math.round(accuracyM / 1000)} km`;
+  }
+
   function durationKey(minutes) {
     const rounded = Math.max(KEY_STEP_MIN, Math.ceil(minutes / KEY_STEP_MIN) * KEY_STEP_MIN);
     if (rounded > MAX_KEY_MIN) return { key: String(MAX_KEY_MIN), fits: false };
@@ -248,6 +260,8 @@
     windWord,
     feelsWord,
     keyNumbers,
+    mapUrl,
+    roughNote,
     valueParts,
     answerLabel,
     answerTime,

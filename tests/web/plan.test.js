@@ -16,6 +16,8 @@ const {
   errorMessage,
   staleNote,
   keyNumbers,
+  mapUrl,
+  roughNote,
   valueParts,
   answerLabel,
   answerTime,
@@ -428,6 +430,19 @@ describe('answer helpers', () => {
     ]);
     expect(valueParts('Dry')).toEqual([{ text: 'Dry', unit: false }]);
     expect(valueParts('–')).toEqual([{ text: '–', unit: false }]);
+  });
+
+  test('mapUrl pins the rounded location on OpenStreetMap', () => {
+    expect(mapUrl(52.37, 4.89)).toBe('https://www.openstreetmap.org/?mlat=52.37&mlon=4.89#map=12/52.37/4.89');
+  });
+
+  test('roughNote speaks up only past 5 km of accuracy', () => {
+    expect(roughNote(undefined)).toBe('');
+    expect(roughNote(null)).toBe('');
+    expect(roughNote(30)).toBe('');
+    expect(roughNote(5000)).toBe('');
+    expect(roughNote(5400)).toBe('· rough, ±5 km');
+    expect(roughNote(70000)).toBe('· rough, ±70 km');
   });
 
   test('keyNumbers is empty for none', () => {

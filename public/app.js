@@ -59,7 +59,7 @@
 
   // Every element app.js uses, by id; el.sourceSet is #source-set.
   const IDS = (
-    'source source-set source-pick clear-source day-today day-tomorrow zone-note ' +
+    'source source-map source-rough source-set source-pick clear-source day-today day-tomorrow zone-note ' +
     'route-input use-location duration-group run-distance run-minutes pace-group pace-down pace-input ' +
     'pace-up duration-down duration-value duration-up hours-rows add-hours dark-times dark-ok rain-input ' +
     'rain-fill rain-value prompt answer answer-label answer-time key-numbers wind-line wind-compass ' +
@@ -344,8 +344,16 @@
     const known = Boolean(state.location);
     el.sourceSet.hidden = !known;
     el.sourcePick.hidden = known;
-    el.source.textContent = state.summary ? state.summary.name || 'Route' : known ? 'Near you' : '';
-    el.source.title = state.summary ? el.source.textContent : ''; // the full name when it is cut short
+    const near = known && !state.summary;
+    el.source.hidden = near;
+    el.source.textContent = state.summary ? state.summary.name || 'Route' : '';
+    el.source.title = el.source.textContent; // the full name when it is cut short
+    el.sourceMap.hidden = !near;
+    if (near) el.sourceMap.setAttribute('href', Plan.mapUrl(state.location.lat, state.location.lon));
+    else el.sourceMap.removeAttribute('href');
+    const rough = near ? Plan.roughNote(state.location.accuracyM) : '';
+    el.sourceRough.hidden = !rough;
+    el.sourceRough.textContent = rough;
   }
 
   function openRouteText(text, fileName) {
@@ -377,7 +385,8 @@
     navigator.geolocation.getCurrentPosition(
       position => {
         state.summary = null;
-        state.location = { lat: round2(position.coords.latitude), lon: round2(position.coords.longitude) };
+        const { latitude, longitude, accuracy } = position.coords;
+        state.location = { lat: round2(latitude), lon: round2(longitude), accuracyM: accuracy };
         render();
         refresh();
       },

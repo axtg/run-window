@@ -86,6 +86,9 @@ the worker `sw.js`, the manifest and icons.
   - Run: without a route, only the duration stepper (pace would only feed an estimate, so it is hidden but kept in
     storage). With a route: the route's distance and the pace − / + stepper, with `= 66 min` under it.
   - The route name sits next to the ✕ on one line (cut short with `…`, full name in `title`), without its distance.
+  - With a location, "Near you" (`#source-map`) links to OpenStreetMap at the rounded coordinates (new tab,
+    `noreferrer`; a link only, nothing loads from there unless tapped). When the browser's accuracy is worse than
+    5 km (an IP guess), `#source-rough` adds `· rough, ±70 km`. The accuracy stays in memory, never in a request.
   - Hours: sliders with a night hatch. A round `+` (`#add-hours`, "Add hours") ends the last row; the other rows end
     in a spacer as wide, so the sliders line up.
   - Dark: the dark times and an OK switch (`#dark-ok`, `role="switch"`).

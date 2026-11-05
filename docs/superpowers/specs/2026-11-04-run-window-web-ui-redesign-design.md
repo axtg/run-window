@@ -141,6 +141,10 @@ For a fallback window the time gets the "Least bad" label and the outline is das
 - **Run row without a route:** the duration only. The pace stepper and the `≈ km` estimate went: the run is set in
   minutes, so pace added nothing but the estimate, and the row took two lines. Pace stays stored for routes.
 - **Route name:** next to the ✕ on one line, cut short with `…`, without the distance (the Run row has it).
+- **"Near you" is a map link** to OpenStreetMap at the rounded coordinates the page sends anyway (new tab,
+  `noreferrer`), so a wrong location is easy to spot. Past 5 km of reported accuracy, as with an IP-based guess on a
+  desktop, `· rough, ±N km` follows it. Choosing a place by search was considered and left out: it needs a proxied
+  geocoding endpoint on the API.
 - **Tap hint:** on touch-only screens (`hover: none`) it reads "Tap the timeline for each slot." without the arrow keys.
 
 ## Left to the builder

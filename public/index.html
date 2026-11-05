@@ -94,6 +94,15 @@
               hidden
             >
               <span id="source" class="min-w-0 truncate"></span>
+              <a
+                id="source-map"
+                class="flex-none underline decoration-gray-300 underline-offset-2 hover:text-gray-900"
+                target="_blank"
+                rel="noopener noreferrer"
+                hidden
+                >Near you</a
+              >
+              <span id="source-rough" class="min-w-0 truncate text-amber-700" hidden></span>
               <button
                 id="clear-source"
                 type="button"
@@ -415,6 +424,10 @@
         <ul class="list-disc space-y-1 pl-5">
           <li>The route file is read in your browser and never sent anywhere; the page only sends its start point.</li>
           <li>The location is rounded to 2 decimals before it leaves your device.</li>
+          <li>
+            "Near you" links to OpenStreetMap with that rounded location, so you can check it; nothing goes there unless
+            you open the link.
+          </li>
           <li>
             Pace, hours and the other settings are kept in your browser's storage; the route and location are not.
           </li>

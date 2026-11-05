@@ -79,6 +79,14 @@ test('privacy text says the route file stays in the browser and the location is 
   expect(text).toContain('waits briefly in your browser');
   expect(text).toContain('deleted as soon as the page opens it');
   expect(text).toContain('rounded to 2 decimals before');
+  expect(text).toContain('nothing goes there unless you open the link');
+});
+
+test('"Near you" is a map link that opens in a new tab without a referrer and has no address in the HTML', () => {
+  const link = html.match(/<a\b[^>]*id="source-map"[^>]*>/)[0];
+  expect(link).toContain('target="_blank"');
+  expect(link).toContain('rel="noopener noreferrer"');
+  expect(link).not.toContain('href='); // app.js sets it once the location is known
 });
 
 test('the page has a route file input for GPX and KML and a polite status line', () => {

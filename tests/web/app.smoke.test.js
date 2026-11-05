@@ -242,6 +242,8 @@ describe('app.js privacy smoke test', () => {
     expect(rejections).toEqual([]);
     expect(elements.get('source').textContent).toBe(ROUTE_NAME); // the route was read
     expect(elements.get('source').title).toBe(ROUTE_NAME); // the full name, for when it is cut short
+    expect(elements.get('source-map').hidden).toBe(true); // a route has no map link
+    expect(elements.get('source-map').getAttribute('href')).toBeNull();
     expect(elements.get('result').hidden).toBe(false); // and the answer drawn
 
     expect(record.fetches).toHaveLength(1);
@@ -364,6 +366,39 @@ describe('app.js privacy smoke test', () => {
     elements.get('pace-up').listeners.click();
     const slower = Math.max(1, sandbox.RunPlan.runMinutes(summary.distanceKm, 395));
     expect(elements.get('run-minutes').textContent).toBe(`= ${slower} min`);
+  });
+
+  it('links "Near you" to the map at the rounded location, and says when the location is rough', async () => {
+    const { elements } = loadPage({ navigator: { geolocation } });
+    elements.get('use-location').listeners.click();
+    await answered(elements);
+    expect(rejections).toEqual([]);
+    expect(elements.get('source').hidden).toBe(true);
+    expect(elements.get('source-map').hidden).toBe(false);
+    expect(elements.get('source-map').getAttribute('href')).toBe(
+      'https://www.openstreetmap.org/?mlat=52.37&mlon=4.9#map=12/52.37/4.9'
+    );
+    expect(elements.get('source-rough').hidden).toBe(true); // the fake gives no accuracy
+
+    const guessed = {
+      getCurrentPosition: onOk => onOk({ coords: { latitude: 52.3702, longitude: 4.8952, accuracy: 70000 } })
+    };
+    const rough = loadPage({ navigator: { geolocation: guessed } });
+    rough.elements.get('use-location').listeners.click();
+    await answered(rough.elements);
+    expect(rough.elements.get('source-rough').hidden).toBe(false);
+    expect(rough.elements.get('source-rough').textContent).toBe('· rough, ±70 km');
+    expect(rough.record.fetches[0]).not.toContain('70000'); // the accuracy stays in the page
+    expect(
+      rough.record.storage
+        .filter(entry => entry.op === 'set')
+        .map(entry => entry.value)
+        .join()
+    ).not.toMatch(/accuracy|70000/);
+
+    rough.elements.get('clear-source').listeners.click();
+    expect(rough.elements.get('source-map').hidden).toBe(true);
+    expect(rough.elements.get('source-rough').hidden).toBe(true);
   });
 
   it('says the location is off and asks nothing when location is denied', async () => {
