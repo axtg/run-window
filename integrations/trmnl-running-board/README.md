@@ -60,5 +60,5 @@ seconds (`intensityCache`) in TRMNL's merge variables.
 
 ## Publishing
 
-This stays a private plugin. Tredict's terms restrict forwarding data to third parties in an automated manner, so
-publishing it as a recipe waits for Tredict's written agreement.
+Tredict's terms restrict forwarding data to third parties in an automated manner, so a recipe needed Tredict's
+agreement. Tredict was in favour, and the recipe was submitted on 2026-11-05; it waits on TRMNL's review.

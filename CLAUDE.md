@@ -22,8 +22,9 @@ The API comes first: the plugin depends on it.
 ## Status
 
 The API is live at `https://run.xadi.eu` (deployed 2026-11-03). The TRMNL plugin is built and tested; install steps are
-in `integrations/trmnl-running-board/README.md`. The install check on the device (plan Task 12) is pending. Publishing
-it as a recipe waits for Tredict's written agreement (see the plugin spec, "Tredict's terms"). The web interface is
+in `integrations/trmnl-running-board/README.md`. The install check on the device (plan Task 12) is pending. Tredict
+agreed to a public recipe (see the plugin spec, "Tredict's terms"); it was submitted on 2026-11-05 and waits on TRMNL's
+review. The web interface is
 live and was checked on an Android phone on 2026-11-05
 (`docs/superpowers/specs/2026-11-04-run-window-web-ui-verify.md`): installed from Chrome, it is in the share sheet for
 route files (`share_target`, which needs the nginx `/share-target` location on the host; see "Web interface").
