@@ -44,6 +44,7 @@ const LOGGABLE_PATHS = new Set([
   '/plan.js',
   '/strip.js',
   '/settings.js',
+  '/analytics.js',
   '/app.js',
   '/manifest.webmanifest',
   '/sw.js',

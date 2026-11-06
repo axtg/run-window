@@ -12,6 +12,9 @@
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="icon" href="/icon.svg" type="image/svg+xml" />
     <meta name="theme-color" content="#111827" />
+    <!-- Privacy-friendly analytics by Plausible; its init is in /analytics.js, as the CSP allows no inline script -->
+    <script async src="https://plausible.io/js/pa-Y3VqyvdYCOYYLOZ8-gRL1.js"></script>
+    <script src="/analytics.js" defer></script>
     <script src="/route.js" defer></script>
     <script src="/plan.js" defer></script>
     <script src="/strip.js" defer></script>
@@ -28,7 +31,7 @@
       </defs>
     </svg>
 
-    <header class="mx-auto flex max-w-xl items-center justify-between px-4 pb-3 pt-5">
+    <header class="relative mx-auto flex max-w-xl flex-wrap items-center justify-between gap-y-1 px-4 pb-3 pt-5">
       <div class="flex items-center gap-2 text-base font-semibold">
         <svg viewBox="0 0 512 512" class="h-6 w-6" aria-hidden="true" focusable="false">
           <rect width="512" height="512" rx="112" fill="#111827" />
@@ -40,7 +43,7 @@
         </svg>
         <h1>besttimetorun<span class="font-medium text-gray-500">.com</span></h1>
       </div>
-      <nav class="flex items-center gap-1 text-sm text-gray-600" aria-label="About the page">
+      <nav class="-mr-1 ml-auto flex items-center gap-1 text-sm text-gray-600" aria-label="About the page">
         <button
           id="open-method"
           type="button"
@@ -65,7 +68,93 @@
         >
           Privacy
         </button>
+        <button
+          id="open-network"
+          type="button"
+          class="ml-1 flex h-8 w-8 items-center justify-center rounded-full bg-white text-gray-700 ring-1 ring-black/10 hover:text-gray-900"
+          aria-label="More by Xander"
+          aria-expanded="false"
+          aria-controls="network-menu"
+        >
+          <svg viewBox="0 0 14 14" class="h-3.5 w-3.5 fill-current" aria-hidden="true" focusable="false">
+            <rect x="0" y="0" width="3" height="3" rx="0.75" />
+            <rect x="5.5" y="0" width="3" height="3" rx="0.75" />
+            <rect x="11" y="0" width="3" height="3" rx="0.75" />
+            <rect x="0" y="5.5" width="3" height="3" rx="0.75" />
+            <rect x="5.5" y="5.5" width="3" height="3" rx="0.75" />
+            <rect x="11" y="5.5" width="3" height="3" rx="0.75" />
+            <rect x="0" y="11" width="3" height="3" rx="0.75" />
+            <rect x="5.5" y="11" width="3" height="3" rx="0.75" />
+            <rect x="11" y="11" width="3" height="3" rx="0.75" />
+          </svg>
+        </button>
       </nav>
+      <div
+        id="network-menu"
+        class="absolute right-4 top-full z-20 -mt-1 w-72 max-w-[calc(100%-2rem)] rounded-2xl bg-white p-1.5 text-sm shadow-[0_12px_32px_rgba(17,24,39,0.18)] ring-1 ring-black/5"
+        hidden
+      >
+        <p class="px-3 pb-1 pt-2 text-[11px] font-medium uppercase tracking-wide text-gray-400">More by Xander</p>
+        <a
+          data-site="xadi.nl"
+          href="https://xadi.nl"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="block rounded-xl px-3 py-2 hover:bg-gray-100 focus-visible:bg-gray-100"
+        >
+          <span class="block font-semibold">xadi.nl</span>
+          <span class="text-xs text-gray-500">Professional site</span>
+        </a>
+        <a
+          data-site="dap.xadi.eu"
+          href="https://dap.xadi.eu"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="block rounded-xl px-3 py-2 hover:bg-gray-100 focus-visible:bg-gray-100"
+        >
+          <span class="block font-semibold">dap.xadi.eu</span>
+          <span class="text-xs text-gray-500">Day-ahead electricity prices for the EU</span>
+        </a>
+        <a
+          data-site="emailconnect.eu"
+          href="https://emailconnect.eu"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="block rounded-xl px-3 py-2 hover:bg-gray-100 focus-visible:bg-gray-100"
+        >
+          <span class="block font-semibold">emailconnect.eu</span>
+          <span class="text-xs text-gray-500">Turn emails into JSON</span>
+        </a>
+        <a
+          data-site="webhooktest.eu"
+          href="https://webhooktest.eu"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="block rounded-xl px-3 py-2 hover:bg-gray-100 focus-visible:bg-gray-100"
+        >
+          <span class="block font-semibold">webhooktest.eu</span>
+          <span class="text-xs text-gray-500">Feature-rich webhook testing</span>
+        </a>
+        <a
+          data-site="stackcheck.eu"
+          href="https://stackcheck.eu"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="block rounded-xl px-3 py-2 hover:bg-gray-100 focus-visible:bg-gray-100"
+        >
+          <span class="block font-semibold">stackcheck.eu</span>
+          <span class="text-xs text-gray-500">Two-level analysis of a service's stack</span>
+        </a>
+        <a
+          data-site="buymeacoffee.com"
+          href="https://buymeacoffee.com/xander.groesbeek"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="mt-1 flex items-center gap-2 rounded-xl border-t border-gray-100 px-3 py-2.5 font-semibold text-amber-800 hover:bg-amber-50 focus-visible:bg-amber-50"
+        >
+          <span aria-hidden="true">☕</span> Buy me a coffee
+        </a>
+      </div>
     </header>
 
     <main class="mx-auto max-w-xl px-3 pb-10 sm:px-4">
@@ -584,6 +673,10 @@
           <li>
             An Authorization or Cookie header is removed by nginx and again by the app, and is never read, logged or
             stored.
+          </li>
+          <li>
+            Plausible counts page views without cookies, and which settings, dialogs and links are used, by name only:
+            never what you set, the route or the location. Plausible doesn't store IP addresses.
           </li>
           <li>Weather is requested from Open-Meteo with coordinates rounded to 2 decimals.</li>
           <li>

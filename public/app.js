@@ -5,6 +5,8 @@
   const Plan = globalThis.RunPlan;
   const Strip = globalThis.DayStrip;
   const { loadSettings, saveSettings, splitHours, joinHours, moveHandle, addRow, removeRow } = globalThis.RunSettings;
+  // Names only, once per page view (analytics.js). Without it (not loaded) nothing is tracked and all else works.
+  const track = (globalThis.Analytics && globalThis.Analytics.track) || (() => false);
 
   const SVG_NS = 'http://www.w3.org/2000/svg';
   const MAX_FILE_BYTES = 5 * 1024 * 1024;
@@ -66,7 +68,7 @@
     'answer-time key-numbers wind-line wind-compass ' +
     'wind-arrow wind-text tomorrow-hint try-tomorrow tomorrow-text stale-note status ' +
     'result timeline tap-line why-sentence copy-link open-method open-api open-privacy ' +
-    'method-dialog api-dialog privacy-dialog close-method close-api close-privacy ' +
+    'method-dialog api-dialog privacy-dialog close-method close-api close-privacy open-network network-menu ' +
     'copy-label copy-icon copy-check copy-note'
   ).split(' ');
   const camel = id => id.replace(/-(\w)/g, (_, letter) => letter.toUpperCase());
@@ -166,6 +168,7 @@
   }
 
   function stepPace(delta) {
+    track('Setting', 'pace');
     save({ paceSec: clamp(state.settings.paceSec + delta, PACE_RANGE) });
     render(); // pace is not in the request: the response already has every run length
   }
@@ -178,11 +181,13 @@
       return;
     }
     if (el.status.textContent === MESSAGES.pace) setStatus('');
+    track('Setting', 'pace');
     save({ paceSec: pace });
     render();
   }
 
   function stepDuration(delta) {
+    track('Setting', 'duration');
     save({ durationMin: clamp(state.settings.durationMin + delta, DURATION_RANGE) });
     render();
   }
@@ -220,7 +225,10 @@
       state.rows = moveHandle(state.rows, index, which, Number(input.value));
       updateRows();
     });
-    input.addEventListener('change', () => commit({ hours: joinHours(state.rows) }));
+    input.addEventListener('change', () => {
+      track('Setting', 'hours');
+      commit({ hours: joinHours(state.rows) });
+    });
     return input;
   }
 
@@ -297,6 +305,7 @@
   function onAddRow() {
     const rows = addRow(state.rows);
     if (rows.length === state.rows.length) return undefined;
+    track('Setting', 'add-hours');
     state.rows = rows;
     buildHours(); // the + moved to the new last row: keep focus on it, or on the new row once nothing is free
     (el.addHours.disabled ? state.rowViews[state.rowViews.length - 1].start : el.addHours).focus();
@@ -304,6 +313,7 @@
   }
 
   function onRemoveRow(index) {
+    track('Setting', 'hours');
     state.rows = removeRow(state.rows, index);
     buildHours();
     state.rowViews[Math.min(index, state.rowViews.length - 1)].start.focus(); // not back to <body>
@@ -342,6 +352,7 @@
   }
 
   function setDay(index) {
+    track('Setting', 'day');
     state.dayIndex = index;
     state.selected = null;
     el.dayToday.setAttribute('aria-pressed', String(index === 0));
@@ -367,9 +378,11 @@
     el.sourceRough.textContent = rough;
   }
 
-  function openRouteText(text, fileName) {
+  // `source` is how the route arrived (file or share), for analytics: the name only, never the file.
+  function openRouteText(text, fileName, source = 'file') {
     const parsed = parseRoute(String(text), String(fileName || ''), window.DOMParser);
     if (!parsed.ok) return setStatus(MESSAGES[parsed.reason] || MESSAGES.unreadable);
+    track('Source', source);
     state.summary = summarizeRoute(parsed.route);
     state.location = { lat: state.summary.start.lat, lon: state.summary.start.lon };
     render();
@@ -396,6 +409,7 @@
     navigator.geolocation.getCurrentPosition(
       position => {
         state.summary = null;
+        track('Source', 'location');
         const { latitude, longitude, accuracy } = position.coords;
         state.location = { lat: round2(latitude), lon: round2(longitude), accuracyM: accuracy };
         render();
@@ -456,7 +470,7 @@
     }
     if (share === 'too-large') return setStatus(MESSAGES['too-large']);
     if (!shared) return setStatus(MESSAGES.shareFailed);
-    return openRouteText(shared.text, shared.fileName);
+    return openRouteText(shared.text, shared.fileName, 'share');
   }
 
   function registerWorker() {
@@ -745,12 +759,33 @@
 
   // ---- The Method, API and Privacy dialogs: ✕, Escape (native) or a click on the backdrop closes them.
 
-  function wireDialog(opener, dialog, closer) {
-    opener.addEventListener('click', () => dialog.showModal());
+  function wireDialog(opener, dialog, closer, name) {
+    opener.addEventListener('click', () => {
+      track('Dialog', name);
+      dialog.showModal();
+    });
     closer.addEventListener('click', () => dialog.close());
     dialog.addEventListener('click', event => {
       if (event.target === dialog) dialog.close();
     });
+  }
+
+  // ---- The network menu: the icon toggles it; a press outside, Escape or tabbing out of it closes it.
+
+  function setNetworkOpen(open, returnFocus = false) {
+    el.networkMenu.hidden = !open;
+    el.openNetwork.setAttribute('aria-expanded', String(open));
+    if (open) track('Dialog', 'network');
+    if (!open && returnFocus) el.openNetwork.focus();
+  }
+
+  const inNetwork = node => Boolean(node) && (el.networkMenu.contains(node) || el.openNetwork.contains(node));
+
+  function onNetworkClick(event) {
+    const link = event.target.closest('a[data-site]');
+    if (!link) return;
+    track('Network', link.dataset.site);
+    setNetworkOpen(false);
   }
 
   let resizeFrame = null;
@@ -768,12 +803,21 @@
   el.durationDown.addEventListener('click', () => stepDuration(-DURATION_STEP));
   el.durationUp.addEventListener('click', () => stepDuration(DURATION_STEP));
   el.addHours.addEventListener('click', onAddRow);
-  el.darkOk.addEventListener('click', () => commit({ allowDark: !state.settings.allowDark }));
+  el.darkOk.addEventListener('click', () => {
+    track('Setting', 'dark');
+    commit({ allowDark: !state.settings.allowDark });
+  });
   for (const [value, key] of Object.entries(PREFER_BUTTONS)) {
-    el[key].addEventListener('click', () => commit({ prefer: value }));
+    el[key].addEventListener('click', () => {
+      track('Setting', 'prefer');
+      commit({ prefer: value });
+    });
   }
   el.rainInput.addEventListener('input', () => showRain(Number(el.rainInput.value)));
-  el.rainInput.addEventListener('change', () => commit({ rain: Number(el.rainInput.value) }));
+  el.rainInput.addEventListener('change', () => {
+    track('Setting', 'rain');
+    commit({ rain: Number(el.rainInput.value) });
+  });
   el.dayToday.addEventListener('click', () => setDay(0));
   el.dayTomorrow.addEventListener('click', () => setDay(1));
   el.tryTomorrow.addEventListener('click', () => {
@@ -786,9 +830,20 @@
   el.timeline.addEventListener('click', onTimelineClick);
   el.timeline.addEventListener('keydown', onTimelineKey);
   el.copyLink.addEventListener('click', onCopyLink);
-  wireDialog(el.openMethod, el.methodDialog, el.closeMethod);
-  wireDialog(el.openApi, el.apiDialog, el.closeApi);
-  wireDialog(el.openPrivacy, el.privacyDialog, el.closePrivacy);
+  wireDialog(el.openMethod, el.methodDialog, el.closeMethod, 'method');
+  wireDialog(el.openApi, el.apiDialog, el.closeApi, 'api');
+  wireDialog(el.openPrivacy, el.privacyDialog, el.closePrivacy, 'privacy');
+  el.openNetwork.addEventListener('click', () => setNetworkOpen(el.networkMenu.hidden));
+  el.networkMenu.addEventListener('click', onNetworkClick);
+  el.networkMenu.addEventListener('focusout', event => {
+    if (event.relatedTarget && !inNetwork(event.relatedTarget)) setNetworkOpen(false);
+  });
+  window.addEventListener('pointerdown', event => {
+    if (!el.networkMenu.hidden && !inNetwork(event.target)) setNetworkOpen(false);
+  });
+  window.addEventListener('keydown', event => {
+    if (event.key === 'Escape' && !el.networkMenu.hidden) setNetworkOpen(false, true);
+  });
   window.addEventListener('resize', onResize);
   el.rainInput.value = String(state.settings.rain); // set once: a late render never moves a slider being dragged
   showRain(state.settings.rain);

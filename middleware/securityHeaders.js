@@ -5,6 +5,10 @@ const path = require('path');
 // Scripts without a src, excluding data blocks such as JSON-LD, which browsers never run.
 const INLINE_SCRIPT = /<script(?![^>]*\bsrc=)(?![^>]*\btype=["']application\/ld\+json["'])[^>]*>([\s\S]*?)<\/script>/g;
 
+// Plausible: its one script file, and its event endpoint. Nothing else leaves the page's own origin.
+const PLAUSIBLE_SCRIPT = 'https://plausible.io/js/pa-Y3VqyvdYCOYYLOZ8-gRL1.js';
+const SITE_SOURCES = { scripts: [PLAUSIBLE_SCRIPT], connect: ['https://plausible.io'] };
+
 // Blocks anything not listed. To debug a policy without breaking pages, switch to Content-Security-Policy-Report-Only.
 const POLICY_HEADER = 'Content-Security-Policy';
 
@@ -29,7 +33,7 @@ function buildContentSecurityPolicy(html, { scripts = [], styles = [], connect =
 
 function securityHeaders() {
   const html = fs.readFileSync(path.join(__dirname, '..', 'public', 'index.html'), 'utf8');
-  const policy = buildContentSecurityPolicy(html);
+  const policy = buildContentSecurityPolicy(html, SITE_SOURCES);
 
   return (req, res, next) => {
     res.setHeader(POLICY_HEADER, policy);
@@ -39,4 +43,4 @@ function securityHeaders() {
   };
 }
 
-module.exports = { buildContentSecurityPolicy, securityHeaders };
+module.exports = { PLAUSIBLE_SCRIPT, buildContentSecurityPolicy, securityHeaders };

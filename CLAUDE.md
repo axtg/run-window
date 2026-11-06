@@ -23,7 +23,8 @@ The API comes first: the plugin depends on it.
 
 The site and API are live at `https://besttimetorun.com`, the site's name since 2026-11-06; `run.xadi.eu`
 (deployed 2026-11-03) answers every path with a 301 to it. Internal names (repo, Docker service, "run window" for the
-API's result) stay. The TRMNL plugin is built and tested; install steps are
+API's result) stay. The dated specs and plans under `docs/superpowers/` are records of their day and keep the old
+name. The TRMNL plugin is built and tested; install steps are
 in `integrations/trmnl-running-board/README.md`. The install check on the device (plan Task 12) is pending. Tredict
 agreed to a public recipe (see the plugin spec, "Tredict's terms"); it was submitted on 2026-11-05 and waits on TRMNL's
 review. The web interface is
@@ -76,17 +77,24 @@ test approach. Read its `CLAUDE.md` first. Reuse rather than reinvent:
 
 ## Web interface
 
-`public/` holds the page (`index.html`, `app.js`) and its modules (`route.js`, `plan.js`, `strip.js`, `settings.js`),
-the worker `sw.js`, the manifest and icons.
+`public/` holds the page (`index.html`, `app.js`) and its modules (`analytics.js`, `route.js`, `plan.js`, `strip.js`,
+`settings.js`), the worker `sw.js`, the manifest and icons.
 
 - Each module is an IIFE that exports its API with `module.exports` in Node and as a global in the browser (the
   eu-dayahead pattern). Jest tests live in `tests/web/`.
-- Same-origin only: external `<script src="/...">` files, no inline script, `<style>`, `style=` attribute or
-  `setAttribute('style', ...)`. The CSP is unchanged (`script-src 'self'`, `style-src 'self'`, `connect-src 'self'`,
+- Same-origin scripts only, plus Plausible: external `<script src="/...">` files, no inline script, `<style>`, `style=`
+  attribute or `setAttribute('style', ...)`. The CSP adds only Plausible (`script-src 'self'` + its one file,
+  `PLAUSIBLE_SCRIPT` in `middleware/securityHeaders.js`; `connect-src 'self' https://plausible.io`; `style-src 'self'`;
   no hashes). Styling is Tailwind classes in `public/tailwind.css`.
+- Plausible (since 2026-11-06): its snippet's init lives in `analytics.js` (deferred, before `app.js`), since the CSP
+  allows no inline script. Events carry names only, from the fixed list in `analytics.js` (`EVENTS`), once per page
+  view: `Setting` (which setting was changed), `Dialog` (Method, API, Privacy, the network menu), `Source` (file,
+  share, location) and `Network` (which site in the menu). Never a value, a coordinate or anything from the route.
+  Blocked Plausible changes nothing. Each event needs a goal in the Plausible dashboard to show up there.
 - Tailwind scans only `index.html`, `app.js` and `strip.js`: run `npm run build:css` after editing them, comments too.
-- The route file never leaves the browser. The only request the page makes is `/api/window` with `lat` and `lon` at 2
-  decimals plus `avail`, `dark`, `rain`, `prefer` and `slots=1`. Nothing from the file goes into storage or the URL.
+- The route file never leaves the browser. The only request the page makes to its own server is `/api/window` with `lat`
+  and `lon` at 2 decimals plus `avail`, `dark`, `rain`, `prefer` and `slots=1`; the only other is Plausible's. Nothing
+  from the file goes into storage, the URL or analytics.
 - The page is one card with slim settings rows:
   - Run: without a route, only the duration stepper (pace would only feed an estimate, so it is hidden but kept in
     storage). With a route: the route's distance and the pace − / + stepper, with `= 66 min` under it.
@@ -110,6 +118,9 @@ the worker `sw.js`, the manifest and icons.
   - When today has no window and tomorrow has one, a `Try tomorrow →` button shows what tomorrow holds.
 - Below the answer: one timeline joining strip and graph, then the why line.
 - The hint under the timeline names the arrow keys only where the screen can hover (`(hover: none)` drops them).
+- The header's 3×3 dot icon (`#open-network`, "More by Xander") opens `#network-menu`, a dropdown with the maintainer's
+  other sites and Buy me a coffee (new tab, `noopener noreferrer`). A press outside, Escape (focus back on the icon) or
+  tabbing out closes it. It is the only place on the page that names the maintainer; `tests/landing.test.js` checks.
 - Method, API and Privacy open in `<dialog>`s from the header. Method explains the scoring in words;
   `tests/landing.test.js` checks its numbers against `SCORING` in `lib/windows.js`, so change both together. Copy API link confirms on the button itself (`Copied` or
   `Couldn't copy` for 2 s, announced by a hidden polite note), not in `#status`.

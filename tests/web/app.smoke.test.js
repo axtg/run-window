@@ -1,4 +1,4 @@
-// Privacy smoke test for public/app.js: loads the page's five scripts in a vm with a minimal fake DOM, opens a route
+// Privacy smoke test for public/app.js: loads the page's six scripts in a vm with a minimal fake DOM, opens a route
 // and checks that only the rounded start point leaves the page, and that nothing from the file reaches storage or the
 // URL. The fake fetch forwards to the real Express app, so the test also shows the API accepts what the page sends.
 const fs = require('fs');
@@ -13,7 +13,7 @@ const { parseForecast } = require('../../lib/forecast');
 const { makeForecastJson } = require('../helpers/forecast');
 
 const PUBLIC = path.join(__dirname, '..', '..', 'public');
-const SCRIPTS = ['route.js', 'plan.js', 'strip.js', 'settings.js', 'app.js']; // the order in index.html
+const SCRIPTS = ['analytics.js', 'route.js', 'plan.js', 'strip.js', 'settings.js', 'app.js']; // as in index.html
 const FILE_NAME = 'hill-loop.gpx';
 const GPX = fs.readFileSync(path.join(__dirname, '..', 'fixtures', 'routes', FILE_NAME), 'utf8');
 const ROUTE_NAME = 'Hill test loop';
@@ -667,6 +667,60 @@ describe('app.js privacy smoke test', () => {
     const reloaded = loadPage({ stored: store.get(sandbox.RunSettings.STORAGE_KEY) });
     expect(reloaded.elements.get('prefer-wind').attributes['aria-pressed']).toBe('true');
     expect(reloaded.elements.get('prefer-balanced').attributes['aria-pressed']).toBe('false');
+  });
+
+  // Plausible never loads here, so its queue (analytics.js's stub of Plausible's snippet) holds every event sent.
+  const events = sandbox => (sandbox.plausible.q || []).map(([name, options]) => [name, options.props]);
+
+  it('sends analytics names only, once each, and nothing from the route', async () => {
+    const { sandbox, elements } = loadPage();
+    await sandbox.RunApp.openRouteText(GPX, FILE_NAME);
+    await flush();
+    elements.get('pace-up').listeners.click();
+    elements.get('pace-up').listeners.click();
+    elements.get('dark-ok').listeners.click();
+    elements.get('prefer-wind').listeners.click();
+    elements.get('rain-input').value = '55';
+    elements.get('rain-input').listeners.change();
+    elements.get('day-tomorrow').listeners.click();
+    elements.get('open-privacy').listeners.click();
+    await flush();
+
+    expect(rejections).toEqual([]);
+    expect(events(sandbox)).toEqual([
+      ['Source', { source: 'file' }],
+      ['Setting', { setting: 'pace' }],
+      ['Setting', { setting: 'dark' }],
+      ['Setting', { setting: 'prefer' }],
+      ['Setting', { setting: 'rain' }],
+      ['Setting', { setting: 'day' }],
+      ['Dialog', { dialog: 'privacy' }]
+    ]);
+    expect(leaks(JSON.stringify(sandbox.plausible.q))).toEqual([]);
+  });
+
+  it('counts the location as a source without its coordinates', async () => {
+    const { sandbox, elements } = loadPage({ navigator: { geolocation } });
+    elements.get('use-location').listeners.click();
+    await flush(); // counted before the request, so the answer is not needed
+
+    expect(events(sandbox)).toEqual([['Source', { source: 'location' }]]);
+    expect(JSON.stringify(sandbox.plausible.q)).not.toMatch(/52\.|4\.89/);
+  });
+
+  it('the network icon opens and closes its menu, and counts the opening', () => {
+    const { sandbox, elements } = loadPage();
+    const button = elements.get('open-network');
+    const menu = elements.get('network-menu');
+    menu.hidden = true; // as in the markup
+
+    button.listeners.click();
+    expect(menu.hidden).toBe(false);
+    expect(button.getAttribute('aria-expanded')).toBe('true');
+    button.listeners.click();
+    expect(menu.hidden).toBe(true);
+    expect(button.getAttribute('aria-expanded')).toBe('false');
+    expect(events(sandbox)).toEqual([['Dialog', { dialog: 'network' }]]);
   });
 
   it('reads the rain slider out as a percentage, while dragging too', () => {

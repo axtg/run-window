@@ -4,6 +4,7 @@ const request = require('supertest');
 
 const { createApp } = require('../app');
 const { LOGGABLE_PATHS } = require('../middleware/logging');
+const { PLAUSIBLE_SCRIPT } = require('../middleware/securityHeaders');
 
 const PUBLIC = path.join(__dirname, '..', 'public');
 const html = fs.readFileSync(path.join(PUBLIC, 'index.html'), 'utf8');
@@ -41,16 +42,21 @@ test('landing page privacy text says no more than the code does', () => {
   expect(text).not.toMatch(/at most 3 hours|cannot be read back/);
 });
 
-const SCRIPTS = ['/route.js', '/plan.js', '/strip.js', '/settings.js', '/app.js'];
-const scriptTags = [...html.matchAll(/<script\b[^>]*>/gi)].map(match => match[0]);
+const SCRIPTS = ['/analytics.js', '/route.js', '/plan.js', '/strip.js', '/settings.js', '/app.js'];
+const allScriptTags = [...html.matchAll(/<script\b[^>]*>/gi)].map(match => match[0]);
 const scriptPath = tag => (tag.match(/\ssrc="([^"?]*)(\?[^"]*)?"/) || [])[1];
+// Plausible's file is the one script from elsewhere; the rest are the page's own.
+const plausibleTags = allScriptTags.filter(tag => scriptPath(tag) === PLAUSIBLE_SCRIPT);
+const scriptTags = allScriptTags.filter(tag => scriptPath(tag) !== PLAUSIBLE_SCRIPT);
 
-test('the page loads only same-origin external scripts, deferred, in order, and none inline', () => {
+test('the page loads same-origin scripts deferred and in order, Plausible async, and none inline', () => {
   expect(scriptTags.map(scriptPath)).toEqual(SCRIPTS);
   scriptTags.forEach(tag => {
     expect(tag).toMatch(/\ssrc="\/[^/]/);
     expect(tag).toMatch(/\sdefer\b/);
   });
+  expect(plausibleTags).toHaveLength(1);
+  expect(plausibleTags[0]).toMatch(/\sasync\b/);
   expect(html).not.toMatch(/<script\b(?![^>]*\ssrc=)[^>]*>/i);
   expect(html).not.toMatch(/<script\b[^>]*>[^<]+<\/script>/i);
 });
@@ -66,8 +72,11 @@ test('every script path is logged by name and served as JavaScript', async () =>
   }
 });
 
-test('the page makes no external requests and has no inline style', () => {
-  expect(html).not.toMatch(/\s(src|srcset|data)=["']?(https?:)?\/\//i);
+test('the page loads nothing external but Plausible, and has no inline style', () => {
+  const external = [...html.matchAll(/\s(?:src|srcset|data)=["']?((?:https?:)?\/\/[^"'\s>]*)/gi)].map(
+    match => match[1]
+  );
+  expect(external).toEqual([PLAUSIBLE_SCRIPT]);
   expect(html).not.toMatch(/<(link|img|iframe|object|embed|source|video|audio)\b[^>]*(https?:)?\/\/[^>]*>/i);
   expect(html).not.toMatch(/<style|style=/i);
   expect(html).not.toMatch(/@import|url\(/i);
@@ -324,16 +333,23 @@ test('the only stylesheet is /tailwind.css, which the logger allows', async () =
   await request(app).get('/tailwind.css').expect(200).expect('Content-Type', /css/);
 });
 
-test('the page is served with the CSP unchanged and no inline script hashes', async () => {
+test('the page is served with a CSP that adds only Plausible and has no inline script hashes', async () => {
   const app = createApp({ weather: { getForecast: jest.fn(), stats: () => ({}) } });
   const response = await request(app).get('/').expect(200);
   const policy = response.headers['content-security-policy'];
 
-  expect(policy).toContain("script-src 'self';");
+  expect(policy).toContain(`script-src 'self' ${PLAUSIBLE_SCRIPT};`);
   expect(policy).toContain("style-src 'self';");
-  expect(policy).toContain("connect-src 'self';");
+  expect(policy).toContain("connect-src 'self' https://plausible.io;");
+  expect(policy).not.toContain('sha256-');
 });
 
-test('no names or places tied to the maintainer', () => {
-  expect(html).not.toMatch(/xander|xadi|xadi\.nl/i);
+// The network menu names the maintainer's sites on purpose (2026-11-06); nothing else on the page does.
+test('no names or places tied to the maintainer outside the network menu', () => {
+  const menu = html.match(
+    /<button\s+id="open-network"[\s\S]*?<\/button>|<div\s+id="network-menu"[\s\S]*?\n {6}<\/div>/g
+  );
+  expect(menu).toHaveLength(2);
+  const rest = menu.reduce((page, part) => page.replace(part, ''), html);
+  expect(rest).not.toMatch(/xander|xadi|groesbeek|buymeacoffee/i);
 });
