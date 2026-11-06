@@ -42,6 +42,14 @@
       </div>
       <nav class="flex items-center gap-1 text-sm text-gray-600" aria-label="About the page">
         <button
+          id="open-method"
+          type="button"
+          class="rounded-lg px-3 py-1.5 hover:bg-white hover:text-gray-900"
+          aria-haspopup="dialog"
+        >
+          Method
+        </button>
+        <button
           id="open-api"
           type="button"
           class="rounded-lg px-3 py-1.5 hover:bg-white hover:text-gray-900"
@@ -229,6 +237,29 @@
             </button>
           </div>
 
+          <div class="flex items-center gap-3 border-t border-gray-200 py-2">
+            <span class="w-14 flex-none text-[11px] font-medium uppercase tracking-wide text-secondary">Wind</span>
+            <span class="whitespace-nowrap text-xs text-secondary">calm over warm or dry</span>
+            <button
+              id="wind-matters"
+              type="button"
+              role="switch"
+              aria-checked="false"
+              aria-label="Wind matters: prefer calmer times over warmer or drier ones"
+              class="group ml-auto inline-flex flex-none items-center gap-2 rounded-full py-0.5 pl-2 pr-0.5 text-xs text-gray-700 hover:text-gray-900"
+            >
+              Matters
+              <span
+                class="relative h-4 w-7 rounded-full bg-gray-300 transition-colors group-aria-checked:bg-primary"
+                aria-hidden="true"
+              >
+                <span
+                  class="absolute left-0.5 top-0.5 h-3 w-3 rounded-full bg-white transition-transform group-aria-checked:translate-x-3"
+                ></span>
+              </span>
+            </button>
+          </div>
+
           <div class="flex items-center gap-3 border-t border-gray-200 pt-2">
             <label
               for="rain-input"
@@ -361,6 +392,84 @@
     </main>
 
     <dialog
+      id="method-dialog"
+      aria-labelledby="method-title"
+      class="w-[calc(100%-2rem)] max-w-xl rounded-2xl bg-white p-0 text-primary shadow-2xl backdrop:bg-gray-900/40"
+    >
+      <div class="space-y-4 p-5 text-sm">
+        <div class="flex items-center justify-between">
+          <h2 id="method-title" class="text-lg font-semibold">How it picks a time</h2>
+          <button
+            id="close-method"
+            type="button"
+            class="flex h-8 w-8 items-center justify-center rounded-full text-gray-500 hover:bg-gray-100 hover:text-gray-900"
+            aria-label="Close"
+          >
+            ✕
+          </button>
+        </div>
+        <p class="text-secondary">
+          The service looks at your hours today and tomorrow in 15-minute slots, drops the slots you can't or don't want
+          to run in, scores the rest on the weather and picks the best stretch as long as your run.
+        </p>
+        <div class="space-y-2">
+          <h3 class="font-semibold">1. The forecast</h3>
+          <p>
+            Open-Meteo's hourly forecast for your start point, rounded to about 1 km and refreshed every hour. A slot
+            takes the feels-like temperature and wind speed of the hour it falls in, and the rain and gusts forecast for
+            that hour.
+          </p>
+        </div>
+        <div class="space-y-2">
+          <h3 class="font-semibold">2. Slots that drop out</h3>
+          <ul class="list-disc space-y-1 pl-5">
+            <li>Slots that have already started, and slots outside your hours.</li>
+            <li>Slots outside sunrise to sunset, unless Dark is OK.</li>
+            <li>Slots whose chance of rain is above your Rain setting, or with 0.2 mm of rain an hour or more.</li>
+          </ul>
+        </div>
+        <div class="space-y-2">
+          <h3 class="font-semibold">3. Scoring what is left</h3>
+          <p>Each slot gets penalty points; lower is better. A window's score is the average of its slots.</p>
+          <ul class="list-disc space-y-1 pl-5">
+            <li>
+              <strong>Wind:</strong> 1 point per km/h above 12 km/h, plus half a point per km/h of gusts above 30. When
+              Wind matters: 2 points per km/h above 8, plus 1 point per km/h of gusts above 25.
+            </li>
+            <li><strong>Temperature:</strong> 1 point per degree the feels-like temperature is outside 6–16 °C.</li>
+            <li><strong>Rain:</strong> 1 point per 20 % chance of rain.</li>
+          </ul>
+          <p>
+            Wind usually decides: at 30 km/h it outweighs even a certain shower. Wind matters makes calm times win over
+            warmer or drier ones, but it never rules a time out, so a windy day still gets an answer.
+          </p>
+        </div>
+        <div class="space-y-2">
+          <h3 class="font-semibold">4. The pick</h3>
+          <p>
+            The lowest score wins; on a tie, the earliest. A window never spans two hour ranges. With a route, the run's
+            length is its distance at your pace, rounded up to 15 minutes; up to 3 hours.
+          </p>
+          <p>
+            When no hour-long window is dry enough, the page shows the least bad hour instead and says so: rain no
+            longer rules slots out, but its chance weighs ten times as much and the amount counts too.
+          </p>
+        </div>
+        <div class="space-y-2">
+          <h3 class="font-semibold">5. The wind line</h3>
+          <p>
+            It gives the window's average wind direction. Start into it, so it is behind you on the way home. With a
+            loop it says whether to run it as drawn or reversed, from A to B whether it is a head- or tailwind, and
+            under 10 km/h it just says little wind.
+          </p>
+        </div>
+        <p class="text-secondary">
+          These weights are a starting point and get tuned on real runs. The timeline's shading shows each slot's score.
+        </p>
+      </div>
+    </dialog>
+
+    <dialog
       id="api-dialog"
       aria-labelledby="api-title"
       class="w-[calc(100%-2rem)] max-w-xl rounded-2xl bg-white p-0 text-primary shadow-2xl backdrop:bg-gray-900/40"
@@ -388,9 +497,9 @@
           ><code>GET /api/window?lat=52.37&amp;lon=4.89&amp;avail=07-09,12-14,17-21</code></pre>
           <p>
             <code>lat</code> and <code>lon</code> are required. <code>avail</code>, <code>dark</code>,
-            <code>rain</code>, <code>lang</code> and <code>slots</code> are optional; <code>slots=1</code> adds the
-            day's 15-minute slots, which this page draws. The full contract is in
-            <a class="underline" href="/openapi.yaml">openapi.yaml</a>.
+            <code>rain</code>, <code>wind</code>, <code>lang</code> and <code>slots</code> are optional;
+            <code>wind=matters</code> weighs wind more heavily; <code>slots=1</code> adds the day's 15-minute slots,
+            which this page draws. The full contract is in <a class="underline" href="/openapi.yaml">openapi.yaml</a>.
           </p>
         </div>
         <div class="space-y-2">

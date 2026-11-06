@@ -61,11 +61,12 @@
   const IDS = (
     'source source-map source-rough source-set source-pick clear-source day-today day-tomorrow zone-note ' +
     'route-input use-location duration-group run-distance run-minutes pace-group pace-down pace-input ' +
-    'pace-up duration-down duration-value duration-up hours-rows add-hours dark-times dark-ok rain-input ' +
-    'rain-fill rain-value prompt answer answer-label answer-time key-numbers wind-line wind-compass ' +
+    'pace-up duration-down duration-value duration-up hours-rows add-hours dark-times dark-ok wind-matters ' +
+    'rain-input rain-fill rain-value prompt answer answer-label answer-time key-numbers wind-line wind-compass ' +
     'wind-arrow wind-text tomorrow-hint try-tomorrow tomorrow-text stale-note status ' +
-    'result timeline tap-line why-sentence copy-link open-api open-privacy api-dialog privacy-dialog ' +
-    'close-api close-privacy copy-label copy-icon copy-check copy-note'
+    'result timeline tap-line why-sentence copy-link open-method open-api open-privacy ' +
+    'method-dialog api-dialog privacy-dialog close-method close-api close-privacy ' +
+    'copy-label copy-icon copy-check copy-note'
   ).split(' ');
   const camel = id => id.replace(/-(\w)/g, (_, letter) => letter.toUpperCase());
   const el = Object.fromEntries(IDS.map(id => [camel(id), document.getElementById(id)]));
@@ -123,8 +124,8 @@
   }
 
   function query() {
-    const { hours, allowDark, rain } = state.settings;
-    return { lat: state.location.lat, lon: state.location.lon, hours, allowDark, rain };
+    const { hours, allowDark, windMatters, rain } = state.settings;
+    return { lat: state.location.lat, lon: state.location.lon, hours, allowDark, windMatters, rain };
   }
 
   function currentDay() {
@@ -194,6 +195,10 @@
 
   function renderDark() {
     el.darkOk.setAttribute('aria-checked', String(state.settings.allowDark));
+  }
+
+  function renderWind() {
+    el.windMatters.setAttribute('aria-checked', String(state.settings.windMatters));
   }
 
   // ---- Hour rows: built from the stored string on load, add and remove; updated in place while dragging.
@@ -641,6 +646,7 @@
     renderSource();
     renderRunRow();
     renderDark();
+    renderWind();
     renderNight();
     const day = state.location ? currentDay() : null;
     el.prompt.hidden = Boolean(state.location);
@@ -731,7 +737,7 @@
     return undefined;
   }
 
-  // ---- The API and Privacy dialogs: ✕, Escape (native) or a click on the backdrop closes them.
+  // ---- The Method, API and Privacy dialogs: ✕, Escape (native) or a click on the backdrop closes them.
 
   function wireDialog(opener, dialog, closer) {
     opener.addEventListener('click', () => dialog.showModal());
@@ -757,6 +763,7 @@
   el.durationUp.addEventListener('click', () => stepDuration(DURATION_STEP));
   el.addHours.addEventListener('click', onAddRow);
   el.darkOk.addEventListener('click', () => commit({ allowDark: !state.settings.allowDark }));
+  el.windMatters.addEventListener('click', () => commit({ windMatters: !state.settings.windMatters }));
   el.rainInput.addEventListener('input', () => showRain(Number(el.rainInput.value)));
   el.rainInput.addEventListener('change', () => commit({ rain: Number(el.rainInput.value) }));
   el.dayToday.addEventListener('click', () => setDay(0));
@@ -771,6 +778,7 @@
   el.timeline.addEventListener('click', onTimelineClick);
   el.timeline.addEventListener('keydown', onTimelineKey);
   el.copyLink.addEventListener('click', onCopyLink);
+  wireDialog(el.openMethod, el.methodDialog, el.closeMethod);
   wireDialog(el.openApi, el.apiDialog, el.closeApi);
   wireDialog(el.openPrivacy, el.privacyDialog, el.closePrivacy);
   window.addEventListener('resize', onResize);

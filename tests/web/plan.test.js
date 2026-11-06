@@ -322,12 +322,16 @@ describe('zoneNote', () => {
 
 describe('apiUrl', () => {
   const origin = 'https://run.xadi.eu';
-  const params = { lat: 52.3731, lon: 4.8922, hours: '06-22', allowDark: false, rain: 40 };
+  const params = { lat: 52.3731, lon: 4.8922, hours: '06-22', allowDark: false, windMatters: false, rain: 40 };
 
   test('builds the query with two decimals', () => {
     expect(apiUrl(origin, params)).toBe(
-      'https://run.xadi.eu/api/window?lat=52.37&lon=4.89&avail=06-22&dark=avoid&rain=40'
+      'https://run.xadi.eu/api/window?lat=52.37&lon=4.89&avail=06-22&dark=avoid&rain=40&wind=normal'
     );
+  });
+
+  test('says when wind matters', () => {
+    expect(apiUrl(origin, { ...params, windMatters: true })).toMatch(/&wind=matters$/);
   });
 
   test('allows the dark', () => {
@@ -335,7 +339,7 @@ describe('apiUrl', () => {
   });
 
   test('adds slots=1 on request', () => {
-    expect(apiUrl(origin, params, { slots: true })).toMatch(/&rain=40&slots=1$/);
+    expect(apiUrl(origin, params, { slots: true })).toMatch(/&rain=40&wind=normal&slots=1$/);
   });
 });
 

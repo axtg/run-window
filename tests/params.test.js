@@ -19,19 +19,20 @@ test('defaults', () => {
     availText: '06-22',
     dark: 'avoid',
     rain: 40,
+    wind: 'normal',
     lang: 'en',
     slots: false
   });
 });
 
 test('empty strings use defaults', () => {
-  const result = parseWindowQuery({ ...ok, avail: '', dark: '', rain: '', lang: '' });
-  expect(result).toMatchObject({ availText: '06-22', dark: 'avoid', rain: 40, lang: 'en' });
+  const result = parseWindowQuery({ ...ok, avail: '', dark: '', rain: '', wind: '', lang: '' });
+  expect(result).toMatchObject({ availText: '06-22', dark: 'avoid', rain: 40, wind: 'normal', lang: 'en' });
 });
 
 test('valid optional values are passed through', () => {
-  const result = parseWindowQuery({ ...ok, avail: '07-09,12-14', dark: 'ok', rain: '0', lang: 'nl' });
-  expect(result).toMatchObject({ availText: '07-09,12-14', dark: 'ok', rain: 0, lang: 'nl' });
+  const result = parseWindowQuery({ ...ok, avail: '07-09,12-14', dark: 'ok', rain: '0', wind: 'matters', lang: 'nl' });
+  expect(result).toMatchObject({ availText: '07-09,12-14', dark: 'ok', rain: 0, wind: 'matters', lang: 'nl' });
   expect(parseWindowQuery({ ...ok, rain: '100' }).rain).toBe(100);
 });
 
@@ -85,6 +86,7 @@ describe('object and repeated values are a 400', () => {
     avail: '06-22',
     dark: 'ok',
     rain: '40',
+    wind: 'normal',
     lang: 'en'
   };
 
@@ -158,6 +160,12 @@ test.each(['101', '-1', '4.5', 'a', '1e1', ' 5'])('rain %j is a 400', value => {
   const error = catchError({ ...ok, rain: value });
   expect(error.statusCode).toBe(400);
   expect(error.message).toMatch(/rain/);
+});
+
+test.each(['strong', 'Matters', 'high'])('wind %s is a 400', value => {
+  const error = catchError({ ...ok, wind: value });
+  expect(error.statusCode).toBe(400);
+  expect(error.message).toMatch(/wind/);
 });
 
 test.each(['maybe', 'OK', 'Avoid'])('dark %s is a 400', value => {

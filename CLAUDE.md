@@ -83,7 +83,7 @@ the worker `sw.js`, the manifest and icons.
   no hashes). Styling is Tailwind classes in `public/tailwind.css`.
 - Tailwind scans only `index.html`, `app.js` and `strip.js`: run `npm run build:css` after editing them, comments too.
 - The route file never leaves the browser. The only request the page makes is `/api/window` with `lat` and `lon` at 2
-  decimals plus `avail`, `dark`, `rain` and `slots=1`. Nothing from the file goes into storage or the URL.
+  decimals plus `avail`, `dark`, `rain`, `wind` and `slots=1`. Nothing from the file goes into storage or the URL.
 - The page is one card with slim settings rows:
   - Run: without a route, only the duration stepper (pace would only feed an estimate, so it is hidden but kept in
     storage). With a route: the route's distance and the pace − / + stepper, with `= 66 min` under it.
@@ -94,6 +94,8 @@ the worker `sw.js`, the manifest and icons.
   - Hours: sliders with a night hatch. A round `+` (`#add-hours`, "Add hours") ends the last row; the other rows end
     in a spacer as wide, so the sliders line up.
   - Dark: the dark times and an OK switch (`#dark-ok`, `role="switch"`).
+  - Wind: a Matters switch (`#wind-matters`, `role="switch"`). On sends `wind=matters`, which weighs wind more in the
+    score; it never excludes a time, so it is a switch, not a slider like rain.
   - Rain: a slider.
 - Under the settings is a big answer with key numbers: Sky, Feels and Wind (Feels and Wind with a context word such as
   `ideal` or `light`), then Climb or Run.
@@ -103,14 +105,15 @@ the worker `sw.js`, the manifest and icons.
   - When today has no window and tomorrow has one, a `Try tomorrow →` button shows what tomorrow holds.
 - Below the answer: one timeline joining strip and graph, then the why line.
 - The hint under the timeline names the arrow keys only where the screen can hover (`(hover: none)` drops them).
-- API and Privacy open in `<dialog>`s from the header. Copy API link confirms on the button itself (`Copied` or
+- Method, API and Privacy open in `<dialog>`s from the header. Method explains the scoring in words;
+  `tests/landing.test.js` checks its numbers against `SCORING` in `lib/windows.js`, so change both together. Copy API link confirms on the button itself (`Copied` or
   `Couldn't copy` for 2 s, announced by a hidden polite note), not in `#status`.
 - Default hours are `10-16`; there is no one-off duration.
-- Changing pace or duration re-renders from the data already fetched, without a new request; hours, Dark OK and rain
-  change the request.
+- Changing pace or duration re-renders from the data already fetched, without a new request; hours, Dark OK, Wind
+  matters and rain change the request.
 - SVG elements have no `hidden` property: show or hide them with `toggleAttribute('hidden', …)`. The smoke test's fake
   DOM follows the browser here.
-- Settings (pace, duration, Allow dark, Rain %, Hours) live in `localStorage` only, always in try/catch; the page works
+- Settings (pace, duration, Allow dark, Wind matters, Rain %, Hours) live in `localStorage` only, always in try/catch; the page works
   without it.
 - The service worker has one job: catch `POST /share-target` (a route shared from Android's share sheet), put the file
   in the Cache API for the page to read once, and redirect to `/` without a network request. It never calls `fetch`

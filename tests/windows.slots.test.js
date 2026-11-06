@@ -194,3 +194,16 @@ test('computeDay adds slots only when asked', () => {
     expect(found.score).toBe(Math.round(scoreSlot(slot.values) * 10) / 10);
   }
 });
+
+test('slot scores follow wind=matters', () => {
+  const forecast = parseForecast(amsterdamFixture);
+  const params = { avail: ALL_DAY, dark: 'ok', rain: 100, wind: 'matters' };
+  const { slots } = computeDay({ date: DATE, forecast, params, nowMs: EARLY, includeSlots: true });
+  const tagged = tagDaySlots({ date: DATE, forecast, ...params, nowMs: EARLY });
+  const withValues = tagged.filter(slot => slot.values);
+  expect(withValues.length).toBeGreaterThan(0);
+  for (const slot of withValues) {
+    const found = slots.find(s => s.start === new Date(slot.startMs).toISOString());
+    expect(found.score).toBe(Math.round(scoreSlot(slot.values, 'matters') * 10) / 10);
+  }
+});

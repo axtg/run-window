@@ -1,8 +1,15 @@
-// Remembers the page's settings (pace, run length, hours, dark, rain) on this device only. Runs in the browser and
-// in the Jest tests.
+// Remembers the page's settings (pace, run length, hours, dark, wind, rain) on this device only. Runs in the
+// browser and in the Jest tests.
 (function () {
   const STORAGE_KEY = 'run-window-settings';
-  const DEFAULTS = Object.freeze({ paceSec: 360, durationMin: 60, allowDark: false, rain: 40, hours: '10-16' });
+  const DEFAULTS = Object.freeze({
+    paceSec: 360,
+    durationMin: 60,
+    allowDark: false,
+    windMatters: false,
+    rain: 40,
+    hours: '10-16'
+  });
   const CLOCK = /^(\d{2})(?::(\d{2}))?$/;
 
   // Mirrors lib/params.js: 'HH' or 'HH:MM' → minutes since midnight. 24:00 is only valid as an end.
@@ -111,6 +118,7 @@
     paceSec: value => isInteger(value, 180, 900),
     durationMin: value => isInteger(value, 15, 300),
     allowDark: value => typeof value === 'boolean',
+    windMatters: value => typeof value === 'boolean',
     rain: value => isInteger(value, 0, 100),
     hours: validHours
   };

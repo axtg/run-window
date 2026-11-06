@@ -35,7 +35,14 @@ function throwingStorage(method) {
 describe('constants', () => {
   test('storage key and defaults', () => {
     expect(STORAGE_KEY).toBe('run-window-settings');
-    expect(DEFAULTS).toEqual({ paceSec: 360, durationMin: 60, allowDark: false, rain: 40, hours: '10-16' });
+    expect(DEFAULTS).toEqual({
+      paceSec: 360,
+      durationMin: 60,
+      allowDark: false,
+      windMatters: false,
+      rain: 40,
+      hours: '10-16'
+    });
   });
 });
 
@@ -110,12 +117,19 @@ describe('loadSettings', () => {
   });
 
   test('loads a fully valid stored object', () => {
-    const stored = { paceSec: 300, durationMin: 90, allowDark: true, rain: 10, hours: '05:30-21:00,22-23' };
+    const stored = {
+      paceSec: 300,
+      durationMin: 90,
+      allowDark: true,
+      windMatters: true,
+      rain: 10,
+      hours: '05:30-21:00,22-23'
+    };
     expect(loadSettings(fakeStorage(JSON.stringify(stored)))).toEqual(stored);
   });
 
   test('keeps the valid fields of a partly valid object', () => {
-    const stored = { paceSec: 'fast', durationMin: 90, allowDark: 'yes', rain: 150, hours: 'nope' };
+    const stored = { paceSec: 'fast', durationMin: 90, allowDark: 'yes', windMatters: 1, rain: 150, hours: 'nope' };
     expect(loadSettings(fakeStorage(JSON.stringify(stored)))).toEqual({
       ...DEFAULTS,
       durationMin: 90
@@ -132,6 +146,8 @@ describe('loadSettings', () => {
     ['durationMin', 60.5],
     ['allowDark', 1],
     ['allowDark', 'true'],
+    ['windMatters', 1],
+    ['windMatters', 'matters'],
     ['rain', -1],
     ['rain', 101],
     ['rain', 40.5],
@@ -144,9 +160,16 @@ describe('loadSettings', () => {
   });
 
   test('accepts the range edges', () => {
-    const stored = { paceSec: 180, durationMin: 300, allowDark: false, rain: 0, hours: '00-23' };
+    const stored = { paceSec: 180, durationMin: 300, allowDark: false, windMatters: false, rain: 0, hours: '00-23' };
     expect(loadSettings(fakeStorage(JSON.stringify(stored)))).toEqual(stored);
-    const upper = { paceSec: 900, durationMin: 15, allowDark: true, rain: 100, hours: '06:00-22:00' };
+    const upper = {
+      paceSec: 900,
+      durationMin: 15,
+      allowDark: true,
+      windMatters: true,
+      rain: 100,
+      hours: '06:00-22:00'
+    };
     expect(loadSettings(fakeStorage(JSON.stringify(upper)))).toEqual(upper);
   });
 
@@ -172,17 +195,24 @@ describe('saveSettings', () => {
     expect(storage.setItem).toHaveBeenCalledWith(STORAGE_KEY, expect.any(String));
   });
 
-  test('writes exactly the five settings keys and nothing else', () => {
+  test('writes exactly the six settings keys and nothing else', () => {
     const storage = fakeStorage();
     saveSettings(storage, { ...DEFAULTS, route: 'secret.gpx', lat: 52.37, lon: 4.89 });
     const saved = JSON.parse(storage.data.get(STORAGE_KEY));
-    expect(Object.keys(saved).sort()).toEqual(['allowDark', 'durationMin', 'hours', 'paceSec', 'rain']);
+    expect(Object.keys(saved).sort()).toEqual(['allowDark', 'durationMin', 'hours', 'paceSec', 'rain', 'windMatters']);
     expect(saved).toEqual(DEFAULTS);
   });
 
   test('round-trips through loadSettings', () => {
     const storage = fakeStorage();
-    const settings = { paceSec: 330, durationMin: 45, allowDark: true, rain: 20, hours: '07-09,18-21' };
+    const settings = {
+      paceSec: 330,
+      durationMin: 45,
+      allowDark: true,
+      windMatters: true,
+      rain: 20,
+      hours: '07-09,18-21'
+    };
     expect(saveSettings(storage, settings)).toBe(true);
     expect(loadSettings(storage)).toEqual(settings);
   });

@@ -19,7 +19,7 @@ const GPX = fs.readFileSync(path.join(__dirname, '..', 'fixtures', 'routes', FIL
 const ROUTE_NAME = 'Hill test loop';
 const ORIGIN = 'https://run.xadi.eu';
 const NOW = Date.UTC(2026, 10, 2, 9, 0, 0);
-const QUERY_KEYS = ['avail', 'dark', 'lat', 'lon', 'rain', 'slots'];
+const QUERY_KEYS = ['avail', 'dark', 'lat', 'lon', 'rain', 'slots', 'wind'];
 
 // Every coordinate in the fixture written with more than 2 decimals: none of them may leave memory.
 const PRECISE_COORDS = [...GPX.matchAll(/(?:lat|lon)="(-?\d+\.\d{3,})"/g)].map(match => match[1]);
@@ -267,7 +267,7 @@ describe('app.js privacy smoke test', () => {
     for (const historyUrl of record.history) expect(leaks(historyUrl)).toEqual([]);
     for (const fetched of record.fetches) expect(leaks(fetched)).toEqual([]);
   });
-  it('saves only the five settings and asks once per settled change that alters the request', async () => {
+  it('saves only the six settings and asks once per settled change that alters the request', async () => {
     const { sandbox, elements, record, store } = loadPage();
     await sandbox.RunApp.openRouteText(GPX, FILE_NAME);
     await flush();
@@ -296,8 +296,8 @@ describe('app.js privacy smoke test', () => {
     expect(rejections).toEqual([]);
     expect([...store.keys()]).toEqual([sandbox.RunSettings.STORAGE_KEY]);
     const saved = JSON.parse(store.get(sandbox.RunSettings.STORAGE_KEY));
-    expect(Object.keys(saved).sort()).toEqual(['allowDark', 'durationMin', 'hours', 'paceSec', 'rain']);
-    expect(saved).toMatchObject({ paceSec: 365, hours: '10-16,16-17', rain: 55 });
+    expect(Object.keys(saved).sort()).toEqual(['allowDark', 'durationMin', 'hours', 'paceSec', 'rain', 'windMatters']);
+    expect(saved).toMatchObject({ paceSec: 365, hours: '10-16,16-17', rain: 55, windMatters: false });
 
     for (const fetched of record.fetches) {
       const url = new URL(fetched);
@@ -637,6 +637,26 @@ describe('app.js privacy smoke test', () => {
       jest.useRealTimers();
     }
     expect(rejections).toEqual([]);
+  });
+
+  it('the Wind switch shows the stored choice, saves a flip and asks once with wind=matters', async () => {
+    const { elements, record, store, sandbox } = loadPage({ navigator: { geolocation } });
+    const toggle = elements.get('wind-matters');
+    elements.get('use-location').listeners.click();
+    await flush();
+    expect(rejections).toEqual([]);
+    expect(toggle.attributes['aria-checked']).toBe('false');
+    expect(new URL(record.fetches[0]).searchParams.get('wind')).toBe('normal');
+
+    toggle.listeners.click();
+    await flush();
+    expect(toggle.attributes['aria-checked']).toBe('true');
+    expect(record.fetches).toHaveLength(2);
+    expect(new URL(record.fetches[1]).searchParams.get('wind')).toBe('matters');
+    expect(JSON.parse(store.get(sandbox.RunSettings.STORAGE_KEY)).windMatters).toBe(true);
+
+    const reloaded = loadPage({ stored: store.get(sandbox.RunSettings.STORAGE_KEY) });
+    expect(reloaded.elements.get('wind-matters').attributes['aria-checked']).toBe('true');
   });
 
   it('reads the rain slider out as a percentage, while dragging too', () => {

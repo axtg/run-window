@@ -44,6 +44,9 @@ earlier screens `one-card.html` and `combined.html` show how it got there):
   - **Hours:** a slider with two handles whose track shows the dark part of the chosen day hatched, so you see when
     your hours reach into the night. The value is shown at the end of the row (`10–16`).
   - **Dark OK:** a small toggle directly under the hours row, next to "dark 17:08–07:28". Off by default, as now.
+  - **Wind matters:** (added 2026-11-06) a toggle row like Dark OK, under it: "Wind · calm over warm or dry ·
+    Matters". Off by default. On, the request carries `wind=matters` instead of `wind=normal`: the API weighs wind more
+    heavily, so calmer times win. A switch rather than a slider like rain, because wind never excludes a time.
   - **Rain ≤:** one slim slider row, value at the end (`40 %`). They liked A's rain slider; it must stay small.
 - **Several ranges of hours:** one range by default, **10:00–16:00**; a "+ add hours" link adds another hours row (and
   each extra row can be removed). Ranges are remembered on the device with the other settings.
@@ -53,6 +56,8 @@ earlier screens `one-card.html` and `combined.html` show how it got there):
   the window (from mockup C). Dark hours shaded in the graph. Legend: feels-like, wind, rain %, dark.
 - **API and Privacy:** links in a header bar (logo, "Run window", API, Privacy), each opening an overlay, like
   dap.xadi.eu. The page itself is the card.
+- **Method:** (added 2026-11-06) a third header link, before API, opening "How it picks a time": the forecast, the
+  slots that drop out, the scoring in plain numbers, the pick and fallback, and the wind line.
 
 ## The card, top to bottom
 
@@ -63,6 +68,7 @@ earlier screens `one-card.html` and `combined.html` show how it got there):
    - Pace row with a route. Without a route this row is **Duration** with − / + in 15-minute steps (15–300 min), as the
      base design's duration chip did.
    - Hours row(s), "Dark OK" row with the day's dark times, "+ add hours".
+   - Wind row (the "Matters" switch).
    - Rain row.
 3. **Answer** (white): "Best time · N min", the big time, the key numbers, the wind line. The no-window, fallback,
    over-180 and error texts from the base design take this place, in the same style.
