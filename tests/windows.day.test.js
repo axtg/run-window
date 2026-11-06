@@ -146,18 +146,33 @@ test('rain in the following row blocks the slot', () => {
   expect(result.windows['60'].start).toBe(iso(local('13:00')));
 });
 
-test('wind=matters picks a calm cold hour over a mild breezy one', () => {
-  // 07-10 calm at 2 °C feels-like (temperature penalty 4); 13-16 at 10 °C with 14 km/h (wind 2 normal, 12 matters).
-  const fc = forecast({
-    values: i => (i >= 7 && i <= 10 ? { apparent_temperature: 2 } : i >= 13 && i <= 16 ? { wind_speed_10m: 14 } : {})
-  });
-  const avail = [range(8, 9), range(14, 15)];
-  expect(day(fc, { avail }).windows['60'].start).toBe(iso(local('14:00')));
-  expect(day(fc, { avail, wind: 'normal' }).windows['60'].start).toBe(iso(local('14:00')));
-  expect(day(fc, { avail, wind: 'matters' }).windows['60'].start).toBe(iso(local('08:00')));
+// 08-09 and 14-15 are the only hours. The rows 7-10 and 13-16 set the weather each hour reads.
+const twoHours = (early, late) =>
+  forecast({ values: i => (i >= 7 && i <= 10 ? early : i >= 13 && i <= 16 ? late : {}) });
+const avail2 = [range(8, 9), range(14, 15)];
+const startOf = (fc, params) => day(fc, { avail: avail2, ...params }).windows['60'].start;
+
+test('prefer=wind takes a calm cold hour over a mild breezy one; balanced and temp do not', () => {
+  const fc = twoHours({ apparent_temperature: 2 }, { wind_speed_10m: 14 }); // cold 4 vs wind 2
+  expect(startOf(fc, {})).toBe(iso(local('14:00')));
+  expect(startOf(fc, { prefer: 'balanced' })).toBe(iso(local('14:00')));
+  expect(startOf(fc, { prefer: 'temp' })).toBe(iso(local('14:00')));
+  expect(startOf(fc, { prefer: 'wind' })).toBe(iso(local('08:00')));
 });
 
-test('wind=matters also steers the fallback', () => {
+test('prefer=rain takes a breezy dry hour over a calm hour that may rain', () => {
+  const fc = twoHours({ precipitation_probability: 30 }, { wind_speed_10m: 14 }); // rain 1.5 vs wind 2
+  expect(startOf(fc, {})).toBe(iso(local('08:00')));
+  expect(startOf(fc, { prefer: 'rain' })).toBe(iso(local('14:00')));
+});
+
+test('prefer=temp takes a cold-free hour over a calm cold one', () => {
+  const fc = twoHours({ apparent_temperature: 4.5 }, { wind_speed_10m: 15 }); // cold 1.5 vs wind 3
+  expect(startOf(fc, {})).toBe(iso(local('08:00')));
+  expect(startOf(fc, { prefer: 'temp' })).toBe(iso(local('14:00')));
+});
+
+test('prefer also steers the fallback', () => {
   const wet = forecast({
     values: i => ({
       precipitation_probability: 80,
@@ -165,9 +180,8 @@ test('wind=matters also steers the fallback', () => {
       ...(i >= 7 && i <= 10 ? { apparent_temperature: 2 } : i >= 13 && i <= 16 ? { wind_speed_10m: 14 } : {})
     })
   });
-  const avail = [range(8, 9), range(14, 15)];
-  expect(day(wet, { avail, rain: 40 }).fallback.start).toBe(iso(local('14:00')));
-  expect(day(wet, { avail, rain: 40, wind: 'matters' }).fallback.start).toBe(iso(local('08:00')));
+  expect(day(wet, { avail: avail2, rain: 40 }).fallback.start).toBe(iso(local('14:00')));
+  expect(day(wet, { avail: avail2, rain: 40, prefer: 'wind' }).fallback.start).toBe(iso(local('08:00')));
 });
 
 test('fallback only when windows["60"] is null', () => {

@@ -53,7 +53,8 @@ These count as failure even if everything else works:
 | `avail` | no | string | `06-22` | Comma-separated local-time ranges, `HH-HH` or `HH:MM-HH:MM`, e.g. `07-09,12-14,17-21`. Ranges may not cross midnight in v1. Applies to both days |
 | `dark` | no | `ok` \| `avoid` | `avoid` | `avoid` excludes slots outside civil daylight (sunrise to sunset) |
 | `rain` | no | integer 0–100 | `40` | Max precipitation probability (%) allowed in any slot of a window |
-| `wind` | no | `normal` \| `matters` | `normal` | How much wind counts against a slot; see "Window selection". Never excludes a slot (added 2026-11-06) |
+| `prefer` | no | `balanced` \| `wind` \| `rain` \| `temp` | `balanced` | The discomfort to mind most: its score term counts 3×; see "Window selection". Never excludes a slot (added 2026-11-06) |
+| `wind` | no | `normal` \| `matters` | `normal` | Deprecated first form of `prefer`, live for a day: `matters` means `prefer=wind`. `prefer` wins |
 | `lang` | no | `en` \| `nl` | `en` | Only affects the human-readable `label` fields |
 | `slots` | no | `1` | off | Adds a `slots` array (one entry per 15-minute slot inside `avail`) to each day, for the web page's strip. Without it the response is unchanged. Shape: `docs/openapi.yaml` and `2026-11-04-run-window-web-ui-design.md` |
 
@@ -68,7 +69,7 @@ The timezone comes from the location (Open-Meteo `timezone=auto`), not from a pa
 {
   "location": { "lat": 52.37, "lon": 4.89, "timezone": "Europe/Amsterdam" },
   "generatedAt": "2026-11-02T09:00:00.000Z",
-  "params": { "avail": "07-09,12-14,17-21", "dark": "avoid", "rain": 40, "wind": "normal" },
+  "params": { "avail": "07-09,12-14,17-21", "dark": "avoid", "rain": 40, "prefer": "balanced" },
   "days": [
     {
       "date": "2026-11-02",
@@ -176,16 +177,18 @@ Per local day, for each duration:
 3. **Candidate windows:** runs of consecutive non-excluded slots covering the duration. A window may not span two
    `avail` ranges.
 4. **Score** each slot (design calls, tunable, keep the constants in one place):
-   - wind: `max(0, windSpeed - 12) * 1.0 + max(0, gust - 30) * 0.5`; with `wind=matters`
-     `max(0, windSpeed - 8) * 2.0 + max(0, gust - 25) * 1.0`, so a calm time beats a warmer or drier one. A soft weight,
-     not a limit: a wind cap would often leave windy days with no window and needs a fallback of its own.
+   - wind: `max(0, windSpeed - 12) * 1.0 + max(0, gust - 30) * 0.5`
    - temperature: distance of apparent temperature outside 6–16 °C, times 1.0
    - rain: `precipitation_probability / 20`
+   - `prefer`: the named term is multiplied by 3 (`balanced` multiplies none). Relative, not a limit: the forecast
+     decides what a day can offer, so a level or a wind cap would promise what a stormy day can't keep, and would often
+     leave no window. 3 is a design call: on the fixtures it moves the pick in about 1 case in 12 for each choice,
+     where 2 barely moved `temp`.
    A window's score is the mean of its slots' scores.
 5. **Pick** the lowest score. Ties: the earliest window wins.
 6. **Fallback** (60 minutes only): repeat with the rain exclusions dropped, scoring rain much higher
-   (`precipitation_probability / 2` plus `precipitation * 20`), and set `qualifies: false`. The wind term follows
-   `wind` here too, as do the `slots` scores.
+   (`precipitation_probability / 2` plus `precipitation * 20`), and set `qualifies: false`. `prefer` applies here too
+   (to the fallback's rain term as well), as do the `slots` scores.
 
 The scoring is a starting point; the maintainer will tune it on real runs. Keep it a pure function
 `scoreSlot(hourValues) → number` and `pickWindow(slots, durationSlots) → window|null` with unit tests, so tuning
@@ -194,7 +197,7 @@ doesn't touch routing.
 ## Caching and limits
 
 - Cache key: lat and lon rounded to 2 decimals (~1 km; Open-Meteo's grid is coarser anyway). Availability, `dark`,
-  `rain`, `wind` and `lang` are applied per request to cached weather, so they never cause upstream calls (same principle as
+  `rain`, `prefer` and `lang` are applied per request to cached weather, so they never cause upstream calls (same principle as
   markup in eu-dayahead).
 - Entry lifetime: until the next full hour plus 5 minutes (Open-Meteo updates hourly), at most 60 minutes. Concurrent
   requests for one key share one upstream call.

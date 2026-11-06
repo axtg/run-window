@@ -105,12 +105,26 @@ paths:
             minimum: 0
             maximum: 100
             default: 40
-        - name: wind
+        - name: prefer
           in: query
           required: false
           description: >-
-            How much wind counts against a time. `matters` starts counting from lower speeds and weighs wind twice as
-            much, so a calmer time wins over a warmer or drier one. It never excludes a time. Slot scores follow it.
+            The discomfort to mind most when no time is good on every count: that term of the score counts three times.
+            `balanced` weighs wind, rain and temperature as usual. It never excludes a time (the `rain` limit does).
+            Slot scores follow it.
+          schema:
+            type: string
+            enum:
+              - balanced
+              - wind
+              - rain
+              - temp
+            default: balanced
+        - name: wind
+          in: query
+          required: false
+          deprecated: true
+          description: Older form of `prefer`. `matters` means `prefer=wind`; `prefer` wins when both are given.
           schema:
             type: string
             enum:
@@ -300,7 +314,7 @@ components:
     Params:
       type: object
       description: The values used, with defaults applied.
-      required: [avail, dark, rain, wind]
+      required: [avail, dark, rain, prefer]
       properties:
         avail:
           type: string
@@ -309,9 +323,9 @@ components:
           enum: [ok, avoid]
         rain:
           type: integer
-        wind:
+        prefer:
           type: string
-          enum: [normal, matters]
+          enum: [balanced, wind, rain, temp]
     WindowDay:
       type: object
       required: [date, sunrise, sunset, windows]

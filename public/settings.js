@@ -1,4 +1,4 @@
-// Remembers the page's settings (pace, run length, hours, dark, wind, rain) on this device only. Runs in the
+// Remembers the page's settings (pace, run length, hours, dark, mind most, rain) on this device only. Runs in the
 // browser and in the Jest tests.
 (function () {
   const STORAGE_KEY = 'run-window-settings';
@@ -6,11 +6,12 @@
     paceSec: 360,
     durationMin: 60,
     allowDark: false,
-    windMatters: false,
+    prefer: 'balanced',
     rain: 40,
     hours: '10-16'
   });
   const CLOCK = /^(\d{2})(?::(\d{2}))?$/;
+  const PREFERENCES = ['balanced', 'wind', 'rain', 'temp'];
 
   // Mirrors lib/params.js: 'HH' or 'HH:MM' → minutes since midnight. 24:00 is only valid as an end.
   function parseClock(text, isEnd) {
@@ -118,7 +119,7 @@
     paceSec: value => isInteger(value, 180, 900),
     durationMin: value => isInteger(value, 15, 300),
     allowDark: value => typeof value === 'boolean',
-    windMatters: value => typeof value === 'boolean',
+    prefer: value => PREFERENCES.includes(value),
     rain: value => isInteger(value, 0, 100),
     hours: validHours
   };
@@ -137,7 +138,12 @@
     try {
       if (!storage) return sanitize(null);
       const text = storage.getItem(STORAGE_KEY);
-      return sanitize(typeof text === 'string' ? JSON.parse(text) : null);
+      const stored = typeof text === 'string' ? JSON.parse(text) : null;
+      // The first version (2026-11-06) stored a Wind matters switch: on carries over as prefer=wind.
+      if (stored && typeof stored === 'object' && stored.prefer === undefined && stored.windMatters === true) {
+        return sanitize({ ...stored, prefer: 'wind' });
+      }
+      return sanitize(stored);
     } catch {
       return sanitize(null);
     }
@@ -156,6 +162,7 @@
   const api = {
     STORAGE_KEY,
     DEFAULTS,
+    PREFERENCES,
     validHours,
     splitHours,
     joinHours,

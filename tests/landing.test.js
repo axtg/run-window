@@ -121,12 +121,12 @@ test('the Method dialog states the scoring constants the API uses', () => {
   const { SCORING } = require('../lib/windows');
   const { durationKey, windLine } = require('../public/plan');
   const { text } = dialogText('method-dialog');
-  const { normal, matters } = SCORING.wind;
-  expect([normal.speedWeight, normal.gustWeight, matters.speedWeight, matters.gustWeight]).toEqual([1, 0.5, 2, 1]);
-  expect(text).toContain(`1 point per km/h above ${normal.comfortableSpeed} km/h`);
-  expect(text).toContain(`half a point per km/h of gusts above ${normal.comfortableGust}`);
-  expect(text).toContain(`2 points per km/h above ${matters.comfortableSpeed}`);
-  expect(text).toContain(`1 point per km/h of gusts above ${matters.comfortableGust}`);
+  const wind = SCORING.wind;
+  expect([wind.speedWeight, wind.gustWeight]).toEqual([1, 0.5]);
+  expect(text).toContain(`1 point per km/h above ${wind.comfortableSpeed} km/h`);
+  expect(text).toContain(`half a point per km/h of gusts above ${wind.comfortableGust}`);
+  expect(SCORING.preferWeight).toBe(3);
+  expect(text).toContain('count three times');
   expect(SCORING.temperature.weight).toBe(1);
   expect(text).toContain(`outside ${SCORING.temperature.min}–${SCORING.temperature.max} °C`);
   expect(text).toContain(`1 point per ${SCORING.rain.probDivisor} % chance of rain`);
@@ -139,14 +139,14 @@ test('the Method dialog states the scoring constants the API uses', () => {
   expect(windLine(null, { windAvg: 9.9 })).toBe('Little wind');
   expect(windLine(null, { windAvg: 10, windFromCardinal: 'E' })).not.toBe('Little wind');
   // At 30 km/h wind alone outweighs a 100 % chance of rain, as the dialog claims.
-  expect(30 - normal.comfortableSpeed).toBeGreaterThan(100 / SCORING.rain.probDivisor);
+  expect(30 - wind.comfortableSpeed).toBeGreaterThan(100 / SCORING.rain.probDivisor);
 });
 
 test('the API dialog holds the example request, the parameters, the capacity and the contract link', () => {
   const api = dialogText('api-dialog');
   expect(api.raw).toContain('/api/window?');
   expect(api.raw).toContain('lat=52.37&amp;lon=4.89');
-  for (const name of ['lat', 'lon', 'avail', 'dark', 'rain', 'lang', 'slots'])
+  for (const name of ['lat', 'lon', 'avail', 'dark', 'rain', 'prefer', 'lang', 'slots'])
     expect(api.raw).toContain(`<code>${name}</code>`);
   expect(api.text).toMatch(/300 locations/);
   expect(api.text).toMatch(/503/);

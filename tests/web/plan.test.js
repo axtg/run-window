@@ -322,16 +322,16 @@ describe('zoneNote', () => {
 
 describe('apiUrl', () => {
   const origin = 'https://run.xadi.eu';
-  const params = { lat: 52.3731, lon: 4.8922, hours: '06-22', allowDark: false, windMatters: false, rain: 40 };
+  const params = { lat: 52.3731, lon: 4.8922, hours: '06-22', allowDark: false, prefer: 'balanced', rain: 40 };
 
   test('builds the query with two decimals', () => {
     expect(apiUrl(origin, params)).toBe(
-      'https://run.xadi.eu/api/window?lat=52.37&lon=4.89&avail=06-22&dark=avoid&rain=40&wind=normal'
+      'https://run.xadi.eu/api/window?lat=52.37&lon=4.89&avail=06-22&dark=avoid&rain=40&prefer=balanced'
     );
   });
 
-  test('says when wind matters', () => {
-    expect(apiUrl(origin, { ...params, windMatters: true })).toMatch(/&wind=matters$/);
+  test('sends what to mind most', () => {
+    expect(apiUrl(origin, { ...params, prefer: 'wind' })).toMatch(/&prefer=wind$/);
   });
 
   test('allows the dark', () => {
@@ -339,7 +339,7 @@ describe('apiUrl', () => {
   });
 
   test('adds slots=1 on request', () => {
-    expect(apiUrl(origin, params, { slots: true })).toMatch(/&rain=40&wind=normal&slots=1$/);
+    expect(apiUrl(origin, params, { slots: true })).toMatch(/&rain=40&prefer=balanced&slots=1$/);
   });
 });
 
@@ -548,5 +548,17 @@ describe('windWord and feelsWord', () => {
     const [, feels, wind] = keyNumbers(result, null, 60);
     expect(feels).toEqual({ label: 'Feels', value: '17 °C', note: 'warm' });
     expect(wind).toEqual({ label: 'Wind', value: '20 km/h E', note: 'moderate' });
+  });
+});
+
+describe('preferHint', () => {
+  const { preferHint } = require('../../public/plan');
+
+  test('says what each choice trades, and falls back to balanced', () => {
+    expect(preferHint('balanced')).toBe('Wind, rain and temperature count the same.');
+    expect(preferHint('wind')).toMatch(/^Calmer times win/);
+    expect(preferHint('rain')).toMatch(/^Drier times win/);
+    expect(preferHint('temp')).toMatch(/6–16 °C/);
+    expect(preferHint('nope')).toBe(preferHint('balanced'));
   });
 });

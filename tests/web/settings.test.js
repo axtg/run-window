@@ -39,7 +39,7 @@ describe('constants', () => {
       paceSec: 360,
       durationMin: 60,
       allowDark: false,
-      windMatters: false,
+      prefer: 'balanced',
       rain: 40,
       hours: '10-16'
     });
@@ -121,7 +121,7 @@ describe('loadSettings', () => {
       paceSec: 300,
       durationMin: 90,
       allowDark: true,
-      windMatters: true,
+      prefer: 'wind',
       rain: 10,
       hours: '05:30-21:00,22-23'
     };
@@ -129,7 +129,7 @@ describe('loadSettings', () => {
   });
 
   test('keeps the valid fields of a partly valid object', () => {
-    const stored = { paceSec: 'fast', durationMin: 90, allowDark: 'yes', windMatters: 1, rain: 150, hours: 'nope' };
+    const stored = { paceSec: 'fast', durationMin: 90, allowDark: 'yes', prefer: 'cold', rain: 150, hours: 'nope' };
     expect(loadSettings(fakeStorage(JSON.stringify(stored)))).toEqual({
       ...DEFAULTS,
       durationMin: 90
@@ -146,8 +146,9 @@ describe('loadSettings', () => {
     ['durationMin', 60.5],
     ['allowDark', 1],
     ['allowDark', 'true'],
-    ['windMatters', 1],
-    ['windMatters', 'matters'],
+    ['prefer', 'Wind'],
+    ['prefer', true],
+    ['prefer', null],
     ['rain', -1],
     ['rain', 101],
     ['rain', 40.5],
@@ -160,13 +161,13 @@ describe('loadSettings', () => {
   });
 
   test('accepts the range edges', () => {
-    const stored = { paceSec: 180, durationMin: 300, allowDark: false, windMatters: false, rain: 0, hours: '00-23' };
+    const stored = { paceSec: 180, durationMin: 300, allowDark: false, prefer: 'balanced', rain: 0, hours: '00-23' };
     expect(loadSettings(fakeStorage(JSON.stringify(stored)))).toEqual(stored);
     const upper = {
       paceSec: 900,
       durationMin: 15,
       allowDark: true,
-      windMatters: true,
+      prefer: 'wind',
       rain: 100,
       hours: '06:00-22:00'
     };
@@ -199,7 +200,7 @@ describe('saveSettings', () => {
     const storage = fakeStorage();
     saveSettings(storage, { ...DEFAULTS, route: 'secret.gpx', lat: 52.37, lon: 4.89 });
     const saved = JSON.parse(storage.data.get(STORAGE_KEY));
-    expect(Object.keys(saved).sort()).toEqual(['allowDark', 'durationMin', 'hours', 'paceSec', 'rain', 'windMatters']);
+    expect(Object.keys(saved).sort()).toEqual(['allowDark', 'durationMin', 'hours', 'paceSec', 'prefer', 'rain']);
     expect(saved).toEqual(DEFAULTS);
   });
 
@@ -209,7 +210,7 @@ describe('saveSettings', () => {
       paceSec: 330,
       durationMin: 45,
       allowDark: true,
-      windMatters: true,
+      prefer: 'wind',
       rain: 20,
       hours: '07-09,18-21'
     };
@@ -222,6 +223,13 @@ describe('saveSettings', () => {
     saveSettings(storage, { paceSec: 5, durationMin: 60, allowDark: 'x', rain: 40, hours: 'bad' });
     expect(JSON.parse(storage.data.get(STORAGE_KEY))).toEqual(DEFAULTS);
   });
+});
+
+test('a stored Wind matters switch carries over as prefer=wind; an explicit prefer wins', () => {
+  expect(loadSettings(fakeStorage(JSON.stringify({ windMatters: true }))).prefer).toBe('wind');
+  expect(loadSettings(fakeStorage(JSON.stringify({ windMatters: false }))).prefer).toBe('balanced');
+  expect(loadSettings(fakeStorage(JSON.stringify({ windMatters: true, prefer: 'rain' }))).prefer).toBe('rain');
+  expect(loadSettings(fakeStorage(JSON.stringify({ windMatters: true }))).windMatters).toBeUndefined();
 });
 
 test('loadSettings keeps a stored 06-22', () => {

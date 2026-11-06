@@ -19,7 +19,7 @@ const GPX = fs.readFileSync(path.join(__dirname, '..', 'fixtures', 'routes', FIL
 const ROUTE_NAME = 'Hill test loop';
 const ORIGIN = 'https://run.xadi.eu';
 const NOW = Date.UTC(2026, 10, 2, 9, 0, 0);
-const QUERY_KEYS = ['avail', 'dark', 'lat', 'lon', 'rain', 'slots', 'wind'];
+const QUERY_KEYS = ['avail', 'dark', 'lat', 'lon', 'prefer', 'rain', 'slots'];
 
 // Every coordinate in the fixture written with more than 2 decimals: none of them may leave memory.
 const PRECISE_COORDS = [...GPX.matchAll(/(?:lat|lon)="(-?\d+\.\d{3,})"/g)].map(match => match[1]);
@@ -296,8 +296,8 @@ describe('app.js privacy smoke test', () => {
     expect(rejections).toEqual([]);
     expect([...store.keys()]).toEqual([sandbox.RunSettings.STORAGE_KEY]);
     const saved = JSON.parse(store.get(sandbox.RunSettings.STORAGE_KEY));
-    expect(Object.keys(saved).sort()).toEqual(['allowDark', 'durationMin', 'hours', 'paceSec', 'rain', 'windMatters']);
-    expect(saved).toMatchObject({ paceSec: 365, hours: '10-16,16-17', rain: 55, windMatters: false });
+    expect(Object.keys(saved).sort()).toEqual(['allowDark', 'durationMin', 'hours', 'paceSec', 'prefer', 'rain']);
+    expect(saved).toMatchObject({ paceSec: 365, hours: '10-16,16-17', rain: 55, prefer: 'balanced' });
 
     for (const fetched of record.fetches) {
       const url = new URL(fetched);
@@ -639,24 +639,34 @@ describe('app.js privacy smoke test', () => {
     expect(rejections).toEqual([]);
   });
 
-  it('the Wind switch shows the stored choice, saves a flip and asks once with wind=matters', async () => {
+  it('Mind most saves a new choice and asks once with it; the same choice again asks nothing', async () => {
     const { elements, record, store, sandbox } = loadPage({ navigator: { geolocation } });
-    const toggle = elements.get('wind-matters');
+    const pressed = () =>
+      ['balanced', 'wind', 'rain', 'temp'].filter(
+        v => elements.get(`prefer-${v}`).attributes['aria-pressed'] === 'true'
+      );
     elements.get('use-location').listeners.click();
     await flush();
     expect(rejections).toEqual([]);
-    expect(toggle.attributes['aria-checked']).toBe('false');
-    expect(new URL(record.fetches[0]).searchParams.get('wind')).toBe('normal');
+    expect(pressed()).toEqual(['balanced']);
+    expect(elements.get('prefer-hint').textContent).toBe('Wind, rain and temperature count the same.');
+    expect(new URL(record.fetches[0]).searchParams.get('prefer')).toBe('balanced');
 
-    toggle.listeners.click();
+    elements.get('prefer-wind').listeners.click();
     await flush();
-    expect(toggle.attributes['aria-checked']).toBe('true');
+    expect(pressed()).toEqual(['wind']);
+    expect(elements.get('prefer-hint').textContent).toMatch(/^Calmer times win/);
     expect(record.fetches).toHaveLength(2);
-    expect(new URL(record.fetches[1]).searchParams.get('wind')).toBe('matters');
-    expect(JSON.parse(store.get(sandbox.RunSettings.STORAGE_KEY)).windMatters).toBe(true);
+    expect(new URL(record.fetches[1]).searchParams.get('prefer')).toBe('wind');
+    expect(JSON.parse(store.get(sandbox.RunSettings.STORAGE_KEY)).prefer).toBe('wind');
+
+    elements.get('prefer-wind').listeners.click();
+    await flush();
+    expect(record.fetches).toHaveLength(2);
 
     const reloaded = loadPage({ stored: store.get(sandbox.RunSettings.STORAGE_KEY) });
-    expect(reloaded.elements.get('wind-matters').attributes['aria-checked']).toBe('true');
+    expect(reloaded.elements.get('prefer-wind').attributes['aria-pressed']).toBe('true');
+    expect(reloaded.elements.get('prefer-balanced').attributes['aria-pressed']).toBe('false');
   });
 
   it('reads the rain slider out as a percentage, while dragging too', () => {
