@@ -321,12 +321,12 @@ describe('zoneNote', () => {
 });
 
 describe('apiUrl', () => {
-  const origin = 'https://run.xadi.eu';
+  const origin = 'https://besttimetorun.com';
   const params = { lat: 52.3731, lon: 4.8922, hours: '06-22', allowDark: false, prefer: 'balanced', rain: 40 };
 
   test('builds the query with two decimals', () => {
     expect(apiUrl(origin, params)).toBe(
-      'https://run.xadi.eu/api/window?lat=52.37&lon=4.89&avail=06-22&dark=avoid&rain=40&prefer=balanced'
+      'https://besttimetorun.com/api/window?lat=52.37&lon=4.89&avail=06-22&dark=avoid&rain=40&prefer=balanced'
     );
   });
 

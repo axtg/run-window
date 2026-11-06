@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Run window</title>
+    <title>Best time to run</title>
     <meta
       name="description"
       content="The best weather window for a run today and tomorrow, for a location and the hours you can run."
@@ -38,7 +38,7 @@
           <rect x="300" y="176" width="56" height="216" rx="14" fill="#22C55E" />
           <rect x="372" y="248" width="56" height="144" rx="14" fill="#86EFAC" />
         </svg>
-        <h1>Run window</h1>
+        <h1>besttimetorun<span class="font-medium text-gray-500">.com</span></h1>
       </div>
       <nav class="flex items-center gap-1 text-sm text-gray-600" aria-label="About the page">
         <button
@@ -525,7 +525,7 @@
           <h3 class="font-semibold">Example request</h3>
           <pre
             class="overflow-x-auto rounded-lg bg-gray-100 p-3 text-xs"
-          ><code>GET /api/window?lat=52.37&amp;lon=4.89&amp;avail=07-09,12-14,17-21</code></pre>
+          ><code>GET https://besttimetorun.com/api/window?lat=52.37&amp;lon=4.89&amp;avail=07-09,12-14,17-21</code></pre>
           <p>
             <code>lat</code> and <code>lon</code> are required. <code>avail</code>, <code>dark</code>,
             <code>rain</code>, <code>prefer</code>, <code>lang</code> and <code>slots</code> are optional;

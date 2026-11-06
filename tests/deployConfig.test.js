@@ -4,7 +4,7 @@ const { LOGGABLE_PATHS } = require('../middleware/logging');
 
 const root = path.join(__dirname, '..');
 const read = file => fs.readFileSync(path.join(root, file), 'utf8');
-const conf = read('docker/nginx-run.xadi.eu.conf');
+const conf = read('docker/nginx-besttimetorun.com.conf');
 const compose = read('docker-compose.yml');
 
 // Contents of the `{ ... }` block whose opening brace is the first one at or after `start`
@@ -27,7 +27,11 @@ const block = opener => {
 
 // Contents of every top-level `server { ... }` block, in file order
 const servers = [...conf.matchAll(/^server\s*\{/gm)].map(match => blockAt(match.index));
-const [server, redirect] = servers;
+const names = body => ((body.match(/server_name\s+([^;]*);/) || [])[1] || '').trim().split(/\s+/);
+// The app's block comes first (certbot puts TLS on the first block with the name); every other block only redirects.
+const [server, ...redirects] = servers;
+const plain = redirects.find(body => /listen 80;/.test(body));
+const SITE = 'https://besttimetorun.com';
 const locations = [...server.matchAll(/^\s*location\s[^{]*\{/gm)].map(match => ({
   head: match[0].trim(),
   body: block(new RegExp(match[0].trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&')))
@@ -69,20 +73,30 @@ describe('nginx config', () => {
     ['/share-targetx', '/x/share-target', '/share-target/x'].forEach(url => expect(url).not.toMatch(regex));
   });
 
-  test('serves run.xadi.eu and leaves TLS to certbot', () => {
-    expect(server).toMatch(/server_name run\.xadi\.eu;/);
+  test('serves besttimetorun.com and leaves TLS to certbot', () => {
+    expect(names(server)).toEqual(['besttimetorun.com']);
     expect(server).not.toMatch(/ssl_certificate|listen\s+443/);
-    expect(conf).toMatch(/certbot --nginx --no-redirect/);
+    expect(conf).toMatch(/certbot --nginx --no-redirect -d besttimetorun\.com/);
+  });
+
+  test('www and the old run.xadi.eu send every path, the API too, to besttimetorun.com', () => {
+    const tls = redirects.filter(body => body !== plain);
+    expect(tls.map(names).flat().sort()).toEqual(['run.xadi.eu', 'www.besttimetorun.com']);
+    tls.forEach(body => {
+      expect(body).toMatch(/listen 127\.0\.0\.1:\d+;/);
+      expect(body).toMatch(new RegExp(`return 301 ${SITE}\\$request_uri;`));
+      expect(body).not.toMatch(/proxy_pass|location/);
+    });
   });
 
   test('port 80 is a block of its own that only redirects, so certbot has nothing to create', () => {
-    expect(servers).toHaveLength(2);
-    expect(redirect).toMatch(/listen 80;/);
-    expect(redirect).toMatch(/server_name run\.xadi\.eu;/);
-    expect(redirect).toMatch(/return 301 https:\/\/\$host\$request_uri;/);
-    expect(redirect).not.toMatch(/proxy_pass|location/);
+    expect(servers).toHaveLength(4);
+    expect(plain).toBeDefined();
+    expect(names(plain).sort()).toEqual(['besttimetorun.com', 'run.xadi.eu', 'www.besttimetorun.com']);
+    expect(plain).toMatch(new RegExp(`return 301 ${SITE}\\$request_uri;`));
+    expect(plain).not.toMatch(/proxy_pass|location/);
     // Two blocks with one name on port 80 make nginx ignore the second, and the app would be served over plain http.
-    expect(server).not.toMatch(/listen\s+(\S+:)?80\b/);
+    servers.filter(body => body !== plain).forEach(body => expect(body).not.toMatch(/listen\s+(\S+:)?80\b/));
     expect(server).toMatch(/listen 127\.0\.0\.1:\d+;/);
   });
 

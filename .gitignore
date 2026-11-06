@@ -15,3 +15,4 @@ junit.xml
 tests/fixtures/private/
 # roborev snapshots
 /.roborev/
+.superpowers/

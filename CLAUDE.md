@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Three things in one repo:
 
-1. **Run-window API** (`run.xadi.eu`, design call): a small, stateless, anonymous Express service. Given a location and
+1. **Run-window API** (`besttimetorun.com`, design call): a small, stateless, anonymous Express service. Given a location and
    the hours someone can run, it returns the best weather window for each session length today and tomorrow.
    Spec: `docs/superpowers/specs/2026-11-02-run-window-api-design.md`.
 2. **TRMNL "Running Board" plugin** (`integrations/trmnl-running-board/`): one full screen with this week's training
@@ -21,7 +21,9 @@ The API comes first: the plugin depends on it.
 
 ## Status
 
-The API is live at `https://run.xadi.eu` (deployed 2026-11-03). The TRMNL plugin is built and tested; install steps are
+The site and API are live at `https://besttimetorun.com`, the site's name since 2026-11-06; `run.xadi.eu`
+(deployed 2026-11-03) answers every path with a 301 to it. Internal names (repo, Docker service, "run window" for the
+API's result) stay. The TRMNL plugin is built and tested; install steps are
 in `integrations/trmnl-running-board/README.md`. The install check on the device (plan Task 12) is pending. Tredict
 agreed to a public recipe (see the plugin spec, "Tredict's terms"); it was submitted on 2026-11-05 and waits on TRMNL's
 review. The web interface is
@@ -68,8 +70,9 @@ test approach. Read its `CLAUDE.md` first. Reuse rather than reinvent:
   by hand; CI fails if it differs from the build output. `node tests/trmnl/preview.js <dir>` writes an HTML preview of
   the render cases.
 - `npm run docker:build`: builds the image. `docker-compose.yml` uses host networking bound to 127.0.0.1:3003, so
-  nginx reaches it over loopback (`trust proxy` is `loopback`). `docker/nginx-run.xadi.eu.conf` is the nginx site: it
-  logs a fixed list of paths only, strips `Authorization` and `Cookie`, and allows `/health/cache` from the host only.
+  nginx reaches it over loopback (`trust proxy` is `loopback`). `docker/nginx-besttimetorun.com.conf` is the nginx
+  site: it logs a fixed list of paths only, strips `Authorization` and `Cookie`, and allows `/health/cache` from the
+  host only. www and run.xadi.eu only redirect to `https://besttimetorun.com$request_uri`.
 
 ## Web interface
 
@@ -135,7 +138,7 @@ the worker `sw.js`, the manifest and icons.
 ## TRMNL transform script
 
 `transform.js` runs in TRMNL's Node runtime after each poll. It fetches Tredict with the token from the password field
-(sent to tredict.com only, never to `run.xadi.eu`) and returns screen-ready merge variables. Constraints:
+(sent to tredict.com only, never to `besttimetorun.com`) and returns screen-ready merge variables. Constraints:
 
 - Built-ins only (`fetch`, `AbortSignal`, `Intl`, `URLSearchParams`). No `require` in the built file, no npm packages.
   In `src/`, modules use only `const { a } = require('./other');` and one `module.exports = { ... };`.

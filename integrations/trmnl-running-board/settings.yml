@@ -7,7 +7,7 @@ framework_version: 3.4.0
 refresh_interval: 30
 dark_mode: 'no'
 no_screen_padding: 'yes'
-polling_url: "https://run.xadi.eu/api/window?{% assign ll = lat_lon | split: ',' %}{% if ll.size == 2 %}lat={{ ll[0] | strip | round: 2 }}&lon={{ ll[1] | strip | round: 2 }}&{% endif %}avail={{ availability | default: '07-09,12-14,17-21' | remove: ' ' | url_encode }}&dark={{ dark | default: 'avoid' }}&rain={{ rain | default: '40' }}"
+polling_url: "https://besttimetorun.com/api/window?{% assign ll = lat_lon | split: ',' %}{% if ll.size == 2 %}lat={{ ll[0] | strip | round: 2 }}&lon={{ ll[1] | strip | round: 2 }}&{% endif %}avail={{ availability | default: '07-09,12-14,17-21' | remove: ' ' | url_encode }}&dark={{ dark | default: 'avoid' }}&rain={{ rain | default: '40' }}"
 custom_fields:
   - keyname: xadi.eu
     name: About this plugin

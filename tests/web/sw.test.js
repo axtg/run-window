@@ -5,7 +5,7 @@ const vm = require('vm');
 const { SHARE_PATH, SHARE_FIELD, SHARE_CACHE, SHARE_KEY, handleShare } = require('../../public/sw');
 
 const SW_FILE = path.join(__dirname, '..', '..', 'public', 'sw.js');
-const ORIGIN = 'https://run.xadi.eu';
+const ORIGIN = 'https://besttimetorun.com';
 const GPX = '<?xml version="1.0"?><gpx><trk><name>Loop</name><trkseg></trkseg></trk></gpx>';
 
 // A Cache API stand-in: named caches holding Responses by key.

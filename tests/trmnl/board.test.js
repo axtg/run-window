@@ -439,7 +439,7 @@ describe('buildBoard: weather retry', () => {
     expect(output.run).toEqual({ kind: 'badSettings', heading: 'Check your hours setting', lines: [] });
     const retry = calls.find(call => call.name === 'window');
     expect(retry.url).toBe(
-      'https://run.xadi.eu/api/window?lat=52.37&lon=4.89&avail=07-09%2C12-14%2C17-21&dark=avoid&rain=40'
+      'https://besttimetorun.com/api/window?lat=52.37&lon=4.89&avail=07-09%2C12-14%2C17-21&dark=avoid&rain=40'
     );
     expect(retry.options.headers).toBeUndefined();
     expect(JSON.stringify(retry.options)).not.toContain(TOKEN);

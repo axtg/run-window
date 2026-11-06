@@ -1,6 +1,6 @@
 openapi: 3.0.3
 info:
-  title: Run window API
+  title: Best time to run API
   description: |
     Given a location and the hours someone can run, returns the best weather window for each session length, today and
     tomorrow (local days at the location).
@@ -28,7 +28,7 @@ info:
 servers:
   - url: http://localhost:3003
     description: Development server
-  - url: https://run.xadi.eu
+  - url: https://besttimetorun.com
     description: Production server
 
 tags:

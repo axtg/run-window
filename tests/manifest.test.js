@@ -29,7 +29,7 @@ describe('web app manifest', () => {
   });
 
   test('installs as a standalone app scoped to the page', () => {
-    expect(manifest.name).toBe('Run window');
+    expect(manifest.name).toBe('Best time to run');
     expect(manifest.short_name).toBeTruthy();
     expect(manifest.start_url).toBe('/');
     expect(manifest.scope).toBe('/');

@@ -6,7 +6,7 @@ const { SHARE_CACHE, SHARE_KEY, handleShare } = require('../../public/sw');
 // app.js runs only in the browser, so its side of the hand-off is checked as text: it must read the cache and key
 // that sw.js writes, and the query values sw.js redirects with.
 const APP_SOURCE = fs.readFileSync(path.join(__dirname, '..', '..', 'public', 'app.js'), 'utf8');
-const ORIGIN = 'https://run.xadi.eu';
+const ORIGIN = 'https://besttimetorun.com';
 
 function fakeCaches() {
   return { open: async () => ({ put: async () => {} }) };

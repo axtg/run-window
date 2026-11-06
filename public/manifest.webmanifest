@@ -1,6 +1,6 @@
 {
-  "name": "Run window",
-  "short_name": "Run window",
+  "name": "Best time to run",
+  "short_name": "Time to run",
   "description": "The best weather window for a run today and tomorrow.",
   "start_url": "/",
   "scope": "/",

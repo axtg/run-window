@@ -17,7 +17,7 @@ const SCRIPTS = ['route.js', 'plan.js', 'strip.js', 'settings.js', 'app.js']; //
 const FILE_NAME = 'hill-loop.gpx';
 const GPX = fs.readFileSync(path.join(__dirname, '..', 'fixtures', 'routes', FILE_NAME), 'utf8');
 const ROUTE_NAME = 'Hill test loop';
-const ORIGIN = 'https://run.xadi.eu';
+const ORIGIN = 'https://besttimetorun.com';
 const NOW = Date.UTC(2026, 10, 2, 9, 0, 0);
 const QUERY_KEYS = ['avail', 'dark', 'lat', 'lon', 'prefer', 'rain', 'slots'];
 

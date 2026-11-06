@@ -2,7 +2,7 @@
 
 One full screen with this week's training from [Tredict](https://www.tredict.com), a form graph
 (Tredict's performance, computed from Tredict efforts), this week's heart-rate intensity as a bar under the graph and
-the best run window today from the [run-window API](https://run.xadi.eu). English and Dutch.
+the best run window today from the [besttimetorun.com API](https://besttimetorun.com). English and Dutch.
 
 It draws on the TRMNL OG (800x480) and the TRMNL X (1040x780), each in landscape or portrait. All text uses the
 framework's text classes, so the sizes follow the device: the X steps up on the framework's `lg:` sizes, and day items
@@ -34,7 +34,7 @@ TRMNL's stylesheet and script from trmnl.com).
 | Language               | Device language     | Falls back to English when the device language is not supported.               |
 | Theme                  | Light               | Dark shows the board in white on black. TRMNL's own dark mode also inverts it. |
 
-The plugin polls `run.xadi.eu` every 30 minutes.
+The plugin polls `besttimetorun.com` every 30 minutes.
 
 ## The token
 
@@ -52,7 +52,7 @@ none, and shows what it has.
 
 ## Privacy
 
-The token is stored in TRMNL and sent only to Tredict, by the transform script after each poll. `run.xadi.eu` never
+The token is stored in TRMNL and sent only to Tredict, by the transform script after each poll. `besttimetorun.com` never
 receives it, and the plugin sets no polling headers. It gets the location rounded to 2 decimals, your hours and the
 two weather settings, and logs the location rounded to 1 decimal only. No other server sees Tredict data, and the
 script keeps only what the screen needs, plus this week's activity ids with their low/moderate/high heart-rate

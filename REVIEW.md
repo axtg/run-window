@@ -1,6 +1,6 @@
 # Review guidelines
 
-Two things live here: a small, stateless Express API (`run.xadi.eu`) and a private TRMNL plugin
+Two things live here: a small, stateless Express API (`besttimetorun.com`) and a private TRMNL plugin
 (`integrations/trmnl-running-board/`). Specs and plans are in `docs/superpowers/`; a commit that implements a plan task
 should match that task, not more.
 
@@ -8,7 +8,7 @@ should match that task, not more.
 
 - **Privacy, highest priority.** The repo is public. No token, real coordinate, personal name or real Tredict data in
   code, fixtures, tests or docs. The API must never log raw coordinates or query strings; logged locations are rounded
-  to 1 decimal. The Tredict token is sent to Tredict only, never to `run.xadi.eu`.
+  to 1 decimal. The Tredict token is sent to Tredict only, never to `besttimetorun.com`.
 - **The web interface** (`public/`): anything that sends route data anywhere, writes it to `localStorage` or the URL,
   adds an inline script or style, or makes a third-party request; and a service worker that answers anything other
   than the share POST (`/share-target`).

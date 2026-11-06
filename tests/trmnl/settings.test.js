@@ -76,11 +76,11 @@ describe('polling URL', () => {
   const cases = [
     [
       { lat_lon: '52.373187,4.892241', availability: '07-09, 17-21', dark: 'avoid', rain: '40' },
-      'https://run.xadi.eu/api/window?lat=52.37&lon=4.89&avail=07-09%2C17-21&dark=avoid&rain=40'
+      'https://besttimetorun.com/api/window?lat=52.37&lon=4.89&avail=07-09%2C17-21&dark=avoid&rain=40'
     ],
     [
       { lat_lon: '-33.8688, 151.2093', availability: '06-22', dark: 'ok', rain: '60' },
-      'https://run.xadi.eu/api/window?lat=-33.87&lon=151.21&avail=06-22&dark=ok&rain=60'
+      'https://besttimetorun.com/api/window?lat=-33.87&lon=151.21&avail=06-22&dark=ok&rain=60'
     ]
   ];
 
@@ -99,7 +99,8 @@ describe('polling URL', () => {
 
   it('renders the defaults for empty availability, dark and rain', async () => {
     const values = { lat_lon: '52.37,4.89', availability: '', dark: '', rain: '' };
-    const expected = 'https://run.xadi.eu/api/window?lat=52.37&lon=4.89&avail=07-09%2C12-14%2C17-21&dark=avoid&rain=40';
+    const expected =
+      'https://besttimetorun.com/api/window?lat=52.37&lon=4.89&avail=07-09%2C12-14%2C17-21&dark=avoid&rain=40';
     expect(await renderPollingUrl(values)).toBe(expected);
     expect(windowUrl(readSettings(inputWith(values)))).toBe(expected);
     expect(readSettings(inputWith(values))).toMatchObject({

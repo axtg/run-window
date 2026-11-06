@@ -36,7 +36,7 @@ function fakeFetch(overrides = {}) {
     if (url.includes('activityList')) return 'activities';
     if (url.includes('/api/oauth/v2/activity/')) return 'detail';
     if (url.includes('/efforts')) return 'efforts';
-    if (url.startsWith('https://run.xadi.eu/api/window')) return 'window';
+    if (url.startsWith('https://besttimetorun.com/api/window')) return 'window';
     return 'unknown';
   };
   const detailId = url => decodeURIComponent(url.split('/activity/')[1].split('?')[0]);

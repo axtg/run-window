@@ -3,7 +3,7 @@ const DEFAULT_DARK = 'avoid';
 const DEFAULT_RAIN = '40';
 const DEFAULT_SPORT = 'running';
 const DEFAULT_LANGUAGE = 'device';
-const WINDOW_URL = 'https://run.xadi.eu/api/window';
+const WINDOW_URL = 'https://besttimetorun.com/api/window';
 const NUMBER_TEXT = /^-?\d+(\.\d+)?$/;
 
 function textOr(value, fallback) {
