@@ -56,6 +56,8 @@ earlier screens `one-card.html` and `combined.html` show how it got there):
   the window (from mockup C). Dark hours shaded in the graph. Legend: feels-like, wind, rain %, dark.
 - **API and Privacy:** links in a header bar (logo, "Run window", API, Privacy), each opening an overlay, like
   dap.xadi.eu. The page itself is the card.
+- **Method:** (added 2026-11-06) a third header link, before API, opening "How it picks a time": the forecast, the
+  slots that drop out, the scoring in plain numbers, the pick and fallback, and the wind line.
 
 ## The card, top to bottom
 

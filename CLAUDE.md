@@ -105,7 +105,8 @@ the worker `sw.js`, the manifest and icons.
   - When today has no window and tomorrow has one, a `Try tomorrow →` button shows what tomorrow holds.
 - Below the answer: one timeline joining strip and graph, then the why line.
 - The hint under the timeline names the arrow keys only where the screen can hover (`(hover: none)` drops them).
-- API and Privacy open in `<dialog>`s from the header. Copy API link confirms on the button itself (`Copied` or
+- Method, API and Privacy open in `<dialog>`s from the header. Method explains the scoring in words;
+  `tests/landing.test.js` checks its numbers against `SCORING` in `lib/windows.js`, so change both together. Copy API link confirms on the button itself (`Copied` or
   `Couldn't copy` for 2 s, announced by a hidden polite note), not in `#status`.
 - Default hours are `10-16`; there is no one-off duration.
 - Changing pace or duration re-renders from the data already fetched, without a new request; hours, Dark OK, Wind

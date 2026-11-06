@@ -109,10 +109,37 @@ function dialogText(id) {
   return { raw: match[1], text: match[1].replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ') };
 }
 
-test('the header opens the API and Privacy dialogs', () => {
+test('the header opens the Method, API and Privacy dialogs', () => {
+  expect(html).toMatch(/<header\b[\s\S]*<button\b[^>]*id="open-method"[\s\S]*<\/header>/);
   expect(html).toMatch(/<header\b[\s\S]*<button\b[^>]*id="open-api"[\s\S]*<\/header>/);
   expect(html).toMatch(/<header\b[\s\S]*<button\b[^>]*id="open-privacy"[\s\S]*<\/header>/);
-  expect([...html.matchAll(/<dialog\b/g)]).toHaveLength(2);
+  expect([...html.matchAll(/<dialog\b/g)]).toHaveLength(3);
+});
+
+// The Method dialog restates the scoring in words: these checks fail when a constant changes and the text does not.
+test('the Method dialog states the scoring constants the API uses', () => {
+  const { SCORING } = require('../lib/windows');
+  const { durationKey, windLine } = require('../public/plan');
+  const { text } = dialogText('method-dialog');
+  const { normal, matters } = SCORING.wind;
+  expect([normal.speedWeight, normal.gustWeight, matters.speedWeight, matters.gustWeight]).toEqual([1, 0.5, 2, 1]);
+  expect(text).toContain(`1 point per km/h above ${normal.comfortableSpeed} km/h`);
+  expect(text).toContain(`half a point per km/h of gusts above ${normal.comfortableGust}`);
+  expect(text).toContain(`2 points per km/h above ${matters.comfortableSpeed}`);
+  expect(text).toContain(`1 point per km/h of gusts above ${matters.comfortableGust}`);
+  expect(SCORING.temperature.weight).toBe(1);
+  expect(text).toContain(`outside ${SCORING.temperature.min}–${SCORING.temperature.max} °C`);
+  expect(text).toContain(`1 point per ${SCORING.rain.probDivisor} % chance of rain`);
+  expect(SCORING.rain.probDivisor / SCORING.fallbackRain.probDivisor).toBe(10);
+  expect(text).toContain('ten times as much');
+  expect(text).toContain('0.2 mm');
+  expect(text).toContain('up to 3 hours');
+  expect([durationKey(180).fits, durationKey(181).fits]).toEqual([true, false]);
+  expect(text).toContain('under 10 km/h');
+  expect(windLine(null, { windAvg: 9.9 })).toBe('Little wind');
+  expect(windLine(null, { windAvg: 10, windFromCardinal: 'E' })).not.toBe('Little wind');
+  // At 30 km/h wind alone outweighs a 100 % chance of rain, as the dialog claims.
+  expect(30 - normal.comfortableSpeed).toBeGreaterThan(100 / SCORING.rain.probDivisor);
 });
 
 test('the API dialog holds the example request, the parameters, the capacity and the contract link', () => {

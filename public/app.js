@@ -64,8 +64,9 @@
     'pace-up duration-down duration-value duration-up hours-rows add-hours dark-times dark-ok wind-matters ' +
     'rain-input rain-fill rain-value prompt answer answer-label answer-time key-numbers wind-line wind-compass ' +
     'wind-arrow wind-text tomorrow-hint try-tomorrow tomorrow-text stale-note status ' +
-    'result timeline tap-line why-sentence copy-link open-api open-privacy api-dialog privacy-dialog ' +
-    'close-api close-privacy copy-label copy-icon copy-check copy-note'
+    'result timeline tap-line why-sentence copy-link open-method open-api open-privacy ' +
+    'method-dialog api-dialog privacy-dialog close-method close-api close-privacy ' +
+    'copy-label copy-icon copy-check copy-note'
   ).split(' ');
   const camel = id => id.replace(/-(\w)/g, (_, letter) => letter.toUpperCase());
   const el = Object.fromEntries(IDS.map(id => [camel(id), document.getElementById(id)]));
@@ -736,7 +737,7 @@
     return undefined;
   }
 
-  // ---- The API and Privacy dialogs: ✕, Escape (native) or a click on the backdrop closes them.
+  // ---- The Method, API and Privacy dialogs: ✕, Escape (native) or a click on the backdrop closes them.
 
   function wireDialog(opener, dialog, closer) {
     opener.addEventListener('click', () => dialog.showModal());
@@ -777,6 +778,7 @@
   el.timeline.addEventListener('click', onTimelineClick);
   el.timeline.addEventListener('keydown', onTimelineKey);
   el.copyLink.addEventListener('click', onCopyLink);
+  wireDialog(el.openMethod, el.methodDialog, el.closeMethod);
   wireDialog(el.openApi, el.apiDialog, el.closeApi);
   wireDialog(el.openPrivacy, el.privacyDialog, el.closePrivacy);
   window.addEventListener('resize', onResize);
