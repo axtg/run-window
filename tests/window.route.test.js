@@ -42,7 +42,7 @@ describe('GET /api/window', () => {
     expect(Object.keys(body)).toEqual(['location', 'generatedAt', 'params', 'days', 'attribution']);
     expect(body.location).toEqual({ lat: 52.37, lon: 4.89, timezone: 'Europe/Amsterdam' });
     expect(body.generatedAt).toBe('2026-11-02T09:00:00.000Z');
-    expect(body.params).toEqual({ avail: '07-09,12-14,17-21', dark: 'avoid', rain: 40 });
+    expect(body.params).toEqual({ avail: '07-09,12-14,17-21', dark: 'avoid', rain: 40, wind: 'normal' });
     expect(body.days).toHaveLength(2);
     expect(body.days.map(day => day.date)).toEqual(['2026-11-02', '2026-11-03']);
     expect(Object.keys(body.days[0].windows)).toHaveLength(12);
@@ -106,6 +106,7 @@ describe('GET /api/window', () => {
     ['avail repeated', 'lat=52.37&lon=4.89&avail=07-09&avail=12-14', /avail/],
     ['dark repeated', 'lat=52.37&lon=4.89&dark=ok&dark=avoid', /dark/],
     ['rain repeated', 'lat=52.37&lon=4.89&rain=10&rain=20', /rain/],
+    ['wind', 'lat=52.37&lon=4.89&wind=strong', /wind/],
     ['lang repeated', 'lat=52.37&lon=4.89&lang=en&lang=nl', /lang/]
   ])('%s is a 400 naming the parameter, before the weather cache is touched', async (_, query, name) => {
     const weather = fakeWeather();
@@ -118,9 +119,11 @@ describe('GET /api/window', () => {
   });
 
   test('empty values use defaults', async () => {
-    const { body } = await request(build()).get('/api/window?lat=52.37&lon=4.89&avail=&dark=&rain=&lang=').expect(200);
+    const { body } = await request(build())
+      .get('/api/window?lat=52.37&lon=4.89&avail=&dark=&rain=&wind=&lang=')
+      .expect(200);
 
-    expect(body.params).toEqual({ avail: '06-22', dark: 'avoid', rain: 40 });
+    expect(body.params).toEqual({ avail: '06-22', dark: 'avoid', rain: 40, wind: 'normal' });
     expect(body.days[0].windows['30'].label).toContain(' · dry · ');
   });
 
@@ -352,7 +355,7 @@ describe('GET /api/window golden responses', () => {
     const weather = fakeWeather({ forecast: source, stale: false });
     const { body } = await request(build(weather)).get(`${GOLDEN_URL}&slots=1`).expect(200);
 
-    expect(body.params).toEqual({ avail: '07-09,12-14,17-21', dark: 'avoid', rain: 40 });
+    expect(body.params).toEqual({ avail: '07-09,12-14,17-21', dark: 'avoid', rain: 40, wind: 'normal' });
     body.days.forEach(day => {
       expect(Object.keys(day).at(-1)).toBe('slots');
       expect(day.slots.length).toBeGreaterThan(0);

@@ -229,9 +229,10 @@
     return offsetMinutes(locationTz, nowMs) === offsetMinutes(deviceTz, nowMs) ? null : `${locationTz} time`;
   }
 
-  function apiUrl(origin, { lat, lon, hours, allowDark, rain }, { slots = false } = {}) {
+  function apiUrl(origin, { lat, lon, hours, allowDark, windMatters, rain }, { slots = false } = {}) {
     const dark = allowDark ? 'ok' : 'avoid';
-    const query = `lat=${lat.toFixed(2)}&lon=${lon.toFixed(2)}&avail=${hours}&dark=${dark}&rain=${rain}`;
+    const wind = windMatters ? 'matters' : 'normal';
+    const query = `lat=${lat.toFixed(2)}&lon=${lon.toFixed(2)}&avail=${hours}&dark=${dark}&rain=${rain}&wind=${wind}`;
     return `${origin}/api/window?${query}${slots ? '&slots=1' : ''}`;
   }
 

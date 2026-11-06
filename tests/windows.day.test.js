@@ -146,6 +146,30 @@ test('rain in the following row blocks the slot', () => {
   expect(result.windows['60'].start).toBe(iso(local('13:00')));
 });
 
+test('wind=matters picks a calm cold hour over a mild breezy one', () => {
+  // 07-10 calm at 2 °C feels-like (temperature penalty 4); 13-16 at 10 °C with 14 km/h (wind 2 normal, 12 matters).
+  const fc = forecast({
+    values: i => (i >= 7 && i <= 10 ? { apparent_temperature: 2 } : i >= 13 && i <= 16 ? { wind_speed_10m: 14 } : {})
+  });
+  const avail = [range(8, 9), range(14, 15)];
+  expect(day(fc, { avail }).windows['60'].start).toBe(iso(local('14:00')));
+  expect(day(fc, { avail, wind: 'normal' }).windows['60'].start).toBe(iso(local('14:00')));
+  expect(day(fc, { avail, wind: 'matters' }).windows['60'].start).toBe(iso(local('08:00')));
+});
+
+test('wind=matters also steers the fallback', () => {
+  const wet = forecast({
+    values: i => ({
+      precipitation_probability: 80,
+      precipitation: 1,
+      ...(i >= 7 && i <= 10 ? { apparent_temperature: 2 } : i >= 13 && i <= 16 ? { wind_speed_10m: 14 } : {})
+    })
+  });
+  const avail = [range(8, 9), range(14, 15)];
+  expect(day(wet, { avail, rain: 40 }).fallback.start).toBe(iso(local('14:00')));
+  expect(day(wet, { avail, rain: 40, wind: 'matters' }).fallback.start).toBe(iso(local('08:00')));
+});
+
 test('fallback only when windows["60"] is null', () => {
   const dryDay = day(forecast(), {});
   expect('fallback' in dryDay).toBe(false);

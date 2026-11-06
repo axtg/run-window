@@ -229,6 +229,29 @@
             </button>
           </div>
 
+          <div class="flex items-center gap-3 border-t border-gray-200 py-2">
+            <span class="w-14 flex-none text-[11px] font-medium uppercase tracking-wide text-secondary">Wind</span>
+            <span class="whitespace-nowrap text-xs text-secondary">calm over warm or dry</span>
+            <button
+              id="wind-matters"
+              type="button"
+              role="switch"
+              aria-checked="false"
+              aria-label="Wind matters: prefer calmer times over warmer or drier ones"
+              class="group ml-auto inline-flex flex-none items-center gap-2 rounded-full py-0.5 pl-2 pr-0.5 text-xs text-gray-700 hover:text-gray-900"
+            >
+              Matters
+              <span
+                class="relative h-4 w-7 rounded-full bg-gray-300 transition-colors group-aria-checked:bg-primary"
+                aria-hidden="true"
+              >
+                <span
+                  class="absolute left-0.5 top-0.5 h-3 w-3 rounded-full bg-white transition-transform group-aria-checked:translate-x-3"
+                ></span>
+              </span>
+            </button>
+          </div>
+
           <div class="flex items-center gap-3 border-t border-gray-200 pt-2">
             <label
               for="rain-input"
@@ -388,9 +411,9 @@
           ><code>GET /api/window?lat=52.37&amp;lon=4.89&amp;avail=07-09,12-14,17-21</code></pre>
           <p>
             <code>lat</code> and <code>lon</code> are required. <code>avail</code>, <code>dark</code>,
-            <code>rain</code>, <code>lang</code> and <code>slots</code> are optional; <code>slots=1</code> adds the
-            day's 15-minute slots, which this page draws. The full contract is in
-            <a class="underline" href="/openapi.yaml">openapi.yaml</a>.
+            <code>rain</code>, <code>wind</code>, <code>lang</code> and <code>slots</code> are optional;
+            <code>wind=matters</code> weighs wind more heavily; <code>slots=1</code> adds the day's 15-minute slots,
+            which this page draws. The full contract is in <a class="underline" href="/openapi.yaml">openapi.yaml</a>.
           </p>
         </div>
         <div class="space-y-2">

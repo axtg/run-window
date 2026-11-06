@@ -12,7 +12,7 @@ function createWindowRouter({ weather, now }) {
     try {
       // Validate first, so an invalid request never takes a slot in the weather cache's key budget.
       const query = parseWindowQuery(req.query);
-      const { lat, lon, availText, dark, rain, lang } = query;
+      const { lat, lon, availText, dark, rain, wind, lang } = query;
       const { forecast, stale } = await weather.getForecast(lat, lon);
 
       const nowMs = now();
@@ -27,7 +27,7 @@ function createWindowRouter({ weather, now }) {
       const body = {
         location: { lat, lon, timezone },
         generatedAt: new Date(nowMs).toISOString(),
-        params: { avail: availText, dark, rain },
+        params: { avail: availText, dark, rain, wind },
         days,
         attribution: ATTRIBUTION
       };

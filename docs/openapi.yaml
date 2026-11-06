@@ -105,6 +105,18 @@ paths:
             minimum: 0
             maximum: 100
             default: 40
+        - name: wind
+          in: query
+          required: false
+          description: >-
+            How much wind counts against a time. `matters` starts counting from lower speeds and weighs wind twice as
+            much, so a calmer time wins over a warmer or drier one. It never excludes a time. Slot scores follow it.
+          schema:
+            type: string
+            enum:
+              - normal
+              - matters
+            default: normal
         - name: lang
           in: query
           required: false
@@ -288,7 +300,7 @@ components:
     Params:
       type: object
       description: The values used, with defaults applied.
-      required: [avail, dark, rain]
+      required: [avail, dark, rain, wind]
       properties:
         avail:
           type: string
@@ -297,6 +309,9 @@ components:
           enum: [ok, avoid]
         rain:
           type: integer
+        wind:
+          type: string
+          enum: [normal, matters]
     WindowDay:
       type: object
       required: [date, sunrise, sunset, windows]
