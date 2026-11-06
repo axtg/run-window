@@ -9,7 +9,7 @@
     "avail": "07-09,12-14,17-21",
     "dark": "avoid",
     "rain": 40,
-    "wind": "normal"
+    "prefer": "balanced"
   },
   "days": [
     {

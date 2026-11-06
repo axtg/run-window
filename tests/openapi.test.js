@@ -61,7 +61,7 @@ test('documents every parameter and the 200, 400, 429 and 503 responses', () => 
   const operation = spec.paths['/api/window'].get;
 
   expect(operation.parameters.map(parameter => parameter.name).sort()).toEqual(
-    ['avail', 'dark', 'lang', 'lat', 'lon', 'rain', 'slots', 'wind'].sort()
+    ['avail', 'dark', 'lang', 'lat', 'lon', 'prefer', 'rain', 'slots', 'wind'].sort()
   );
   expect(
     operation.parameters

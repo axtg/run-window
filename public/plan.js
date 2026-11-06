@@ -229,11 +229,23 @@
     return offsetMinutes(locationTz, nowMs) === offsetMinutes(deviceTz, nowMs) ? null : `${locationTz} time`;
   }
 
-  function apiUrl(origin, { lat, lon, hours, allowDark, windMatters, rain }, { slots = false } = {}) {
+  function apiUrl(origin, { lat, lon, hours, allowDark, prefer, rain }, { slots = false } = {}) {
     const dark = allowDark ? 'ok' : 'avoid';
-    const wind = windMatters ? 'matters' : 'normal';
-    const query = `lat=${lat.toFixed(2)}&lon=${lon.toFixed(2)}&avail=${hours}&dark=${dark}&rain=${rain}&wind=${wind}`;
+    const where = `lat=${lat.toFixed(2)}&lon=${lon.toFixed(2)}`;
+    const query = `${where}&avail=${hours}&dark=${dark}&rain=${rain}&prefer=${prefer}`;
     return `${origin}/api/window?${query}${slots ? '&slots=1' : ''}`;
+  }
+
+  // The line under Mind most: what the choice trades when the day can't be good on every count.
+  const PREFER_HINTS = {
+    balanced: 'Wind, rain and temperature count the same.',
+    wind: 'Calmer times win, even if colder or wetter.',
+    rain: 'Drier times win, even if windier or colder.',
+    temp: 'Times nearer 6–16 °C feels-like win, even if windier or wetter.'
+  };
+
+  function preferHint(prefer) {
+    return PREFER_HINTS[prefer] || PREFER_HINTS.balanced;
   }
 
   function errorMessage({ status, message, retryAfter }) {
@@ -258,6 +270,7 @@
     goLine,
     windLine,
     windArrowDeg,
+    preferHint,
     windWord,
     feelsWord,
     keyNumbers,
