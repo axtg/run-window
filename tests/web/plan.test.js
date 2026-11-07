@@ -27,7 +27,8 @@ const {
   windWord,
   feelsWord,
   calendarEvent,
-  calendarIntentUrl,
+  googleCalendarUrl,
+  outlookCalendarUrl,
   icsText
 } = RunPlan;
 
@@ -621,16 +622,28 @@ describe('add to calendar', () => {
     expect(calendarEvent({ kind: 'none', window: null }, null, { minutes: 60, timeZone: AMS })).toBeNull();
   });
 
-  test('the Android intent opens a filled-in new event', () => {
-    const url = calendarIntentUrl(calendarEvent(result, null, { minutes: 60, timeZone: AMS }));
-    expect(url).toMatch(
-      /^intent:\/\/#Intent;action=android\.intent\.action\.INSERT;type=vnd\.android\.cursor\.item\/event;/
-    );
-    expect(url).toContain('S.title=Sunday%20afternoon%2060%20min%20run;');
-    expect(url).toContain(`l.beginTime=${Date.parse('2026-11-08T14:00:00Z')};`);
-    expect(url).toContain(`l.endTime=${Date.parse('2026-11-08T15:00:00Z')};`);
-    expect(url.endsWith(';end')).toBe(true);
-    expect(url.match(/;/g).length).toBe(7); // the encoded text adds no separators
+  test('the Google Calendar and Outlook.com links carry a filled-in event, in UTC', () => {
+    const event = calendarEvent(result, null, { minutes: 60, timeZone: AMS });
+    const google = new URL(googleCalendarUrl(event));
+    expect(google.origin + google.pathname).toBe('https://calendar.google.com/calendar/render');
+    expect(Object.fromEntries(google.searchParams)).toEqual({
+      action: 'TEMPLATE',
+      text: 'Sunday afternoon 60 min run',
+      dates: '20261108T140000Z/20261108T150000Z',
+      details: event.description
+    });
+    expect(googleCalendarUrl(event)).toContain('text=Sunday%20afternoon%2060%20min%20run&');
+    expect(googleCalendarUrl(event)).not.toContain('+');
+    const outlook = new URL(outlookCalendarUrl(event));
+    expect(outlook.origin + outlook.pathname).toBe('https://outlook.live.com/calendar/0/deeplink/compose');
+    expect(Object.fromEntries(outlook.searchParams)).toEqual({
+      path: '/calendar/action/compose',
+      rru: 'addevent',
+      subject: 'Sunday afternoon 60 min run',
+      startdt: '2026-11-08T14:00:00.000Z',
+      enddt: '2026-11-08T15:00:00.000Z',
+      body: event.description
+    });
   });
 
   test('the .ics file: UTC times, escaped text, CRLF and folded lines', () => {

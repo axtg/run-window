@@ -729,27 +729,38 @@ describe('app.js privacy smoke test', () => {
     expect(events(sandbox)).toEqual([['Dialog', { dialog: 'network' }]]);
   });
 
-  it('on Android, Add to calendar opens an intent with the run, never the route name or coordinates', async () => {
-    const android = 'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 Chrome/130.0 Mobile Safari/537.36';
-    const { sandbox, elements, record } = loadPage({ navigator: { userAgent: android }, app: apiWith(() => ({})) });
+  it('Add to calendar opens a menu whose links carry the run, never the route name or coordinates', async () => {
+    const { sandbox, elements, record } = loadPage({ app: apiWith(() => ({})) });
     await sandbox.RunApp.openRouteText(GPX, FILE_NAME);
     await answered(elements);
     const button = elements.get('add-calendar');
+    const menu = elements.get('calendar-menu');
+    menu.hidden = true; // as in the markup
     expect(button.hidden).toBe(false);
     const fetches = record.fetches.length;
 
     button.listeners.click();
-    const href = sandbox.location.href;
-    expect(href).toMatch(/^intent:\/\/#Intent;action=android\.intent\.action\.INSERT;/);
-    expect(decodeURIComponent(href)).toMatch(/S\.title=\w+ (morning|afternoon|evening) \d+\.\d km run;/);
-    expect(leaks(decodeURIComponent(href))).toEqual([]);
-    expect(record.fetches.length).toBe(fetches); // nothing goes over the network
-    expect(events(sandbox)).toContainEqual(['Calendar', { via: 'android' }]);
+    expect(menu.hidden).toBe(false);
+    expect(button.getAttribute('aria-expanded')).toBe('true');
+    const google = new URL(elements.get('calendar-google').href);
+    const outlook = new URL(elements.get('calendar-outlook').href);
+    expect(google.searchParams.get('text')).toMatch(/^\w+ (morning|afternoon|evening) \d+\.\d km run$/);
+    expect(outlook.searchParams.get('subject')).toBe(google.searchParams.get('text'));
+    for (const href of [google.href, outlook.href]) {
+      expect(leaks(decodeURIComponent(href))).toEqual([]);
+      expect(decodeURIComponent(href)).not.toMatch(/52\.|4\.89/);
+    }
+
+    menu.listeners.click({ target: { closest: () => ({ dataset: { via: 'google' } }) } });
+    expect(menu.hidden).toBe(true);
+    expect(record.fetches.length).toBe(fetches); // the page itself sends nothing
+    expect(events(sandbox)).toEqual(expect.arrayContaining([['Calendar', { via: 'google' }]]));
+    expect(events(sandbox)).not.toContainEqual(['Calendar', { via: 'ics' }]);
   });
 
-  it('elsewhere, Add to calendar downloads an .ics file built in the page', async () => {
+  it('Calendar file (.ics) downloads a file built in the page', async () => {
     const { sandbox, elements, created, record } = loadPage({
-      navigator: { geolocation, userAgent: 'Macintosh' },
+      navigator: { geolocation },
       app: apiWith(() => ({}))
     });
     elements.get('use-location').listeners.click();
@@ -758,6 +769,7 @@ describe('app.js privacy smoke test', () => {
 
     jest.useFakeTimers(); // the page revokes the file's URL after 10 s
     elements.get('add-calendar').listeners.click();
+    elements.get('calendar-menu').listeners.click({ target: { closest: () => ({ dataset: { via: 'ics' } }) } });
     const link = created.find(node => node.tagName === 'a' && node.download === 'run.ics');
     expect(link.clicked).toBe(true);
     const text = await resolveObjectURL(link.href).text();

@@ -204,19 +204,36 @@
     };
   }
 
-  // Android: opens the default calendar app's new-event screen, filled in. Nothing goes over the network.
-  function calendarIntentUrl(event) {
-    const extras = [
-      `S.title=${encodeURIComponent(event.title)}`,
-      `S.description=${encodeURIComponent(event.description)}`,
-      `l.beginTime=${event.startMs}`,
-      `l.endTime=${event.endMs}`
-    ];
-    const action = 'action=android.intent.action.INSERT;type=vnd.android.cursor.item/event';
-    return `intent://#Intent;${action};${extras.join(';')};end`;
+  // Spaces as %20, not '+': not every calendar deeplink reads '+' as a space. A real '+' is already %2B.
+  function calendarQuery(params) {
+    return new URLSearchParams(params).toString().replace(/\+/g, '%20');
   }
 
-  // Elsewhere: an iCalendar file (RFC 5545), built in the browser. Times in UTC.
+  // Links that open a filled-in new event on the service's site, or its app on a phone. Chosen by the person, they
+  // send the title, time and description to that service; never the location.
+  function googleCalendarUrl(event) {
+    const query = calendarQuery({
+      action: 'TEMPLATE',
+      text: event.title,
+      dates: `${icsStamp(event.startMs)}/${icsStamp(event.endMs)}`,
+      details: event.description
+    });
+    return `https://calendar.google.com/calendar/render?${query}`;
+  }
+
+  function outlookCalendarUrl(event) {
+    const query = calendarQuery({
+      path: '/calendar/action/compose',
+      rru: 'addevent',
+      subject: event.title,
+      startdt: new Date(event.startMs).toISOString(),
+      enddt: new Date(event.endMs).toISOString(),
+      body: event.description
+    });
+    return `https://outlook.live.com/calendar/0/deeplink/compose?${query}`;
+  }
+
+  // Any other calendar app: an iCalendar file (RFC 5545), built in the browser. Times in UTC.
   function icsStamp(ms) {
     return new Date(ms)
       .toISOString()
@@ -381,7 +398,8 @@
     answerLabel,
     answerTime,
     calendarEvent,
-    calendarIntentUrl,
+    googleCalendarUrl,
+    outlookCalendarUrl,
     icsText,
     noWindowText,
     tomorrowHint,

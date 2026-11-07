@@ -9,7 +9,7 @@
     Setting: { prop: 'setting', names: ['duration', 'pace', 'hours', 'add-hours', 'dark', 'prefer', 'rain', 'day'] },
     Dialog: { prop: 'dialog', names: ['method', 'api', 'privacy', 'network'] },
     Source: { prop: 'source', names: ['file', 'share', 'location'] },
-    Calendar: { prop: 'via', names: ['android', 'ics'] },
+    Calendar: { prop: 'via', names: ['google', 'outlook', 'ics'] },
     Network: {
       prop: 'site',
       names: ['xadi.nl', 'dap.xadi.eu', 'emailconnect.eu', 'webhooktest.eu', 'stackcheck.eu', 'buymeacoffee.com']

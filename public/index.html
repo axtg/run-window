@@ -455,29 +455,69 @@
               <p id="answer-label" class="text-xs text-secondary"></p>
               <div class="flex items-center gap-3">
                 <p id="answer-time" class="whitespace-nowrap text-3xl font-bold tracking-tight"></p>
-                <button
-                  id="add-calendar"
-                  type="button"
-                  class="flex h-9 w-9 flex-none items-center justify-center rounded-full text-gray-600 ring-1 ring-black/10 hover:bg-gray-100 hover:text-gray-900 [&[hidden]]:hidden"
-                  aria-label="Add to calendar"
-                  title="Add to calendar"
-                  hidden
-                >
-                  <svg
-                    viewBox="0 0 20 20"
-                    class="h-[18px] w-[18px]"
-                    aria-hidden="true"
-                    focusable="false"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="1.6"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
+                <div class="relative flex-none">
+                  <button
+                    id="add-calendar"
+                    type="button"
+                    class="flex h-9 w-9 flex-none items-center justify-center rounded-full text-gray-600 ring-1 ring-black/10 hover:bg-gray-100 hover:text-gray-900 [&[hidden]]:hidden"
+                    aria-label="Add to calendar"
+                    title="Add to calendar"
+                    aria-expanded="false"
+                    aria-controls="calendar-menu"
+                    hidden
                   >
-                    <rect x="2.5" y="4" width="15" height="13.5" rx="2.5" />
-                    <path d="M2.5 8h15M6.5 2.5v3M13.5 2.5v3M10 10.5v4.5M7.75 12.75h4.5" />
-                  </svg>
-                </button>
+                    <svg
+                      viewBox="0 0 20 20"
+                      class="h-[18px] w-[18px]"
+                      aria-hidden="true"
+                      focusable="false"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="1.6"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    >
+                      <rect x="2.5" y="4" width="15" height="13.5" rx="2.5" />
+                      <path d="M2.5 8h15M6.5 2.5v3M13.5 2.5v3M10 10.5v4.5M7.75 12.75h4.5" />
+                    </svg>
+                  </button>
+                  <div
+                    id="calendar-menu"
+                    class="absolute right-0 top-full z-20 mt-2 w-60 rounded-2xl bg-white p-1.5 text-sm text-gray-900 shadow-[0_12px_32px_rgba(17,24,39,0.18)] ring-1 ring-black/5"
+                    hidden
+                  >
+                    <p class="px-3 pb-1 pt-2 text-[11px] font-medium uppercase tracking-wide text-gray-400">
+                      Add to calendar
+                    </p>
+                    <a
+                      id="calendar-google"
+                      data-via="google"
+                      href="https://calendar.google.com/"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      class="block w-full rounded-xl px-3 py-2 text-left hover:bg-gray-100 focus-visible:bg-gray-100"
+                      >Google Calendar</a
+                    >
+                    <a
+                      id="calendar-outlook"
+                      data-via="outlook"
+                      href="https://outlook.live.com/calendar/"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      class="block w-full rounded-xl px-3 py-2 text-left hover:bg-gray-100 focus-visible:bg-gray-100"
+                      >Outlook.com</a
+                    >
+                    <button
+                      id="calendar-ics"
+                      data-via="ics"
+                      type="button"
+                      class="block w-full rounded-xl px-3 py-2 text-left hover:bg-gray-100 focus-visible:bg-gray-100"
+                    >
+                      <span class="block">Calendar file (.ics)</span>
+                      <span class="block text-xs text-gray-500">Apple Calendar and most other apps</span>
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
             <dl
@@ -736,7 +776,8 @@
           </li>
           <li>
             Add to calendar builds the event on your device: the time, the weather and the run's length, without the
-            location or the route's name. It goes to your calendar app or a downloaded file, not to this service.
+            location or the route's name. A calendar file stays on your device. Google Calendar or Outlook.com receive
+            the event only when you choose them; this service never does.
           </li>
           <li>The service receives the coordinates you send.</li>
           <li>

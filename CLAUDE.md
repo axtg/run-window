@@ -89,7 +89,7 @@ test approach. Read its `CLAUDE.md` first. Reuse rather than reinvent:
 - Plausible (since 2026-11-06): its snippet's init lives in `analytics.js` (deferred, before `app.js`), since the CSP
   allows no inline script. Events carry names only, from the fixed list in `analytics.js` (`EVENTS`), once per page
   view: `Setting` (which setting was changed), `Dialog` (Method, API, Privacy, the network menu), `Source` (file,
-  share, location), `Calendar` (`android` or `ics`) and `Network` (which site in the menu). Never a value, a coordinate or anything from the route.
+  share, location), `Calendar` (`google`, `outlook` or `ics`) and `Network` (which site in the menu). Never a value, a coordinate or anything from the route.
   Blocked Plausible changes nothing. Each event needs a goal in the Plausible dashboard to show up there.
 - Tailwind scans only `index.html`, `app.js` and `strip.js`: run `npm run build:css` after editing them, comments too.
 - The route file never leaves the browser. The only request the page makes to its own server is `/api/window` with `lat`
@@ -119,9 +119,11 @@ test approach. Read its `CLAUDE.md` first. Reuse rather than reinvent:
   - When today has no window and tomorrow has one, a `Try tomorrow →` button shows what tomorrow holds.
   - A calendar-plus button (`#add-calendar`) after the time adds the run to a calendar (`Plan.calendarEvent`): title
     like `Sunday afternoon 10.4 km run` (or `60 min`), the conditions and wind line as description. Never the location
-    or the route's name. On Android it opens an `intent:` URL (`Plan.calendarIntentUrl`, the calendar app's new-event
-    screen); elsewhere it downloads `run.ics` built in the page (`Plan.icsText`, folded at 75 octets). Added
-    2026-11-07; the Android intent was untested on a device when it shipped.
+    or the route's name. It opens `#calendar-menu` (a dropdown like the others): Google Calendar and Outlook.com links
+    (`Plan.googleCalendarUrl`, `Plan.outlookCalendarUrl`, new tab, `noopener noreferrer`, refreshed on each render)
+    and Calendar file (.ics), which downloads `run.ics` built in the page (`Plan.icsText`, folded at 75 octets).
+    An Android `intent:` URL was tried first (2026-11-07) and doesn't work: Chrome marks web intents browsable and
+    the calendar's new-event screen doesn't accept them.
 - Below the answer: one timeline joining strip and graph, then the why line.
 - The hint under the timeline names the arrow keys only where the screen can hover (`(hover: none)` drops them).
 - The header's 3×3 dot icon (`#open-network`, "More by Xander") opens `#network-menu`, a dropdown with the maintainer's

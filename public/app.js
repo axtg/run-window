@@ -65,7 +65,7 @@
     'route-input use-location duration-group run-distance run-minutes pace-group pace-down pace-input ' +
     'pace-up duration-down duration-value duration-up hours-rows add-hours dark-times dark-ok prefer-balanced ' +
     'prefer-wind prefer-rain prefer-temp prefer-hint rain-input rain-fill rain-value prompt answer answer-label ' +
-    'answer-time add-calendar key-numbers wind-line wind-compass ' +
+    'answer-time add-calendar calendar-menu calendar-google calendar-outlook key-numbers wind-line wind-compass ' +
     'wind-arrow wind-text tomorrow-hint try-tomorrow tomorrow-text stale-note status ' +
     'result timeline tap-line why-sentence copy-link open-method open-api open-privacy ' +
     'method-dialog api-dialog privacy-dialog close-method close-api close-privacy open-about about-menu ' +
@@ -651,7 +651,7 @@
     el.answerTime.className = none ? 'text-xl font-semibold' : 'whitespace-nowrap text-3xl font-bold tracking-tight';
     renderKeyNumbers(Plan.keyNumbers(result, state.summary, minutes));
     state.calendar = Plan.calendarEvent(result, state.summary, { minutes, timeZone });
-    el.addCalendar.hidden = !state.calendar;
+    renderCalendar();
     el.windLine.hidden = !result.window;
     el.windText.textContent = result.window ? Plan.windLine(state.summary, result.window) : '';
     const arrow = result.window ? Plan.windArrowDeg(result.window) : null;
@@ -762,12 +762,8 @@
     return undefined;
   }
 
-  // ---- Add to calendar: on Android an intent opens the calendar app's new-event screen; elsewhere an .ics file
-  // built here. Either way the event stays on the device: it holds the time, the conditions and the run's length.
-
-  function isAndroid() {
-    return /Android/i.test((window.navigator && window.navigator.userAgent) || '');
-  }
+  // ---- Add to calendar: the button opens a menu of Google Calendar, Outlook.com and an .ics file built here. A link
+  // carries the event to its service only when chosen; the file stays on the device. Never the location.
 
   function eventId() {
     const crypto = window.crypto;
@@ -775,15 +771,19 @@
     return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
   }
 
-  function onAddCalendar() {
+  function renderCalendar() {
     const event = state.calendar;
-    if (!event) return;
-    if (isAndroid()) {
-      track('Calendar', 'android');
-      window.location.href = Plan.calendarIntentUrl(event);
+    el.addCalendar.hidden = !event;
+    if (!event) {
+      el.calendarMenu.hidden = true;
+      el.addCalendar.setAttribute('aria-expanded', 'false');
       return;
     }
-    track('Calendar', 'ics');
+    el.calendarGoogle.href = Plan.googleCalendarUrl(event);
+    el.calendarOutlook.href = Plan.outlookCalendarUrl(event);
+  }
+
+  function downloadIcs(event) {
     const text = Plan.icsText(event, { uid: eventId(), nowMs: Date.now() });
     const url = URL.createObjectURL(new Blob([text], { type: 'text/calendar' }));
     const link = html('a');
@@ -791,6 +791,14 @@
     link.download = 'run.ics';
     link.click();
     setTimeout(() => URL.revokeObjectURL(url), 10000);
+  }
+
+  function onCalendarChoice(event, setOpen) {
+    const choice = event.target.closest('[data-via]');
+    if (!choice) return;
+    track('Calendar', choice.dataset.via);
+    if (choice.dataset.via === 'ics' && state.calendar) downloadIcs(state.calendar);
+    setOpen(false); // a link opens its tab on its own
   }
 
   // ---- The Method, API and Privacy dialogs: ✕, Escape (native) or a click on the backdrop closes them.
@@ -806,8 +814,8 @@
     });
   }
 
-  // ---- The header's menus (About on a phone, and the network menu): the button toggles one; a press outside, Escape
-  // (focus back on the button) or tabbing out of it closes it. `onOpen` runs on each opening.
+  // ---- Dropdown menus (About on a phone, the network menu, Add to calendar): the button toggles one; a press outside,
+  // Escape (focus back on the button) or tabbing out of it closes it. `onOpen` runs on each opening.
 
   function dropdown(button, panel, onOpen = () => {}) {
     const inside = node => Boolean(node) && (panel.contains(node) || button.contains(node));
@@ -879,7 +887,6 @@
   el.timeline.addEventListener('click', onTimelineClick);
   el.timeline.addEventListener('keydown', onTimelineKey);
   el.copyLink.addEventListener('click', onCopyLink);
-  el.addCalendar.addEventListener('click', onAddCalendar);
   wireDialog(el.openMethod, el.methodDialog, el.closeMethod, 'method');
   wireDialog(el.openApi, el.apiDialog, el.closeApi, 'api');
   wireDialog(el.openPrivacy, el.privacyDialog, el.closePrivacy, 'privacy');
@@ -887,6 +894,8 @@
   el.networkMenu.addEventListener('click', event => onNetworkClick(event, setNetworkOpen));
   // From sm: up the About menu's items show as plain header links; its `hidden` attribute only matters on a phone.
   const setAboutOpen = dropdown(el.openAbout, el.aboutMenu);
+  const setCalendarOpen = dropdown(el.addCalendar, el.calendarMenu);
+  el.calendarMenu.addEventListener('click', event => onCalendarChoice(event, setCalendarOpen));
   el.aboutMenu.addEventListener('click', event => {
     if (event.target.closest('button')) setAboutOpen(false); // its dialog opens from the button's own listener
   });
