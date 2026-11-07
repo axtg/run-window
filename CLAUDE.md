@@ -111,8 +111,9 @@ test approach. Read its `CLAUDE.md` first. Reuse rather than reinvent:
     four options wrap under the label below about 360 px.
   - Rain: a slider.
 - Under the settings is a big answer with key numbers: Sky, Feels and Wind (Feels and Wind with a context word such as
-  `ideal` or `light`), then Climb or Run.
-  - From `sm:` up, the numbers sit to the right of the time. On a phone they sit under it.
+  `ideal` or `light`, in a light pill so it reads as a label, not wrapped text), then Climb or Run.
+  - From `sm:` up, the numbers sit to the right of the time in a 2 × 2 grid (four across doesn't fit the card). On a
+    phone they sit under it.
   - The wind line is in words (`Wind from the east · start east, into it`), with a compass whose arrow shows where the
     wind blows to, as on a weather map, so you start running against the arrow. There is no compass in little wind.
   - When today has no window and tomorrow has one, a `Try tomorrow →` button shows what tomorrow holds.
@@ -121,7 +122,10 @@ test approach. Read its `CLAUDE.md` first. Reuse rather than reinvent:
 - The header's 3×3 dot icon (`#open-network`, "More by Xander") opens `#network-menu`, a dropdown with the maintainer's
   other sites and Buy me a coffee (new tab, `noopener noreferrer`). A press outside, Escape (focus back on the icon) or
   tabbing out closes it. It is the only place on the page that names the maintainer; `tests/landing.test.js` checks.
-- Method, API and Privacy open in `<dialog>`s from the header. Method explains the scoring in words;
+- Method, API and Privacy open in `<dialog>`s from the header. On a phone (below `sm:`) they fold into `About ▾`
+  (`#open-about`, `#about-menu`), a dropdown that closes like the network menu, so the header stays on one line. From
+  `sm:` up the same buttons show as header links; `#about-menu` then keeps its `hidden` attribute, overridden by
+  `sm:[&[hidden]]:flex`. Opening About is not counted. Method explains the scoring in words;
   `tests/landing.test.js` checks its numbers against `SCORING` in `lib/windows.js`, so change both together. Copy API link confirms on the button itself (`Copied` or
   `Couldn't copy` for 2 s, announced by a hidden polite note), not in `#status`.
 - Default hours are `10-16`; there is no one-off duration.

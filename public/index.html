@@ -44,34 +44,63 @@
         <h1>besttimetorun<span class="font-medium text-gray-500">.com</span></h1>
       </div>
       <nav class="-mr-1 ml-auto flex items-center gap-1 text-sm text-gray-600" aria-label="About the page">
+        <!-- On a phone Method, API and Privacy fold into "About", so the header stays on one line -->
         <button
-          id="open-method"
+          id="open-about"
           type="button"
-          class="rounded-lg px-3 py-1.5 hover:bg-white hover:text-gray-900"
-          aria-haspopup="dialog"
+          class="flex items-center gap-1 rounded-lg px-2 py-1.5 hover:bg-white hover:text-gray-900 sm:hidden"
+          aria-expanded="false"
+          aria-controls="about-menu"
         >
-          Method
+          About
+          <svg
+            viewBox="0 0 12 12"
+            class="h-3 w-3"
+            aria-hidden="true"
+            focusable="false"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.5"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <path d="M3 4.5l3 3 3-3" />
+          </svg>
         </button>
-        <button
-          id="open-api"
-          type="button"
-          class="rounded-lg px-3 py-1.5 hover:bg-white hover:text-gray-900"
-          aria-haspopup="dialog"
+        <div
+          id="about-menu"
+          class="absolute right-14 top-full z-20 -mt-1 flex w-40 flex-col rounded-2xl bg-white p-1.5 text-gray-700 shadow-[0_12px_32px_rgba(17,24,39,0.18)] ring-1 ring-black/5 [&[hidden]]:hidden sm:static sm:mt-0 sm:w-auto sm:flex-row sm:items-center sm:gap-1 sm:bg-transparent sm:p-0 sm:text-gray-600 sm:shadow-none sm:ring-0 sm:[&[hidden]]:flex"
+          hidden
         >
-          API
-        </button>
-        <button
-          id="open-privacy"
-          type="button"
-          class="rounded-lg px-3 py-1.5 hover:bg-white hover:text-gray-900"
-          aria-haspopup="dialog"
-        >
-          Privacy
-        </button>
+          <button
+            id="open-method"
+            type="button"
+            class="w-full rounded-xl px-3 py-2 text-left hover:bg-gray-100 sm:w-auto sm:rounded-lg sm:py-1.5 sm:hover:bg-white sm:hover:text-gray-900"
+            aria-haspopup="dialog"
+          >
+            Method
+          </button>
+          <button
+            id="open-api"
+            type="button"
+            class="w-full rounded-xl px-3 py-2 text-left hover:bg-gray-100 sm:w-auto sm:rounded-lg sm:py-1.5 sm:hover:bg-white sm:hover:text-gray-900"
+            aria-haspopup="dialog"
+          >
+            API
+          </button>
+          <button
+            id="open-privacy"
+            type="button"
+            class="w-full rounded-xl px-3 py-2 text-left hover:bg-gray-100 sm:w-auto sm:rounded-lg sm:py-1.5 sm:hover:bg-white sm:hover:text-gray-900"
+            aria-haspopup="dialog"
+          >
+            Privacy
+          </button>
+        </div>
         <button
           id="open-network"
           type="button"
-          class="ml-1 flex h-8 w-8 items-center justify-center rounded-full bg-white text-gray-700 ring-1 ring-black/10 hover:text-gray-900"
+          class="flex h-8 w-8 items-center justify-center rounded-full bg-white sm:ml-1 text-gray-700 ring-1 ring-black/10 hover:text-gray-900"
           aria-label="More by Xander"
           aria-expanded="false"
           aria-controls="network-menu"
@@ -428,7 +457,7 @@
             </div>
             <dl
               id="key-numbers"
-              class="[&[hidden]]:hidden mt-2 flex flex-wrap gap-x-5 gap-y-1 sm:col-start-2 sm:row-span-3 sm:row-start-1 sm:mt-0 sm:grid sm:grid-cols-4 sm:self-start sm:justify-self-end sm:text-right"
+              class="[&[hidden]]:hidden mt-2 flex flex-wrap gap-x-5 gap-y-1 sm:col-start-2 sm:row-span-3 sm:row-start-1 sm:mt-0 sm:grid sm:grid-cols-[repeat(2,auto)] sm:gap-y-2 sm:self-start sm:justify-self-end sm:text-right"
             ></dl>
             <p
               id="wind-line"

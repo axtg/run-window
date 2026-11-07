@@ -68,8 +68,8 @@
     'answer-time key-numbers wind-line wind-compass ' +
     'wind-arrow wind-text tomorrow-hint try-tomorrow tomorrow-text stale-note status ' +
     'result timeline tap-line why-sentence copy-link open-method open-api open-privacy ' +
-    'method-dialog api-dialog privacy-dialog close-method close-api close-privacy open-network network-menu ' +
-    'copy-label copy-icon copy-check copy-note'
+    'method-dialog api-dialog privacy-dialog close-method close-api close-privacy open-about about-menu ' +
+    'open-network network-menu copy-label copy-icon copy-check copy-note'
   ).split(' ');
   const camel = id => id.replace(/-(\w)/g, (_, letter) => letter.toUpperCase());
   const el = Object.fromEntries(IDS.map(id => [camel(id), document.getElementById(id)]));
@@ -610,7 +610,9 @@
         dd.appendChild(html('span', part.unit ? 'text-xs font-medium text-secondary' : '', part.text))
       );
       item.appendChild(dd);
-      if (note) item.appendChild(html('dd', 'text-[11px] text-secondary', note));
+      // A pill, so the word reads as a label and not as the value's text wrapped onto a second line.
+      const pill = 'mt-0.5 inline-block rounded-full bg-gray-100 px-2 py-px text-[11px] leading-4 text-secondary';
+      if (note) item.appendChild(html('dd', pill, note));
       el.keyNumbers.appendChild(item);
     });
     el.keyNumbers.hidden = numbers.length === 0;
@@ -770,22 +772,35 @@
     });
   }
 
-  // ---- The network menu: the icon toggles it; a press outside, Escape or tabbing out of it closes it.
+  // ---- The header's menus (About on a phone, and the network menu): the button toggles one; a press outside, Escape
+  // (focus back on the button) or tabbing out of it closes it. `onOpen` runs on each opening.
 
-  function setNetworkOpen(open, returnFocus = false) {
-    el.networkMenu.hidden = !open;
-    el.openNetwork.setAttribute('aria-expanded', String(open));
-    if (open) track('Dialog', 'network');
-    if (!open && returnFocus) el.openNetwork.focus();
+  function dropdown(button, panel, onOpen = () => {}) {
+    const inside = node => Boolean(node) && (panel.contains(node) || button.contains(node));
+    function setOpen(open, returnFocus = false) {
+      panel.hidden = !open;
+      button.setAttribute('aria-expanded', String(open));
+      if (open) onOpen();
+      if (!open && returnFocus) button.focus();
+    }
+    button.addEventListener('click', () => setOpen(panel.hidden));
+    panel.addEventListener('focusout', event => {
+      if (event.relatedTarget && !inside(event.relatedTarget)) setOpen(false);
+    });
+    window.addEventListener('pointerdown', event => {
+      if (!panel.hidden && !inside(event.target)) setOpen(false);
+    });
+    window.addEventListener('keydown', event => {
+      if (event.key === 'Escape' && !panel.hidden) setOpen(false, true);
+    });
+    return setOpen;
   }
 
-  const inNetwork = node => Boolean(node) && (el.networkMenu.contains(node) || el.openNetwork.contains(node));
-
-  function onNetworkClick(event) {
+  function onNetworkClick(event, setOpen) {
     const link = event.target.closest('a[data-site]');
     if (!link) return;
     track('Network', link.dataset.site);
-    setNetworkOpen(false);
+    setOpen(false);
   }
 
   let resizeFrame = null;
@@ -833,16 +848,12 @@
   wireDialog(el.openMethod, el.methodDialog, el.closeMethod, 'method');
   wireDialog(el.openApi, el.apiDialog, el.closeApi, 'api');
   wireDialog(el.openPrivacy, el.privacyDialog, el.closePrivacy, 'privacy');
-  el.openNetwork.addEventListener('click', () => setNetworkOpen(el.networkMenu.hidden));
-  el.networkMenu.addEventListener('click', onNetworkClick);
-  el.networkMenu.addEventListener('focusout', event => {
-    if (event.relatedTarget && !inNetwork(event.relatedTarget)) setNetworkOpen(false);
-  });
-  window.addEventListener('pointerdown', event => {
-    if (!el.networkMenu.hidden && !inNetwork(event.target)) setNetworkOpen(false);
-  });
-  window.addEventListener('keydown', event => {
-    if (event.key === 'Escape' && !el.networkMenu.hidden) setNetworkOpen(false, true);
+  const setNetworkOpen = dropdown(el.openNetwork, el.networkMenu, () => track('Dialog', 'network'));
+  el.networkMenu.addEventListener('click', event => onNetworkClick(event, setNetworkOpen));
+  // From sm: up the About menu's items show as plain header links; its `hidden` attribute only matters on a phone.
+  const setAboutOpen = dropdown(el.openAbout, el.aboutMenu);
+  el.aboutMenu.addEventListener('click', event => {
+    if (event.target.closest('button')) setAboutOpen(false); // its dialog opens from the button's own listener
   });
   window.addEventListener('resize', onResize);
   el.rainInput.value = String(state.settings.rain); // set once: a late render never moves a slider being dragged

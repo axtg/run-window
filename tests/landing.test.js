@@ -288,7 +288,8 @@ test('Dark has its own row with the times and an OK switch; add hours is a round
 
 test('the answer puts the key numbers beside the time from sm up, and the wind line has a hidden compass', () => {
   const numbers = html.match(/<dl\b[^>]*id="key-numbers"[^>]*>/)[0];
-  expect(numbers).toMatch(/sm:grid-cols-4/);
+  // Two auto columns: four minmax(0,1fr) ones in this shrink-to-fit list collapsed and overlapped (2026-11-07).
+  expect(numbers).toMatch(/sm:grid-cols-\[repeat\(2,auto\)\]/);
   expect(numbers).toMatch(/sm:col-start-2/);
   expect(numbers).toMatch(/sm:justify-self-end/); // beside the time with its own gaps, not spread over the row
   expect(html).toMatch(/id="answer"[^>]*sm:grid-cols-\[auto_1fr\]/); // the left column takes the width it needs

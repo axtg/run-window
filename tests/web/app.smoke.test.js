@@ -723,6 +723,24 @@ describe('app.js privacy smoke test', () => {
     expect(events(sandbox)).toEqual([['Dialog', { dialog: 'network' }]]);
   });
 
+  it('About opens and closes its menu on a phone, closes when an item is chosen, and counts nothing', () => {
+    const { sandbox, elements } = loadPage();
+    const button = elements.get('open-about');
+    const menu = elements.get('about-menu');
+    menu.hidden = true; // as in the markup
+
+    button.listeners.click();
+    expect(menu.hidden).toBe(false);
+    expect(button.getAttribute('aria-expanded')).toBe('true');
+    menu.listeners.click({ target: { closest: selector => (selector === 'button' ? {} : null) } });
+    expect(menu.hidden).toBe(true);
+    expect(button.getAttribute('aria-expanded')).toBe('false');
+    button.listeners.click();
+    button.listeners.click();
+    expect(menu.hidden).toBe(true);
+    expect(events(sandbox)).toEqual([]);
+  });
+
   it('reads the rain slider out as a percentage, while dragging too', () => {
     const { elements } = loadPage();
     const rain = elements.get('rain-input');
