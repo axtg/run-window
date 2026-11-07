@@ -7,6 +7,7 @@ const vm = require('vm');
 const { performance } = require('perf_hooks'); // not the global one, which Jest's fake timers replace
 const request = require('supertest');
 const { DOMParser } = require('@xmldom/xmldom');
+const { resolveObjectURL } = require('buffer');
 
 const { createApp } = require('../../app');
 const { parseForecast } = require('../../lib/forecast');
@@ -122,6 +123,9 @@ function fakeElement(tagName = 'div', { svg = false } = {}) {
     focus() {
       focusLog.push(this);
     },
+    click() {
+      this.clicked = true;
+    },
     getBoundingClientRect: () => ({ width: 360, left: 0 })
   };
 }
@@ -141,6 +145,8 @@ function loadPage({ navigator = {}, stored = null, app = api, matchMedia } = {})
   const sandbox = {
     URL,
     URLSearchParams,
+    Blob,
+    TextEncoder,
     DOMParser: QuietDOMParser,
     location: { origin: ORIGIN, search: '' },
     navigator,
@@ -721,6 +727,48 @@ describe('app.js privacy smoke test', () => {
     expect(menu.hidden).toBe(true);
     expect(button.getAttribute('aria-expanded')).toBe('false');
     expect(events(sandbox)).toEqual([['Dialog', { dialog: 'network' }]]);
+  });
+
+  it('on Android, Add to calendar opens an intent with the run, never the route name or coordinates', async () => {
+    const android = 'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 Chrome/130.0 Mobile Safari/537.36';
+    const { sandbox, elements, record } = loadPage({ navigator: { userAgent: android }, app: apiWith(() => ({})) });
+    await sandbox.RunApp.openRouteText(GPX, FILE_NAME);
+    await answered(elements);
+    const button = elements.get('add-calendar');
+    expect(button.hidden).toBe(false);
+    const fetches = record.fetches.length;
+
+    button.listeners.click();
+    const href = sandbox.location.href;
+    expect(href).toMatch(/^intent:\/\/#Intent;action=android\.intent\.action\.INSERT;/);
+    expect(decodeURIComponent(href)).toMatch(/S\.title=\w+ (morning|afternoon|evening) \d+\.\d km run;/);
+    expect(leaks(decodeURIComponent(href))).toEqual([]);
+    expect(record.fetches.length).toBe(fetches); // nothing goes over the network
+    expect(events(sandbox)).toContainEqual(['Calendar', { via: 'android' }]);
+  });
+
+  it('elsewhere, Add to calendar downloads an .ics file built in the page', async () => {
+    const { sandbox, elements, created, record } = loadPage({
+      navigator: { geolocation, userAgent: 'Macintosh' },
+      app: apiWith(() => ({}))
+    });
+    elements.get('use-location').listeners.click();
+    await answered(elements);
+    const fetches = record.fetches.length;
+
+    jest.useFakeTimers(); // the page revokes the file's URL after 10 s
+    elements.get('add-calendar').listeners.click();
+    const link = created.find(node => node.tagName === 'a' && node.download === 'run.ics');
+    expect(link.clicked).toBe(true);
+    const text = await resolveObjectURL(link.href).text();
+    expect(text).toMatch(/^BEGIN:VCALENDAR\r\n/);
+    expect(text).toMatch(/\r\nSUMMARY:\w+ (morning|afternoon|evening) 60 min run\r\n/);
+    expect(text).not.toMatch(/52\.|4\.89/);
+    expect(record.fetches.length).toBe(fetches);
+    expect(events(sandbox)).toContainEqual(['Calendar', { via: 'ics' }]);
+    jest.runAllTimers();
+    jest.useRealTimers();
+    expect(resolveObjectURL(link.href)).toBeUndefined(); // revoked
   });
 
   it('About opens and closes its menu on a phone, closes when an item is chosen, and counts nothing', () => {

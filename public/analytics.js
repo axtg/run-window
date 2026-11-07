@@ -1,5 +1,5 @@
-// Plausible: counts page views and, by name only, which settings, dialogs, starting points and network links people
-// use. Never a value, a coordinate or anything from a route. Runs in the browser and in the Jest tests.
+// Plausible: counts page views and, by name only, which settings, dialogs, starting points, calendar adds and network
+// links people use. Never a value, a coordinate or anything from a route. Runs in the browser and in the Jest tests.
 //
 // Loaded deferred, before app.js. Plausible's own script (async, from plausible.io) picks up the queue whenever it
 // arrives; when it never does (an ad blocker), events wait in memory and the page works the same.
@@ -9,6 +9,7 @@
     Setting: { prop: 'setting', names: ['duration', 'pace', 'hours', 'add-hours', 'dark', 'prefer', 'rain', 'day'] },
     Dialog: { prop: 'dialog', names: ['method', 'api', 'privacy', 'network'] },
     Source: { prop: 'source', names: ['file', 'share', 'location'] },
+    Calendar: { prop: 'via', names: ['android', 'ics'] },
     Network: {
       prop: 'site',
       names: ['xadi.nl', 'dap.xadi.eu', 'emailconnect.eu', 'webhooktest.eu', 'stackcheck.eu', 'buymeacoffee.com']

@@ -65,7 +65,7 @@
     'route-input use-location duration-group run-distance run-minutes pace-group pace-down pace-input ' +
     'pace-up duration-down duration-value duration-up hours-rows add-hours dark-times dark-ok prefer-balanced ' +
     'prefer-wind prefer-rain prefer-temp prefer-hint rain-input rain-fill rain-value prompt answer answer-label ' +
-    'answer-time key-numbers wind-line wind-compass ' +
+    'answer-time add-calendar key-numbers wind-line wind-compass ' +
     'wind-arrow wind-text tomorrow-hint try-tomorrow tomorrow-text stale-note status ' +
     'result timeline tap-line why-sentence copy-link open-method open-api open-privacy ' +
     'method-dialog api-dialog privacy-dialog close-method close-api close-privacy open-about about-menu ' +
@@ -94,6 +94,7 @@
     dayIndex: 0,
     body: null, // the last /api/window response
     selected: null,
+    calendar: null, // the shown answer as a calendar event, or null
     request: 0
   };
 
@@ -649,6 +650,8 @@
       : Plan.answerTime(result, { minutes, timeZone });
     el.answerTime.className = none ? 'text-xl font-semibold' : 'whitespace-nowrap text-3xl font-bold tracking-tight';
     renderKeyNumbers(Plan.keyNumbers(result, state.summary, minutes));
+    state.calendar = Plan.calendarEvent(result, state.summary, { minutes, timeZone });
+    el.addCalendar.hidden = !state.calendar;
     el.windLine.hidden = !result.window;
     el.windText.textContent = result.window ? Plan.windLine(state.summary, result.window) : '';
     const arrow = result.window ? Plan.windArrowDeg(result.window) : null;
@@ -759,6 +762,37 @@
     return undefined;
   }
 
+  // ---- Add to calendar: on Android an intent opens the calendar app's new-event screen; elsewhere an .ics file
+  // built here. Either way the event stays on the device: it holds the time, the conditions and the run's length.
+
+  function isAndroid() {
+    return /Android/i.test((window.navigator && window.navigator.userAgent) || '');
+  }
+
+  function eventId() {
+    const crypto = window.crypto;
+    if (crypto && typeof crypto.randomUUID === 'function') return crypto.randomUUID();
+    return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
+  }
+
+  function onAddCalendar() {
+    const event = state.calendar;
+    if (!event) return;
+    if (isAndroid()) {
+      track('Calendar', 'android');
+      window.location.href = Plan.calendarIntentUrl(event);
+      return;
+    }
+    track('Calendar', 'ics');
+    const text = Plan.icsText(event, { uid: eventId(), nowMs: Date.now() });
+    const url = URL.createObjectURL(new Blob([text], { type: 'text/calendar' }));
+    const link = html('a');
+    link.href = url;
+    link.download = 'run.ics';
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 10000);
+  }
+
   // ---- The Method, API and Privacy dialogs: ✕, Escape (native) or a click on the backdrop closes them.
 
   function wireDialog(opener, dialog, closer, name) {
@@ -845,6 +879,7 @@
   el.timeline.addEventListener('click', onTimelineClick);
   el.timeline.addEventListener('keydown', onTimelineKey);
   el.copyLink.addEventListener('click', onCopyLink);
+  el.addCalendar.addEventListener('click', onAddCalendar);
   wireDialog(el.openMethod, el.methodDialog, el.closeMethod, 'method');
   wireDialog(el.openApi, el.apiDialog, el.closeApi, 'api');
   wireDialog(el.openPrivacy, el.privacyDialog, el.closePrivacy, 'privacy');

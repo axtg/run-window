@@ -157,13 +157,113 @@
     return result.fits ? `Best time · ${minutes} min` : 'Best 3 h · run is longer';
   }
 
+  // The run's start and end in ms: the run itself when it fits the window, else the whole window it shows.
+  function answerSpan(result, minutes) {
+    const w = result.window;
+    const startMs = new Date(w.start).getTime();
+    if (result.kind === 'fallback' || !result.fits) return { startMs, endMs: new Date(w.end).getTime() };
+    return { startMs, endMs: startMs + minutes * 60000 };
+  }
+
   function answerTime(result, { minutes, timeZone }) {
     if (result.kind === 'none') return '';
+    const { startMs, endMs } = answerSpan(result, minutes);
+    const clock = ms => formatClock(new Date(ms).toISOString(), timeZone);
+    return `${clock(startMs)}–${clock(endMs)}`;
+  }
+
+  // ---- Add to calendar. The event holds the answer only: no location, nothing from the route but its distance.
+
+  function partOfDay(hour) {
+    if (hour < 12) return 'morning';
+    if (hour < 18) return 'afternoon';
+    return 'evening';
+  }
+
+  // 'Sunday afternoon 10.4 km run', or '… 60 min run' without a route. Day and hour are the location's.
+  function calendarEvent(result, summary, { minutes, timeZone }) {
+    if (result.kind === 'none') return null;
+    const { startMs, endMs } = answerSpan(result, minutes);
+    const parts = new Intl.DateTimeFormat('en-US', {
+      timeZone,
+      weekday: 'long',
+      hour: 'numeric',
+      hourCycle: 'h23'
+    }).formatToParts(new Date(startMs));
+    const weekday = parts.find(part => part.type === 'weekday').value;
+    const hour = Number(parts.find(part => part.type === 'hour').value);
+    const what = summary ? `${summary.distanceKm.toFixed(1)} km` : `${minutes} min`;
     const w = result.window;
-    const from = formatClock(w.start, timeZone);
-    if (result.kind === 'fallback' || !result.fits) return `${from}–${formatClock(w.end, timeZone)}`;
-    const end = new Date(new Date(w.start).getTime() + minutes * 60000).toISOString();
-    return `${from}–${formatClock(end, timeZone)}`;
+    const wind = `Wind ${Math.round(w.windAvg)} km/h ${w.windFromCardinal}, ${windWord(w.windAvg)}`;
+    const conditions = `${skyValue(w)} · Feels ${tempOf(w)}, ${feelsWord(w.apparentTempAvg)} · ${wind}`;
+    return {
+      title: `${weekday} ${partOfDay(hour)} ${what} run`,
+      description: `${conditions}\n${windLine(summary, w)}\nForecast from besttimetorun.com`,
+      startMs,
+      endMs
+    };
+  }
+
+  // Android: opens the default calendar app's new-event screen, filled in. Nothing goes over the network.
+  function calendarIntentUrl(event) {
+    const extras = [
+      `S.title=${encodeURIComponent(event.title)}`,
+      `S.description=${encodeURIComponent(event.description)}`,
+      `l.beginTime=${event.startMs}`,
+      `l.endTime=${event.endMs}`
+    ];
+    const action = 'action=android.intent.action.INSERT;type=vnd.android.cursor.item/event';
+    return `intent://#Intent;${action};${extras.join(';')};end`;
+  }
+
+  // Elsewhere: an iCalendar file (RFC 5545), built in the browser. Times in UTC.
+  function icsStamp(ms) {
+    return new Date(ms)
+      .toISOString()
+      .replace(/[-:]/g, '')
+      .replace(/\.\d{3}/, '');
+  }
+
+  function icsEscape(text) {
+    return text.replace(/[\\;,]/g, match => `\\${match}`).replace(/\n/g, '\\n');
+  }
+
+  // RFC 5545 folds lines longer than 75 octets: CRLF and a space, never inside a UTF-8 character.
+  function icsFold(line) {
+    const encoder = new TextEncoder();
+    const out = [];
+    let current = '';
+    let octets = 0;
+    for (const char of line) {
+      const size = encoder.encode(char).length;
+      if (octets + size > (out.length ? 74 : 75)) {
+        out.push(current);
+        current = '';
+        octets = 0;
+      }
+      current += char;
+      octets += size;
+    }
+    out.push(current);
+    return out.join('\r\n ');
+  }
+
+  function icsText(event, { uid, nowMs }) {
+    const lines = [
+      'BEGIN:VCALENDAR',
+      'VERSION:2.0',
+      'PRODID:-//besttimetorun.com//Best time to run//EN',
+      'BEGIN:VEVENT',
+      `UID:${uid}@besttimetorun.com`,
+      `DTSTAMP:${icsStamp(nowMs)}`,
+      `DTSTART:${icsStamp(event.startMs)}`,
+      `DTEND:${icsStamp(event.endMs)}`,
+      `SUMMARY:${icsEscape(event.title)}`,
+      `DESCRIPTION:${icsEscape(event.description)}`,
+      'END:VEVENT',
+      'END:VCALENDAR'
+    ];
+    return `${lines.map(icsFold).join('\r\n')}\r\n`;
   }
 
   // Under today's "no dry window": what tomorrow holds for the same run, or null when it holds nothing.
@@ -280,6 +380,9 @@
     valueParts,
     answerLabel,
     answerTime,
+    calendarEvent,
+    calendarIntentUrl,
+    icsText,
     noWindowText,
     tomorrowHint,
     routeLine,

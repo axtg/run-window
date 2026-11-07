@@ -25,7 +25,10 @@ const {
   windArrowDeg,
   tomorrowHint,
   windWord,
-  feelsWord
+  feelsWord,
+  calendarEvent,
+  calendarIntentUrl,
+  icsText
 } = RunPlan;
 
 function win(overrides = {}) {
@@ -561,5 +564,86 @@ describe('preferHint', () => {
     expect(preferHint('rain')).toMatch(/^Drier times win/);
     expect(preferHint('temp')).toMatch(/6–16 °C/);
     expect(preferHint('nope')).toBe(preferHint('balanced'));
+  });
+});
+
+describe('add to calendar', () => {
+  const AMS = 'Europe/Amsterdam';
+  // Sunday 8 Nov 2026, 15:00 in Amsterdam (UTC+1).
+  const sunday = win({
+    start: '2026-11-08T14:00:00.000Z',
+    end: '2026-11-08T15:30:00.000Z',
+    precipProbMax: 41,
+    qualifies: true,
+    windAvg: 11.2,
+    windFrom: 180,
+    windFromCardinal: 'S',
+    apparentTempAvg: 4.6
+  });
+  const result = { kind: 'window', window: sunday, key: '60', fits: true };
+  const loop = {
+    shape: 'loop',
+    startBearing: 180,
+    overallBearing: 0,
+    distanceKm: 10.43,
+    climbM: 40,
+    name: 'Secret loop'
+  };
+
+  test('names the day, part of day and run length in the location time zone', () => {
+    const event = calendarEvent(result, null, { minutes: 60, timeZone: AMS });
+    expect(event.title).toBe('Sunday afternoon 60 min run');
+    expect(event.startMs).toBe(Date.parse('2026-11-08T14:00:00Z'));
+    expect(event.endMs).toBe(Date.parse('2026-11-08T15:00:00Z'));
+    expect(event.description).toBe(
+      'Rain 41 % · Feels 5 °C, cold · Wind 11 km/h S, light\n' +
+        'Wind from the south · start south, into it\n' +
+        'Forecast from besttimetorun.com'
+    );
+    expect(calendarEvent(result, null, { minutes: 60, timeZone: 'Asia/Tokyo' }).title).toBe(
+      'Sunday evening 60 min run'
+    );
+    const early = { ...result, window: { ...sunday, start: '2026-11-09T06:30:00.000Z' } };
+    expect(calendarEvent(early, null, { minutes: 60, timeZone: AMS }).title).toBe('Monday morning 60 min run');
+  });
+
+  test('with a route: its distance, never its name', () => {
+    const event = calendarEvent(result, loop, { minutes: 62, timeZone: AMS });
+    expect(event.title).toBe('Sunday afternoon 10.4 km run');
+    expect(JSON.stringify(event)).not.toMatch(/Secret/);
+  });
+
+  test('a run longer than the window, or a fallback, spans the window shown', () => {
+    const long = calendarEvent({ ...result, fits: false }, null, { minutes: 200, timeZone: AMS });
+    expect(long.endMs).toBe(Date.parse('2026-11-08T15:30:00Z'));
+    const least = calendarEvent({ ...result, kind: 'fallback' }, null, { minutes: 60, timeZone: AMS });
+    expect(least.endMs).toBe(Date.parse('2026-11-08T15:30:00Z'));
+    expect(calendarEvent({ kind: 'none', window: null }, null, { minutes: 60, timeZone: AMS })).toBeNull();
+  });
+
+  test('the Android intent opens a filled-in new event', () => {
+    const url = calendarIntentUrl(calendarEvent(result, null, { minutes: 60, timeZone: AMS }));
+    expect(url).toMatch(
+      /^intent:\/\/#Intent;action=android\.intent\.action\.INSERT;type=vnd\.android\.cursor\.item\/event;/
+    );
+    expect(url).toContain('S.title=Sunday%20afternoon%2060%20min%20run;');
+    expect(url).toContain(`l.beginTime=${Date.parse('2026-11-08T14:00:00Z')};`);
+    expect(url).toContain(`l.endTime=${Date.parse('2026-11-08T15:00:00Z')};`);
+    expect(url.endsWith(';end')).toBe(true);
+    expect(url.match(/;/g).length).toBe(7); // the encoded text adds no separators
+  });
+
+  test('the .ics file: UTC times, escaped text, CRLF and folded lines', () => {
+    const text = icsText(calendarEvent(result, null, { minutes: 60, timeZone: AMS }), { uid: 'abc', nowMs: 0 });
+    const lines = text.split('\r\n');
+    expect(text.endsWith('END:VCALENDAR\r\n')).toBe(true);
+    expect(lines).toContain('DTSTART:20261108T140000Z');
+    expect(lines).toContain('DTEND:20261108T150000Z');
+    expect(lines).toContain('DTSTAMP:19700101T000000Z');
+    expect(lines).toContain('UID:abc@besttimetorun.com');
+    expect(lines).toContain('SUMMARY:Sunday afternoon 60 min run');
+    lines.forEach(line => expect(Buffer.byteLength(line)).toBeLessThanOrEqual(75));
+    const unfolded = text.replace(/\r\n /g, '');
+    expect(unfolded).toContain('DESCRIPTION:Rain 41 % · Feels 5 °C\\, cold · Wind 11 km/h S\\, light\\nWind from');
   });
 });

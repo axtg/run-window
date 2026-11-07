@@ -453,7 +453,32 @@
           <div id="answer" class="[&[hidden]]:hidden grid grid-cols-1 sm:grid-cols-[auto_1fr] sm:gap-x-6" hidden>
             <div class="sm:col-start-1 sm:row-start-1">
               <p id="answer-label" class="text-xs text-secondary"></p>
-              <p id="answer-time" class="whitespace-nowrap text-3xl font-bold tracking-tight"></p>
+              <div class="flex items-center gap-3">
+                <p id="answer-time" class="whitespace-nowrap text-3xl font-bold tracking-tight"></p>
+                <button
+                  id="add-calendar"
+                  type="button"
+                  class="flex h-9 w-9 flex-none items-center justify-center rounded-full text-gray-600 ring-1 ring-black/10 hover:bg-gray-100 hover:text-gray-900 [&[hidden]]:hidden"
+                  aria-label="Add to calendar"
+                  title="Add to calendar"
+                  hidden
+                >
+                  <svg
+                    viewBox="0 0 20 20"
+                    class="h-[18px] w-[18px]"
+                    aria-hidden="true"
+                    focusable="false"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.6"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <rect x="2.5" y="4" width="15" height="13.5" rx="2.5" />
+                    <path d="M2.5 8h15M6.5 2.5v3M13.5 2.5v3M10 10.5v4.5M7.75 12.75h4.5" />
+                  </svg>
+                </button>
+              </div>
             </div>
             <dl
               id="key-numbers"
@@ -709,6 +734,10 @@
             A route shared to the page waits briefly in your browser's cache; it is deleted as soon as the page opens
             it, and never sent.
           </li>
+          <li>
+            Add to calendar builds the event on your device: the time, the weather and the run's length, without the
+            location or the route's name. It goes to your calendar app or a downloaded file, not to this service.
+          </li>
           <li>The service receives the coordinates you send.</li>
           <li>
             The service needs no token and knows nothing about your training. The TRMNL Running Board calls Tredict from
@@ -719,8 +748,8 @@
             stored.
           </li>
           <li>
-            Plausible counts page views without cookies, and which settings, dialogs and links are used, by name only:
-            never what you set, the route or the location. Plausible says it stores no IP addresses.
+            Plausible counts page views without cookies, and which settings, dialogs, links and calendar adds are used,
+            by name only: never what you set, the route or the location. Plausible says it stores no IP addresses.
           </li>
           <li>Weather is requested from Open-Meteo with coordinates rounded to 2 decimals.</li>
           <li>
