@@ -188,7 +188,7 @@
   function windLine(summary, window) {
     if (window.windAvg < LITTLE_WIND_KMH) return 'Little wind';
     const wind = CARDINAL_NAMES[window.windFromCardinal] || window.windFromCardinal;
-    if (!summary || summary.shape === 'out-and-back') return `Start ${wind}, into the wind`;
+    if (!summary || summary.shape === 'out-and-back') return `Wind from the ${wind} · start ${wind}, into it`;
     if (summary.shape === 'loop') {
       const asDrawn = angleBetween(summary.startBearing, window.windFrom) <= HEADWIND_MAX_ANGLE;
       return `${asDrawn ? 'As drawn' : 'Reverse it'}: ${wind} into the wind first`;
@@ -197,10 +197,11 @@
     return `${head ? 'Headwind' : 'Tailwind'} overall, wind from the ${wind}`;
   }
 
-  // The compass arrow's bearing: toward where the wind comes from, the way to start. None in little wind.
+  // The compass arrow's bearing: where the wind blows to, as on a weather map, so the run starts against it. None in
+  // little wind.
   function windArrowDeg(window) {
     if (window.windAvg < LITTLE_WIND_KMH) return null;
-    return Math.round(window.windFrom) % 360;
+    return (Math.round(window.windFrom) + 180) % 360;
   }
 
   function routeLine(summary) {

@@ -220,13 +220,13 @@ describe('windLine', () => {
     const calm = win({ windAvg: 9 });
     expect(windLine({ shape: 'loop', startBearing: 0, overallBearing: 0 }, calm)).toBe('Little wind');
     expect(windLine(null, calm)).toBe('Little wind');
-    expect(windLine(null, win({ windAvg: 10 }))).toBe('Start east, into the wind');
+    expect(windLine(null, win({ windAvg: 10 }))).toBe('Wind from the east · start east, into it');
   });
 
   test('no route or out-and-back: start into the wind', () => {
-    expect(windLine(null, east)).toBe('Start east, into the wind');
+    expect(windLine(null, east)).toBe('Wind from the east · start east, into it');
     expect(windLine({ shape: 'out-and-back', startBearing: 270, overallBearing: 270 }, east)).toBe(
-      'Start east, into the wind'
+      'Wind from the east · start east, into it'
     );
   });
 
@@ -242,7 +242,7 @@ describe('windLine', () => {
       NW: 'north-west'
     };
     for (const [code, name] of Object.entries(names)) {
-      expect(windLine(null, win({ windFromCardinal: code }))).toBe(`Start ${name}, into the wind`);
+      expect(windLine(null, win({ windFromCardinal: code }))).toBe(`Wind from the ${name} · start ${name}, into it`);
     }
   });
 
@@ -276,15 +276,16 @@ describe('windLine', () => {
 });
 
 describe('windArrowDeg', () => {
-  test('points to where the wind comes from, in whole degrees', () => {
-    expect(windArrowDeg(win({ windFrom: 90 }))).toBe(90);
-    expect(windArrowDeg(win({ windFrom: 247.6 }))).toBe(248);
-    expect(windArrowDeg(win({ windFrom: 359.7 }))).toBe(0);
+  test('points to where the wind blows to, in whole degrees', () => {
+    expect(windArrowDeg(win({ windFrom: 90 }))).toBe(270);
+    expect(windArrowDeg(win({ windFrom: 247.6 }))).toBe(68);
+    expect(windArrowDeg(win({ windFrom: 359.7 }))).toBe(180);
+    expect(windArrowDeg(win({ windFrom: 0 }))).toBe(180);
   });
 
   test('has no arrow in little wind', () => {
     expect(windArrowDeg(win({ windAvg: 9.9 }))).toBeNull();
-    expect(windArrowDeg(win({ windAvg: 10 }))).toBe(90);
+    expect(windArrowDeg(win({ windAvg: 10 }))).toBe(270);
   });
 });
 

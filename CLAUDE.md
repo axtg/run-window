@@ -113,8 +113,8 @@ test approach. Read its `CLAUDE.md` first. Reuse rather than reinvent:
 - Under the settings is a big answer with key numbers: Sky, Feels and Wind (Feels and Wind with a context word such as
   `ideal` or `light`), then Climb or Run.
   - From `sm:` up, the numbers sit to the right of the time. On a phone they sit under it.
-  - The wind line is in words (`Start east, into the wind`), with a compass that points to where the wind comes from;
-    there is no compass in little wind.
+  - The wind line is in words (`Wind from the east · start east, into it`), with a compass whose arrow shows where the
+    wind blows to, as on a weather map, so you start running against the arrow. There is no compass in little wind.
   - When today has no window and tomorrow has one, a `Try tomorrow →` button shows what tomorrow holds.
 - Below the answer: one timeline joining strip and graph, then the why line.
 - The hint under the timeline names the arrow keys only where the screen can hover (`(hover: none)` drops them).

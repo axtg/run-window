@@ -506,17 +506,17 @@ describe('app.js privacy smoke test', () => {
     expect(elements.get('dark-times').textContent).toBe('▨ 17:09–07:38');
   });
 
-  it('turns the compass arrow toward where the wind comes from, and says it in words', async () => {
+  it('turns the compass arrow to where the wind blows, and says it in words', async () => {
     const app = apiWith(() => ({ wind_speed_10m: 16, wind_direction_10m: 90 }));
     const { elements } = loadPage({ navigator: { geolocation }, app });
     elements.get('use-location').listeners.click();
     await answered(elements);
     expect(rejections).toEqual([]);
     expect(elements.get('wind-line').hidden).toBe(false);
-    expect(elements.get('wind-text').textContent).toBe('Start east, into the wind');
+    expect(elements.get('wind-text').textContent).toBe('Wind from the east · start east, into it');
     expect(elements.get('answer-time').className.split(' ')).toContain('whitespace-nowrap'); // app.js sets the class
     expect(isHidden(elements.get('wind-compass'))).toBe(false);
-    expect(elements.get('wind-arrow').attributes.transform).toBe('rotate(90 14 14)');
+    expect(elements.get('wind-arrow').attributes.transform).toBe('rotate(270 14 14)');
     const wind = elements.get('key-numbers').children.find(item => item.children[0].textContent === 'Wind');
     expect(wind.children[1].children.map(part => part.textContent).join('')).toBe('16 km/h E');
     expect(wind.children[1].children[1].className).toContain('text-xs'); // the unit is set smaller
