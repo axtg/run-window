@@ -107,7 +107,10 @@ test approach. Read its `CLAUDE.md` first. Reuse rather than reinvent:
   - Dark: the dark times and an OK switch (`#dark-ok`, `role="switch"`).
   - Mind most: Balanced · Wind · Rain · Temp (`#prefer-*`, `aria-pressed`, like Today / Tomorrow), with a line under
     it saying what the choice trades (`Plan.preferHint`). Sends `prefer`; the chosen term counts 3× in the score. It is
-    relative on purpose: no level or threshold, because the day's forecast decides what is possible. On a phone the
+    relative on purpose: no level or threshold, because the day's forecast decides what is possible. The score's
+    comfort bands (wind under 12 km/h, feels-like 6–16 °C) give many windows a score of 0, so on a tie the chosen
+    term's raw value decides (`TIE_BREAKS` in `lib/windows.js`: wind speed, chance of rain, distance from 11 °C), then
+    the earliest. Balanced keeps the earliest. On a phone the
     four options wrap under the label below about 360 px.
   - Rain: a slider.
 - Under the settings is a big answer with key numbers: Sky, Feels and Wind (Feels and Wind with a context word such as
