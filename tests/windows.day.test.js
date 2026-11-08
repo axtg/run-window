@@ -305,3 +305,22 @@ console.log(JSON.stringify(localDates(Date.parse('2026-11-02T09:00:00Z'), 'Europ
     expect(JSON.parse(out)).toEqual(['2026-11-02', '2026-11-03']);
   }
 });
+
+test('prefer breaks a tie between windows that all score 0, balanced keeps the earliest', () => {
+  // Every hour scores 0 (wind under 12 km/h, feels-like inside 6-16, dry): 15:00 is the calmest, 11:00 sits in the
+  // middle of the temperature band. Rain is 0 % all day, so Rain has nothing to break the tie with.
+  const fc = forecast({
+    values: i => {
+      if (i === 15) return { wind_speed_10m: 3, apparent_temperature: 8 };
+      if (i === 11) return { wind_speed_10m: 9, apparent_temperature: 11 };
+      return { wind_speed_10m: 9, apparent_temperature: 8 };
+    }
+  });
+  const avail = [range(9, 17)];
+  const pick = prefer => day(fc, { avail, prefer }).windows['60'];
+  expect(pick('balanced').start).toBe(iso(local('09:00')));
+  expect(pick('wind').start).toBe(iso(local('15:00')));
+  expect(pick('wind').score).toBe(0);
+  expect(pick('temp').start).toBe(iso(local('11:00')));
+  expect(pick('rain').start).toBe(iso(local('09:00')));
+});

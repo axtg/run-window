@@ -139,6 +139,9 @@ test('the Method dialog states the scoring constants the API uses', () => {
   expect(SCORING.temperature.weight).toBe(1);
   expect(text).toContain(`outside ${SCORING.temperature.min}–${SCORING.temperature.max} °C`);
   expect(text).toContain(`1 point per ${SCORING.rain.probDivisor} % chance of rain`);
+  const middle = (SCORING.temperature.min + SCORING.temperature.max) / 2;
+  expect(text).toContain(`closest to ${middle} °C feels-like`);
+  expect(text).toContain(`every hour is under ${wind.comfortableSpeed} km/h`);
   expect(SCORING.rain.probDivisor / SCORING.fallbackRain.probDivisor).toBe(10);
   expect(text).toContain('ten times as much');
   expect(text).toContain('0.2 mm');
