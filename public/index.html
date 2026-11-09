@@ -207,7 +207,7 @@
         aria-label="Best time to run"
       >
         <div class="bg-gray-50 px-4 py-3 text-sm">
-          <div class="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 pb-2">
+          <div class="flex flex-wrap items-center justify-between gap-x-2 gap-y-2 pb-2">
             <div class="flex items-center gap-2">
               <span class="inline-flex rounded-full bg-gray-200 p-0.5 text-xs" role="group" aria-label="Day">
                 <button
@@ -258,10 +258,11 @@
                 for="route-input"
                 class="cursor-pointer rounded-full bg-primary px-3 py-1 text-white focus-within:ring-2 focus-within:ring-primary focus-within:ring-offset-2"
               >
-                Open route
+                Route
                 <input
                   id="route-input"
                   type="file"
+                  aria-label="Open a route file"
                   class="sr-only"
                   accept=".gpx,.kml,application/gpx+xml,application/vnd.google-earth.kml+xml"
                 />
@@ -270,8 +271,9 @@
                 id="use-location"
                 type="button"
                 class="rounded-full border border-gray-300 bg-white px-3 py-1 hover:border-gray-400"
+                aria-label="Use my location"
               >
-                Use my location
+                Location
               </button>
             </div>
           </div>
@@ -691,7 +693,7 @@
           <p>
             It gives the window's average wind direction. Start into it, so it is behind you on the way home. With a
             loop it says whether to run it as drawn or reversed, from A to B whether it is a head- or tailwind, and
-            under 10 km/h it just says little wind.
+            under 10 km/h there is no wind line.
           </p>
         </div>
         <p class="text-secondary">
