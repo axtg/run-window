@@ -213,7 +213,7 @@
                 <button
                   id="day-today"
                   type="button"
-                  class="rounded-full px-3 py-1 aria-pressed:bg-white aria-pressed:font-semibold aria-pressed:shadow-sm"
+                  class="rounded-full px-2.5 py-1 aria-pressed:bg-white aria-pressed:font-semibold aria-pressed:shadow-sm"
                   aria-pressed="true"
                 >
                   Today
@@ -221,7 +221,7 @@
                 <button
                   id="day-tomorrow"
                   type="button"
-                  class="rounded-full px-3 py-1 aria-pressed:bg-white aria-pressed:font-semibold aria-pressed:shadow-sm"
+                  class="rounded-full px-2.5 py-1 aria-pressed:bg-white aria-pressed:font-semibold aria-pressed:shadow-sm"
                   aria-pressed="false"
                 >
                   Tomorrow
@@ -253,11 +253,24 @@
                 ✕
               </button>
             </div>
-            <div id="source-pick" class="[&[hidden]]:hidden flex items-center gap-2 text-xs font-medium">
+            <div id="source-pick" class="[&[hidden]]:hidden flex items-center gap-1.5 text-xs font-medium">
               <label
                 for="route-input"
-                class="cursor-pointer rounded-full bg-primary px-3 py-1 text-white focus-within:ring-2 focus-within:ring-primary focus-within:ring-offset-2"
+                class="inline-flex cursor-pointer items-center gap-1 rounded-full bg-primary px-2.5 py-1 text-white focus-within:ring-2 focus-within:ring-primary focus-within:ring-offset-2"
               >
+                <svg
+                  viewBox="0 0 16 16"
+                  class="h-3.5 w-3.5 flex-none"
+                  aria-hidden="true"
+                  focusable="false"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.5"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <path d="M8 10.5V2.5M5 5.5l3-3 3 3M2.5 10v2.5a1 1 0 0 0 1 1h9a1 1 0 0 0 1-1V10" />
+                </svg>
                 Route
                 <input
                   id="route-input"
@@ -270,9 +283,23 @@
               <button
                 id="use-location"
                 type="button"
-                class="rounded-full border border-gray-300 bg-white px-3 py-1 hover:border-gray-400"
+                class="inline-flex items-center gap-1 rounded-full border border-gray-300 bg-white px-2.5 py-1 hover:border-gray-400"
                 aria-label="Use my location"
               >
+                <svg
+                  viewBox="0 0 16 16"
+                  class="h-3.5 w-3.5 flex-none"
+                  aria-hidden="true"
+                  focusable="false"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.5"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <path d="M8 14.5s4.5-4.2 4.5-8a4.5 4.5 0 0 0-9 0c0 3.8 4.5 8 4.5 8Z" />
+                  <circle cx="8" cy="6.5" r="1.6" />
+                </svg>
                 Location
               </button>
             </div>
@@ -555,7 +582,12 @@
             </div>
             <p id="stale-note" class="mt-1 text-xs text-secondary sm:col-start-1 sm:row-start-3" hidden></p>
           </div>
-          <p id="status" class="mt-2 text-sm empty:hidden" role="status" aria-live="polite"></p>
+          <p
+            id="status"
+            class="mt-2 text-center text-sm empty:hidden [#prompt[hidden]+#answer[hidden]+&]:mt-0 [#prompt[hidden]+#answer[hidden]+&]:py-6"
+            role="status"
+            aria-live="polite"
+          ></p>
         </div>
 
         <div id="result" class="space-y-2 px-4 pb-4 pt-2" hidden>

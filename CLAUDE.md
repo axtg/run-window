@@ -132,6 +132,10 @@ test approach. Read its `CLAUDE.md` first. Reuse rather than reinvent:
 - Below the answer: one timeline joining strip and graph, then one row with the legend (`#chart-legend`: feels, wind,
   rain, dark; no units, the chart has no axis values) and the hint, then the why line. A selected slot's line names
   its own values and takes the row: the legend hides until nothing is selected.
+- The source buttons are Route (upload icon) and Location (pin icon), inline SVGs in `currentColor`, so they sit on the
+  Today / Tomorrow line down to a card about 320 px wide (a 376 px screen); padding there is tight on purpose.
+- `#status` (Checking the weather…, Finding your location…, errors) is centred. When neither the prompt nor an answer
+  shows, it takes the prompt's place and padding (`[#prompt[hidden]+#answer[hidden]+&]:py-6`).
 - The hint (`Tap a slot.`) names the arrow keys only where the screen can hover (`(hover: none)` drops them).
 - The why line is empty (and hidden) when nothing stands out and no rain or dark follows; no "similar all day".
 - The header's 3×3 dot icon (`#open-network`, "More by Xander") opens `#network-menu`, a dropdown with the maintainer's
