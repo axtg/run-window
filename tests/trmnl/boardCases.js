@@ -11,6 +11,9 @@ const detailNoHr = require('../fixtures/tredict/activity-detail-nohr.json');
 const NOW = Date.parse('2026-11-04T11:00:00Z');
 const TOKEN = 'synthetic-token-value-123';
 const MINUTE = 60000;
+// The fixture's Sunday-night run (SynAct01) is in the 7 days before NOW but outside the calendar week. With it cached,
+// one poll's three detail calls cover the other three runs, so the bar shows at once.
+const SUNDAY_CACHED = { intensityCache: [['SynAct01xxxxxxxxxxxxxx', 2100, 450, 150]] };
 
 // Response headers, looked up case-insensitively like fetch's Headers
 const headersOf = (values = {}) => {
@@ -92,6 +95,7 @@ module.exports = {
   detailHr,
   detailNoHr,
   NOW,
+  SUNDAY_CACHED,
   TOKEN,
   MINUTE,
   headersOf,

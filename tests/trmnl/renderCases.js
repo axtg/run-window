@@ -1,5 +1,8 @@
 // Render cases shared by render.test.js and preview.js: each builds the transform output the template prints
-const { board, MINUTE, NOW } = require('./boardCases');
+const { board: boardOf, MINUTE, NOW, SUNDAY_CACHED } = require('./boardCases');
+
+// The screens as they look once the cache holds the past 7 days, so the intensity bar shows
+const board = (options = {}, ...rest) => boardOf({ previous: SUNDAY_CACHED, ...options }, ...rest);
 
 const EMPTY_LIST = key => ({ _embedded: { [key]: [] } });
 const GARMIN_NOTICE =

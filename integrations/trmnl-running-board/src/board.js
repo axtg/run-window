@@ -10,7 +10,7 @@ const {
   intensityOf,
   intensityView
 } = require('./intensity');
-const { isZone, buildWeek, weekView } = require('./week');
+const { isZone, buildWeek, recentActivities, weekView } = require('./week');
 const { formSeries, formChart } = require('./form');
 const { pickSession, windowPanel } = require('./runWindow');
 
@@ -140,16 +140,17 @@ async function fetchPanels(sequence, urls) {
   return { plan, activities, efforts: effortsOf(await sequence.call(urls.efforts)) };
 }
 
-// The panels' calls, then this week's uncached detail calls on the same sequence. The week needs the run's zone,
+// The panels' calls, then the past 7 days' uncached detail calls on the same sequence. The week needs the run's zone,
 // which only the weather retry knows when the user has none.
 async function fetchTredict(sequence, urls, { zone, now, sport, previous }) {
   const results = await fetchPanels(sequence, urls);
   if (![results.plan, results.activities, results.efforts].every(part => part.ok)) return results;
   const week = buildWeek({ plans: results.plan.list, activities: results.activities.list, now, tz: await zone, sport });
-  const ids = [...new Set(week.done.map(entry => entry.id))];
+  const recent = recentActivities(results.activities.list, now);
+  const ids = [...new Set(recent.map(entry => entry.id))];
   const cache = readIntensityCache(isObject(previous) ? previous.intensityCache : null);
   await fetchIntensity(sequence, ids, cache);
-  return { ...results, week, ids, cache };
+  return { ...results, week, recent, ids, cache };
 }
 
 // Newest first, within the per-run budget and deadline. A 404 (or a body without the field) is cached as zeros, since
@@ -167,7 +168,7 @@ async function fetchIntensity(sequence, ids, cache) {
   }
 }
 
-// The previous output's cache as it was, for runs that don't know this week's ids
+// The previous output's cache as it was, for runs that don't know the past 7 days' ids
 function carriedCache(previous) {
   const cache = readIntensityCache(isObject(previous) ? previous.intensityCache : null);
   return cacheList(cache, [...cache.keys()]);
@@ -294,15 +295,15 @@ function tredictPanels({ results, previous, now, tz, lang, fetchedAt, fetchedAtT
     };
   }
 
-  const { week, ids, cache } = results;
+  const { week, recent, ids, cache } = results;
   const series = formSeries({ efforts: efforts.efforts, today: localDate(now, tz) });
-  // The bar only once every run of this week is cached
+  // The bar only once every activity of the past 7 days is cached
   const complete = ids.every(id => cache.has(id));
   const entries = ids.map(id => cache.get(id));
   const view = complete ? intensityView(entries, lang) : null;
   // The bar keeps the Garmin texts of the runs that add to it, so stale panels can attribute them too
   const adds = entry => entry.garmin !== null && cache.get(entry.id).some(value => value > 0);
-  const intensity = view && { ...view, garmin: union(week.done.filter(adds).map(entry => entry.garmin)) };
+  const intensity = view && { ...view, garmin: union(recent.filter(adds).map(entry => entry.garmin)) };
   // The footer: the calendar rows' Garmin texts, then the bar's
   const garmin = union(week.garmin, intensity ? intensity.garmin : []);
   return {

@@ -14,7 +14,7 @@ const STRINGS = {
     dataAt: 'data {time}',
     tokenPaused: 'Tredict token paused. Open the Tredict web app to reactivate it.',
     tokenInvalid: 'Tredict token invalid. Check it has the activityRead scope.',
-    intensityHeading: 'Intensity this week · {time}',
+    intensityHeading: 'Intensity · last 7 days · {time}',
     intensityLow: 'low',
     intensityModerate: 'moderate',
     intensityHigh: 'high',
@@ -57,7 +57,7 @@ const STRINGS = {
     dataAt: 'data {time}',
     tokenPaused: 'Tredict-token gepauzeerd. Open de Tredict-webapp om het weer te activeren.',
     tokenInvalid: 'Tredict-token ongeldig. Controleer of het de scope activityRead heeft.',
-    intensityHeading: 'Intensiteit deze week · {time}',
+    intensityHeading: 'Intensiteit · laatste 7 dagen · {time}',
     intensityLow: 'laag',
     intensityModerate: 'gemiddeld',
     intensityHigh: 'hoog',
@@ -523,6 +523,7 @@ function intensityView(entries, lang) {
 }
 
 const ITEMS_PER_DAY = 2;
+const RECENT_MS = 7 * 86400000;
 const GARMIN_FALLBACK = 'Garmin';
 const SPORT_KEYS = {
   running: 'sportRunning',
@@ -600,9 +601,7 @@ function buildWeek({ plans, activities, now, tz, sport = 'running' }) {
   const activityById = new Map(seen.filter(activity => activity.id).map(activity => [activity.id, activity]));
   const used = new Set();
 
-  const done = [];
   const addDone = (date, at, item, activity) => {
-    if (activity.id) done.push({ at, id: String(activity.id), garmin: garminText(activity) });
     byDate.get(date).push({ at, item, activity });
     totals.doneDistanceM += item.distanceM || 0;
     totals.doneDurationS += item.durationS || 0;
@@ -668,14 +667,18 @@ function buildWeek({ plans, activities, now, tz, sport = 'running' }) {
     totals.plannedDistanceM = plannedDistanceM;
     totals.plannedDurationS = plannedDurationS;
   }
-  done.sort((a, b) => b.at - a.at);
-  return {
-    week: isoWeek(today),
-    days,
-    totals,
-    garmin,
-    done: done.map(({ id, garmin: text }) => ({ id, garmin: text }))
-  };
+  return { week: isoWeek(today), days, totals, garmin };
+}
+
+// Activities of any sport that started in the 7 days up to now, newest first, with their Garmin text (for intensity)
+function recentActivities(activities, now) {
+  const since = now - RECENT_MS;
+  return (Array.isArray(activities) ? activities : [])
+    .filter(activity => activity && typeof activity === 'object' && activity.id)
+    .map(activity => ({ at: Date.parse(activity.date), id: String(activity.id), garmin: garminText(activity) }))
+    .filter(entry => Number.isFinite(entry.at) && entry.at > since && entry.at <= now)
+    .sort((a, b) => b.at - a.at)
+    .map(({ id, garmin }) => ({ id, garmin }));
 }
 
 function itemTitle(item, text) {
@@ -1140,16 +1143,17 @@ async function fetchPanels(sequence, urls) {
   return { plan, activities, efforts: effortsOf(await sequence.call(urls.efforts)) };
 }
 
-// The panels' calls, then this week's uncached detail calls on the same sequence. The week needs the run's zone,
+// The panels' calls, then the past 7 days' uncached detail calls on the same sequence. The week needs the run's zone,
 // which only the weather retry knows when the user has none.
 async function fetchTredict(sequence, urls, { zone, now, sport, previous }) {
   const results = await fetchPanels(sequence, urls);
   if (![results.plan, results.activities, results.efforts].every(part => part.ok)) return results;
   const week = buildWeek({ plans: results.plan.list, activities: results.activities.list, now, tz: await zone, sport });
-  const ids = [...new Set(week.done.map(entry => entry.id))];
+  const recent = recentActivities(results.activities.list, now);
+  const ids = [...new Set(recent.map(entry => entry.id))];
   const cache = readIntensityCache(isObject(previous) ? previous.intensityCache : null);
   await fetchIntensity(sequence, ids, cache);
-  return { ...results, week, ids, cache };
+  return { ...results, week, recent, ids, cache };
 }
 
 // Newest first, within the per-run budget and deadline. A 404 (or a body without the field) is cached as zeros, since
@@ -1167,7 +1171,7 @@ async function fetchIntensity(sequence, ids, cache) {
   }
 }
 
-// The previous output's cache as it was, for runs that don't know this week's ids
+// The previous output's cache as it was, for runs that don't know the past 7 days' ids
 function carriedCache(previous) {
   const cache = readIntensityCache(isObject(previous) ? previous.intensityCache : null);
   return cacheList(cache, [...cache.keys()]);
@@ -1294,15 +1298,15 @@ function tredictPanels({ results, previous, now, tz, lang, fetchedAt, fetchedAtT
     };
   }
 
-  const { week, ids, cache } = results;
+  const { week, recent, ids, cache } = results;
   const series = formSeries({ efforts: efforts.efforts, today: localDate(now, tz) });
-  // The bar only once every run of this week is cached
+  // The bar only once every activity of the past 7 days is cached
   const complete = ids.every(id => cache.has(id));
   const entries = ids.map(id => cache.get(id));
   const view = complete ? intensityView(entries, lang) : null;
   // The bar keeps the Garmin texts of the runs that add to it, so stale panels can attribute them too
   const adds = entry => entry.garmin !== null && cache.get(entry.id).some(value => value > 0);
-  const intensity = view && { ...view, garmin: union(week.done.filter(adds).map(entry => entry.garmin)) };
+  const intensity = view && { ...view, garmin: union(recent.filter(adds).map(entry => entry.garmin)) };
   // The footer: the calendar rows' Garmin texts, then the bar's
   const garmin = union(week.garmin, intensity ? intensity.garmin : []);
   return {

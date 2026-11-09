@@ -1,5 +1,8 @@
 const { LAYOUTS, layoutTemplate, renderLayout, renderFull } = require('./harness');
-const { board, MINUTE, NOW } = require('./boardCases');
+const { board: boardOf, MINUTE, NOW, SUNDAY_CACHED } = require('./boardCases');
+
+// The screens as they look once the cache holds the past 7 days, so the intensity bar shows
+const board = (options = {}, ...rest) => boardOf({ previous: SUNDAY_CACHED, ...options }, ...rest);
 const { EMPTY_ACCOUNT_OVERRIDES, ERROR_OUTPUT, STATE_CASES, longAttributionOutput } = require('./renderCases');
 
 // What TRMNL renders for the full layout: shared.liquid, then full.liquid

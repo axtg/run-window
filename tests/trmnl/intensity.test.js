@@ -72,7 +72,7 @@ describe('intensityOf', () => {
 describe('intensityView', () => {
   it('sums, rounds to 100 and formats the total', () => {
     const view = intensityView([[5460, 1190, 350]], 'en');
-    expect(view.heading).toBe('Intensity this week · 1:56');
+    expect(view.heading).toBe('Intensity · last 7 days · 1:56');
     expect(view.labels).toEqual(['low 78%', 'moderate 17%', 'high 5%']);
     expect(sum(view.segments)).toBe(360);
     expect(view.segments.map(segment => segment.kind)).toEqual(['low', 'moderate', 'high']);
@@ -86,9 +86,9 @@ describe('intensityView', () => {
   });
 
   it('rounds the total down to whole minutes', () => {
-    expect(intensityView([[2520, 0, 0]], 'en').heading).toBe('Intensity this week · 0:42');
-    expect(intensityView([[9720, 0, 0]], 'en').heading).toBe('Intensity this week · 2:42');
-    expect(intensityView([[3599, 0, 0]], 'en').heading).toBe('Intensity this week · 0:59');
+    expect(intensityView([[2520, 0, 0]], 'en').heading).toBe('Intensity · last 7 days · 0:42');
+    expect(intensityView([[9720, 0, 0]], 'en').heading).toBe('Intensity · last 7 days · 2:42');
+    expect(intensityView([[3599, 0, 0]], 'en').heading).toBe('Intensity · last 7 days · 0:59');
   });
 
   it('adds up several runs', () => {
@@ -100,7 +100,7 @@ describe('intensityView', () => {
         ],
         'en'
       ).heading
-    ).toBe('Intensity this week · 0:01');
+    ).toBe('Intensity · last 7 days · 0:01');
   });
 
   it('sums percentages to 100 by largest remainder', () => {
@@ -122,7 +122,7 @@ describe('intensityView', () => {
 
   it('speaks Dutch', () => {
     const view = intensityView([[3600, 0, 0]], 'nl');
-    expect(view.heading).toBe('Intensiteit deze week · 1:00');
+    expect(view.heading).toBe('Intensiteit · laatste 7 dagen · 1:00');
     expect(view.labels[0]).toBe('laag 100%');
     expect(view.segments).toEqual([{ kind: 'low', x: 0, width: 360 }]);
   });

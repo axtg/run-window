@@ -12,7 +12,7 @@ Depends on: Run-window API (`2026-11-02-run-window-api-design.md`), live at `run
 One full TRMNL screen dedicated to running, for someone who plans their training in Tredict:
 
 - **Left, full height:** this week, Monday to Sunday. Planned sessions, and actuals for what's done.
-- **Right top:** form over the last weeks, with the planned weeks ahead, and this week's time at low, moderate and
+- **Right top:** form over the last weeks, with the planned weeks ahead, and the past 7 days' time at low, moderate and
   high intensity beneath it.
 - **Right bottom:** today's best time to run, sized to today's planned session.
 
@@ -122,7 +122,7 @@ The transform script then calls Tredict one request at a time, in this order (se
 | plan | `https://www.tredict.com/api/oauth/v2/plannedTrainingList?startDate={from}&endDate={to}` | This week's plan, plus tomorrow on a Sunday |
 | activities | `https://www.tredict.com/api/oauth/v2/activityList?pageSize=50&extendedSummary=1` | Actuals; newest first, filtered to this week |
 | efforts | `https://www.tredict.com/api/oauth/v2/efforts` | Daily effort; defaults cover 1 year back to 1 month ahead |
-| detail | `https://www.tredict.com/api/oauth/v2/activity/{id}?extraValues=1` | One per activity of this week not yet cached, for "Intensity" |
+| detail | `https://www.tredict.com/api/oauth/v2/activity/{id}?extraValues=1` | One per activity of the past 7 days not yet cached, for "Intensity" |
 
 The script retries the run-window API itself only when the polled body failed (see "Errors and empty states"). That
 call is not Tredict's, so it runs alongside the Tredict sequence.
@@ -198,7 +198,7 @@ Quote every select value in YAML (eu-dayahead's lesson: TRMNL's Ruby YAML reads 
 │ Mo ✓ 8.2 km · 5:41 · 142   │  ╭─╮    ╭──╮                       │
 │ Tu ✓ Strength (if "all")   │ ─╯ ╰────╯  ╰──╮- - - (planned)     │
 │ We ▶ 10 km Z2 · 60 min     │ 6 weeks back | today | 7 days ahead│
-│                            │ Intensity this week · 2:42         │
+│                            │ Intensity · last 7 days · 2:42     │
 │                            │ [     low      |///mod///|█high█]  │
 │                            │ low 78%    moderate 17%    high 5% │
 │ Th   Rest                  ├───────────────────────────────────┤
@@ -319,13 +319,15 @@ Tredict exposes daily efforts, not a form value. Compute in the transform script
 
 ## Intensity
 
-Tredict's suggestion (2026-11-04): this week's intensity distribution beneath the form curve, in the band that is
-empty today. The maintainer approved a mockup of the layout in "Screen" the same day.
+Tredict's suggestion (2026-11-04): the week's intensity distribution beneath the form curve, in the band that is
+empty today. The maintainer approved a mockup of the layout in "Screen" the same day. Changed on 2026-11-09 from the
+calendar week to a rolling 7 days (design call): on Monday morning the calendar week had nothing to show, and the bar
+left a blank band.
 
 What it counts:
 
-- This week's done activities as the calendar has them: Monday to now, local, the `sport` setting's filter, planned
-  or not, including any beyond the 2 rows a day shows.
+- The activities that started in the 7 × 24 hours up to now, from the activity list, of every sport (like the form
+  graph; the `sport` setting filters only the calendar), planned or not.
 - Per activity, `summary.intensityDistribution.heartrate` from its detail call: seconds at low, moderate and high.
   Activities without heart rate add nothing. Heart rate because Tredict's own card shows it first and every run
   with a watch has it.
@@ -335,8 +337,8 @@ Cache, so a finished run costs one detail call, once:
 - The output carries `intensityCache`: a list of `[id, low, moderate, high]`, the id a string, the three
   finite non-negative seconds. An activity without heart rate is cached as `[id, 0, 0, 0]`, so it isn't fetched
   again.
-- Each run reads it from the previous merge variables field by field (as with `reuseWeek`), keeps only this week's
-  ids and adds the new ones. Nothing else from a detail response is kept. It never grows past one week.
+- Each run reads it from the previous merge variables field by field (as with `reuseWeek`), keeps only the past 7
+  days' ids and adds the new ones. Nothing else from a detail response is kept. It never grows past 7 days.
 - A run is not re-fetched if Tredict recomputes its zones later. Design call: done runs rarely change.
 - Newest activities are fetched first (design call). A 404, or a 2xx without `summary.intensityDistribution`, is
   cached as zeros, since asking again won't help; 5xx, timeout and 429 are retried on a later run (design call).
@@ -344,14 +346,14 @@ Cache, so a finished run costs one detail call, once:
 
 What it shows:
 
-- When every activity of this week is in the cache and their total is above zero: a heading "Intensity this week ·
-  {h:mm}" (the total), one bar the width of the graph split low / moderate / high, and "low N%  moderate N%  high N%"
+- When every activity of the past 7 days is in the cache and their total is above zero: a heading "Intensity · last 7
+  days · {h:mm}" (the total), one bar the width of the graph split low / moderate / high, and "low N%  moderate N%  high N%"
   beneath it. Percentages round to whole numbers that sum to 100 (largest remainder).
 - 1-bit: low white with a black outline, moderate black diagonal stripes, high solid black, drawn in SVG (no
   gradients, no dithering). A non-zero range gets at least 4 px so it stays visible.
 - When some activity isn't cached yet (budget, a failed or rate-limited detail call): no bar this run. It appears
-  once the cache is complete, normally the next poll. When the total is zero (Monday morning, no heart rate): no
-  bar.
+  once the cache is complete, normally the next poll. When the total is zero (no activity in 7 days, or none with
+  heart rate): no bar.
 - The graph gives up height for it, so the run panel keeps all its lines on the 800x480 screen. Checked in the
   preview and on the device.
 - Garmin: an activity that adds to the bar with `isFromGarminApi: true` puts its `attribution` in the footer, as
@@ -381,8 +383,8 @@ previous screen. Every output carries `fetchedAt`, printed small in the footer, 
 
 - The token is stored in TRMNL (masked in the form) and sent only to Tredict, by the transform script. `run.xadi.eu`
   never receives it: the plugin sets no polling headers.
-- No server outside TRMNL and Tredict sees Tredict data. The script keeps only what the screen needs, plus this
-  week's activity ids with their three intensity totals (`intensityCache`), held in TRMNL's merge variables.
+- No server outside TRMNL and Tredict sees Tredict data. The script keeps only what the screen needs, plus the past
+  7 days' activity ids with their three intensity totals (`intensityCache`), held in TRMNL's merge variables.
 - `run.xadi.eu` gets the location rounded to 2 decimals, the availability hours and the two weather settings. It logs
   the location rounded to 1 decimal only.
 
@@ -390,7 +392,7 @@ previous screen. Every output carries `fetchedAt`, printed small in the footer, 
 
 - en and nl in v1. Strings: day abbreviations, "week", headings, the panel messages above, "start into the wind",
   "dark after", "tomorrow", "no session planned", "no duration planned", the null-window lines, "weather may be out of
-  date", "Form", and "Intensity this week" / "Intensiteit deze week" with "low / moderate / high" / "laag / gemiddeld
+  date", "Form", and "Intensity · last 7 days" / "Intensiteit · laatste 7 dagen" with "low / moderate / high" / "laag / gemiddeld
   / hoog". The paused-token text in Dutch: "Tredict-token gepauzeerd. Open de Tredict-webapp om het weer te
   activeren."; the invalid one: "Tredict-token ongeldig. Controleer of het de scope activityRead heeft."
 - Day and month names from the plugin's own en/nl tables, because TRMNL's runtime has English locale data only.
@@ -426,7 +428,8 @@ renders the templates from the script's output. Fixtures and cases:
   first call shrinks later timeouts, and an exhausted deadline skips the rest; 401 gives the paused text, 403 the
   invalid one.
 - Intensity: a cold cache with 4 activities fetches 3 and shows no bar, the next run fetches 1 and shows it; a warm
-  cache makes no detail calls; ids from last week drop out; an activity without heart rate is cached as zeros;
+  cache makes no detail calls; ids older than 7 days drop out; a run from last week within 7 days counts, and so does
+  another sport; Monday morning still shows a bar; an activity without heart rate is cached as zeros;
   percentages sum to 100; a Garmin activity adds its attribution; a malformed `intensityCache` is ignored, not
   trusted. Synthetic detail fixtures, with invented seconds, in `tests/fixtures/tredict/`.
 - en, nl, unknown locale.

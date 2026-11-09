@@ -1,4 +1,10 @@
-const { planDay, activityDay, buildWeek, weekView } = require('../../integrations/trmnl-running-board/src/week');
+const {
+  planDay,
+  activityDay,
+  buildWeek,
+  recentActivities,
+  weekView
+} = require('../../integrations/trmnl-running-board/src/week');
 
 const AMS = 'Europe/Amsterdam';
 const ms = iso => Date.parse(iso);
@@ -141,47 +147,6 @@ describe('buildWeek on Wednesday 2026-11-04 12:00', () => {
 
   it('lists the Garmin attribution of a shown Garmin activity once', () => {
     expect(result.garmin).toEqual(['Synthetic Garmin attribution text']);
-  });
-
-  it("lists this week's done runs newest first", () => {
-    expect(result.done.map(d => d.id)).toEqual([
-      'SynAct04xxxxxxxxxxxxxx',
-      'SynAct03xxxxxxxxxxxxxx',
-      'SynAct02xxxxxxxxxxxxxx'
-    ]);
-  });
-
-  it('marks Garmin activities', () => {
-    const garminOf = Object.fromEntries(result.done.map(d => [d.id, d.garmin]));
-    expect(garminOf.SynAct03xxxxxxxxxxxxxx).toBe('Synthetic Garmin attribution text');
-    expect(garminOf.SynAct04xxxxxxxxxxxxxx).toBeNull();
-    expect(garminOf.SynAct02xxxxxxxxxxxxxx).toBeNull();
-  });
-
-  it('includes runs beyond the two rows a day shows', () => {
-    const extras = [1, 2, 3].map(n => ({
-      ...activitiesWeek[3],
-      id: `SynExtra0${n}xxxxxxxxxxxxx`,
-      date: `2026-11-02T0${n + 3}:00:00.000Z`
-    }));
-    const busy = week(WEDNESDAY_NOON, 'running', plannedWeek, [...activitiesWeek, ...extras]);
-    expect(busy.days[0].more).toBeGreaterThan(0);
-    expect(busy.done.map(d => d.id)).toEqual(expect.arrayContaining(extras.map(e => e.id)));
-    expect(busy.done).toHaveLength(6);
-  });
-
-  it('leaves out an activity without an id', () => {
-    const noId = { ...activitiesWeek[3], id: undefined, date: '2026-11-03T08:00:00.000Z' };
-    const result2 = week(WEDNESDAY_NOON, 'running', plannedWeek, [...activitiesWeek, noId]);
-    expect(result2.totals.doneDistanceM).toBeGreaterThan(result.totals.doneDistanceM);
-    expect(result2.done.map(d => d.id)).toEqual(result.done.map(d => d.id));
-  });
-
-  it('follows the sport filter', () => {
-    const misc = { ...activitiesWeek[4], id: 'SynMiscxxxxxxxxxxxxxxx', date: '2026-11-03T08:00:00.000Z' };
-    const list = [...activitiesWeek, misc];
-    expect(week(WEDNESDAY_NOON, 'running', plannedWeek, list).done.map(d => d.id)).not.toContain(misc.id);
-    expect(week(WEDNESDAY_NOON, 'all', plannedWeek, list).done.map(d => d.id)).toContain(misc.id);
   });
 
   it('drops the strength session with sport running and keeps it with all', () => {
@@ -409,5 +374,46 @@ describe('weekView', () => {
       { kind: 'planned', text: 'Session' }
     ]);
     expect(weekView(week(WEDNESDAY_NOON, 'all', [plan], []), 'nl').days[3].items[0].text).toBe('Hardlopen · 30 min');
+  });
+});
+
+describe('recentActivities', () => {
+  const ids = (now, list = activitiesWeek) => recentActivities(list, now).map(entry => entry.id);
+
+  it('lists the past 7 days newest first, across the calendar week', () => {
+    expect(ids(WEDNESDAY_NOON)).toEqual([
+      'SynAct04xxxxxxxxxxxxxx',
+      'SynAct03xxxxxxxxxxxxxx',
+      'SynAct02xxxxxxxxxxxxxx',
+      'SynAct01xxxxxxxxxxxxxx'
+    ]);
+  });
+
+  it('counts every sport', () => {
+    expect(ids(SUNDAY_EVENING)).toContain('SynAct05xxxxxxxxxxxxxx');
+    expect(activitiesWeek[4].sportType).not.toBe('running');
+  });
+
+  it('leaves out activities from 7 days ago or more, and those that start later', () => {
+    // Exactly 7 days after SynAct03 started
+    expect(ids(ms('2026-11-09T07:00:00Z'))).toEqual([
+      'SynAct06xxxxxxxxxxxxxx',
+      'SynAct05xxxxxxxxxxxxxx',
+      'SynAct04xxxxxxxxxxxxxx'
+    ]);
+    expect(ids(MONDAY_MORNING)).not.toContain('SynAct04xxxxxxxxxxxxxx');
+  });
+
+  it('marks Garmin activities', () => {
+    const garminOf = Object.fromEntries(recentActivities(activitiesWeek, WEDNESDAY_NOON).map(d => [d.id, d.garmin]));
+    expect(garminOf.SynAct03xxxxxxxxxxxxxx).toBe('Synthetic Garmin attribution text');
+    expect(garminOf.SynAct04xxxxxxxxxxxxxx).toBeNull();
+  });
+
+  it('leaves out an activity without an id or a readable date, and reads a non-list as empty', () => {
+    const noId = { ...activitiesWeek[3], id: undefined };
+    const noDate = { ...activitiesWeek[3], id: 'SynNoDatexxxxxxxxxxxxx', date: 'x' };
+    expect(ids(WEDNESDAY_NOON, [...activitiesWeek, noId, noDate, null])).toEqual(ids(WEDNESDAY_NOON));
+    expect(recentActivities(undefined, WEDNESDAY_NOON)).toEqual([]);
   });
 });

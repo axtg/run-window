@@ -2,6 +2,7 @@ const { STRINGS, fill, formatKm, formatDuration, formatPace } = require('./strin
 const { localDate, weekDates, isoWeek } = require('./time');
 
 const ITEMS_PER_DAY = 2;
+const RECENT_MS = 7 * 86400000;
 const GARMIN_FALLBACK = 'Garmin';
 const SPORT_KEYS = {
   running: 'sportRunning',
@@ -79,9 +80,7 @@ function buildWeek({ plans, activities, now, tz, sport = 'running' }) {
   const activityById = new Map(seen.filter(activity => activity.id).map(activity => [activity.id, activity]));
   const used = new Set();
 
-  const done = [];
   const addDone = (date, at, item, activity) => {
-    if (activity.id) done.push({ at, id: String(activity.id), garmin: garminText(activity) });
     byDate.get(date).push({ at, item, activity });
     totals.doneDistanceM += item.distanceM || 0;
     totals.doneDurationS += item.durationS || 0;
@@ -147,14 +146,18 @@ function buildWeek({ plans, activities, now, tz, sport = 'running' }) {
     totals.plannedDistanceM = plannedDistanceM;
     totals.plannedDurationS = plannedDurationS;
   }
-  done.sort((a, b) => b.at - a.at);
-  return {
-    week: isoWeek(today),
-    days,
-    totals,
-    garmin,
-    done: done.map(({ id, garmin: text }) => ({ id, garmin: text }))
-  };
+  return { week: isoWeek(today), days, totals, garmin };
+}
+
+// Activities of any sport that started in the 7 days up to now, newest first, with their Garmin text (for intensity)
+function recentActivities(activities, now) {
+  const since = now - RECENT_MS;
+  return (Array.isArray(activities) ? activities : [])
+    .filter(activity => activity && typeof activity === 'object' && activity.id)
+    .map(activity => ({ at: Date.parse(activity.date), id: String(activity.id), garmin: garminText(activity) }))
+    .filter(entry => Number.isFinite(entry.at) && entry.at > since && entry.at <= now)
+    .sort((a, b) => b.at - a.at)
+    .map(({ id, garmin }) => ({ id, garmin }));
 }
 
 function itemTitle(item, text) {
@@ -215,4 +218,4 @@ function weekView(week, lang) {
   };
 }
 
-module.exports = { isZone, planDay, activityDay, matchesSport, buildWeek, weekView };
+module.exports = { isZone, planDay, activityDay, matchesSport, buildWeek, recentActivities, weekView };
