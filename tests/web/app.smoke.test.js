@@ -551,13 +551,13 @@ describe('app.js privacy smoke test', () => {
     expect(phone.elements.get('tap-line').textContent).toBe('Tap the timeline for each slot.');
   });
 
-  it('shows no compass in little wind', async () => {
+  it('shows no wind line in little wind', async () => {
     const { elements } = loadPage({ navigator: { geolocation } });
     elements.get('use-location').listeners.click();
     await answered(elements);
     expect(rejections).toEqual([]);
-    expect(elements.get('wind-text').textContent).toBe('Little wind');
-    expect(isHidden(elements.get('wind-compass'))).toBe(true);
+    expect(elements.get('wind-line').hidden).toBe(true);
+    expect(elements.get('wind-text').textContent).toBe('');
   });
 
   it('offers Try tomorrow when today has no window, and switches day without asking again', async () => {

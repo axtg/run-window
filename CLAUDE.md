@@ -118,7 +118,9 @@ test approach. Read its `CLAUDE.md` first. Reuse rather than reinvent:
   - From `sm:` up, the numbers sit to the right of the time in a 2 × 2 grid (four across doesn't fit the card). On a
     phone they sit under it.
   - The wind line is in words (`Wind from the east · start east, into it`), with a compass whose arrow shows where the
-    wind blows to, as on a weather map, so you start running against the arrow. There is no compass in little wind.
+    wind blows to, as on a weather map, so you start running against the arrow. In little wind (under 10 km/h) the
+    line and compass are hidden: the Wind pill already says `light` or `calm`. The calendar description keeps
+    `Little wind`.
   - When today has no window and tomorrow has one, a `Try tomorrow →` button shows what tomorrow holds.
   - A calendar-plus button (`#add-calendar`) after the time adds the run to a calendar (`Plan.calendarEvent`): title
     like `Sunday afternoon 10.4 km run` (or `60 min`), the conditions and wind line as description. Never the location

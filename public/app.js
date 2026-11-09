@@ -652,11 +652,10 @@
     renderKeyNumbers(Plan.keyNumbers(result, state.summary, minutes));
     state.calendar = Plan.calendarEvent(result, state.summary, { minutes, timeZone });
     renderCalendar();
-    el.windLine.hidden = !result.window;
-    el.windText.textContent = result.window ? Plan.windLine(state.summary, result.window) : '';
     const arrow = result.window ? Plan.windArrowDeg(result.window) : null;
-    // SVG elements have no `hidden` property, only the attribute.
-    el.windCompass.toggleAttribute('hidden', arrow === null); // no compass in little wind
+    // In little wind there is no direction to start into, and the Wind pill already says so: no line, no compass.
+    el.windLine.hidden = arrow === null;
+    el.windText.textContent = arrow === null ? '' : Plan.windLine(state.summary, result.window);
     if (arrow !== null) el.windArrow.setAttribute('transform', `rotate(${arrow} 14 14)`);
     const hint = none && state.dayIndex === 0 ? tomorrowHint(minutes, timeZone) : null;
     el.tomorrowHint.hidden = !hint;
