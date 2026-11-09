@@ -567,18 +567,16 @@
             aria-label="Timeline"
             height="138"
           ></svg>
-          <p id="tap-line" class="min-h-5 text-xs text-secondary" aria-live="polite">
-            Tap the timeline, or use the arrow keys, for each slot.
-          </p>
-          <div class="space-y-1 border-t border-gray-100 pt-2">
-            <p class="flex flex-wrap gap-x-3 gap-y-1 text-xs text-secondary">
-              <span><span class="text-red-600">—</span> feels-like °C</span>
-              <span><span class="text-blue-700">- -</span> wind km/h</span>
-              <span><span class="text-blue-300">▮</span> rain %</span>
+          <div class="flex min-h-5 flex-wrap items-center gap-x-3 gap-y-1 text-xs text-secondary">
+            <p id="chart-legend" class="[&[hidden]]:hidden flex flex-wrap gap-x-3 gap-y-1">
+              <span><span class="text-red-600">—</span> feels</span>
+              <span><span class="text-blue-700">- -</span> wind</span>
+              <span><span class="text-blue-300">▮</span> rain</span>
               <span><span class="text-gray-200">▮</span> dark</span>
             </p>
-            <p id="why-sentence" class="text-sm text-gray-700"></p>
+            <p id="tap-line" aria-live="polite">Tap a slot or use the arrow keys.</p>
           </div>
+          <p id="why-sentence" class="border-t border-gray-100 pt-2 text-sm text-gray-700 empty:hidden"></p>
         </div>
 
         <footer

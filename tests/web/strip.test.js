@@ -256,8 +256,10 @@ describe('whySentence', () => {
     expect(whySentence(day(8, 8.5, 10, 13), range, opts)).toBe('Less windy than the rest of the day.');
   });
 
-  it('says similar all day when nothing stands out', () => {
-    expect(whySentence(day(8, 8.5, 10, 11), range, opts)).toBe('Similar all day.');
+  it('says nothing when nothing stands out, but still names rain after the range', () => {
+    expect(whySentence(day(8, 8.5, 10, 11), range, opts)).toBe('');
+    const slots = day(8, 8.5, 10, 11, [null, null, null, null, null, { status: 'rain' }]);
+    expect(whySentence(slots, range, opts)).toBe('Rain from 14:15.');
   });
 
   it('says the only dry stretch when no ok slots lie outside the range', () => {

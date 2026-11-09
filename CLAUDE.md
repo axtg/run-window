@@ -114,7 +114,7 @@ test approach. Read its `CLAUDE.md` first. Reuse rather than reinvent:
     four options wrap under the label below about 360 px.
   - Rain: a slider.
 - Under the settings is a big answer with key numbers: Sky, Feels and Wind (Feels and Wind with a context word such as
-  `ideal` or `light`, in a light pill so it reads as a label, not wrapped text), then Climb or Run.
+  `ideal` or `light`, in a light pill next to the label, so the numbers take one line), then Climb or Run.
   - From `sm:` up, the numbers sit to the right of the time in a 2 × 2 grid (four across doesn't fit the card). On a
     phone they sit under it.
   - The wind line is in words (`Wind from the east · start east, into it`), with a compass whose arrow shows where the
@@ -129,8 +129,11 @@ test approach. Read its `CLAUDE.md` first. Reuse rather than reinvent:
     and Calendar file (.ics), which downloads `run.ics` built in the page (`Plan.icsText`, folded at 75 octets).
     An Android `intent:` URL was tried first (2026-11-07) and doesn't work: Chrome marks web intents browsable and
     the calendar's new-event screen doesn't accept them.
-- Below the answer: one timeline joining strip and graph, then the why line.
-- The hint under the timeline names the arrow keys only where the screen can hover (`(hover: none)` drops them).
+- Below the answer: one timeline joining strip and graph, then one row with the legend (`#chart-legend`: feels, wind,
+  rain, dark; no units, the chart has no axis values) and the hint, then the why line. A selected slot's line names
+  its own values and takes the row: the legend hides until nothing is selected.
+- The hint (`Tap a slot.`) names the arrow keys only where the screen can hover (`(hover: none)` drops them).
+- The why line is empty (and hidden) when nothing stands out and no rain or dark follows; no "similar all day".
 - The header's 3×3 dot icon (`#open-network`, "More by Xander") opens `#network-menu`, a dropdown with the maintainer's
   other sites and Buy me a coffee (new tab, `noopener noreferrer`). A press outside, Escape (focus back on the icon) or
   tabbing out closes it. It is the only place on the page that names the maintainer; `tests/landing.test.js` checks.
