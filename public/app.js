@@ -25,7 +25,7 @@
   // A phone has no arrow keys: name them only where there is a mouse to hover with.
   function tapHint() {
     const touch = typeof window.matchMedia === 'function' && window.matchMedia('(hover: none)').matches;
-    return touch ? 'Tap the timeline for each slot.' : 'Tap the timeline, or use the arrow keys, for each slot.';
+    return touch ? 'Tap a slot.' : 'Tap a slot or use the arrow keys.';
   }
 
   // Hour sliders: two overlaid native range inputs per row. Only their thumbs take the pointer.
@@ -67,7 +67,7 @@
     'prefer-wind prefer-rain prefer-temp prefer-hint rain-input rain-fill rain-value prompt answer answer-label ' +
     'answer-time add-calendar calendar-menu calendar-google calendar-outlook key-numbers wind-line wind-compass ' +
     'wind-arrow wind-text tomorrow-hint try-tomorrow tomorrow-text stale-note status ' +
-    'result timeline tap-line why-sentence copy-link open-method open-api open-privacy ' +
+    'result timeline chart-legend tap-line why-sentence copy-link open-method open-api open-privacy ' +
     'method-dialog api-dialog privacy-dialog close-method close-api close-privacy open-about about-menu ' +
     'open-network network-menu copy-label copy-icon copy-check copy-note'
   ).split(' ');
@@ -604,15 +604,18 @@
   function renderKeyNumbers(numbers) {
     el.keyNumbers.replaceChildren();
     numbers.forEach(({ label, value, note }) => {
-      const item = html('div');
+      // The word sits next to the label (a pill in the label's row), so the numbers take one line less.
+      const item = html('div', 'grid grid-cols-[auto_auto] items-center justify-start gap-x-1 sm:justify-end');
       item.appendChild(html('dt', 'text-[11px] text-secondary', label));
-      const dd = html('dd', 'text-base font-semibold whitespace-nowrap');
+      const dd = html('dd', 'col-span-2 text-base font-semibold whitespace-nowrap');
       Plan.valueParts(value).forEach(part =>
         dd.appendChild(html('span', part.unit ? 'text-xs font-medium text-secondary' : '', part.text))
       );
       item.appendChild(dd);
-      // A pill, so the word reads as a label and not as the value's text wrapped onto a second line.
-      const pill = 'mt-0.5 inline-block rounded-full bg-gray-100 px-2 py-px text-[11px] leading-4 text-secondary';
+      // A pill, so the word reads as a label and not as part of the value.
+      const pill =
+        'col-start-2 row-start-1 justify-self-start rounded-full bg-gray-100 px-2 py-px text-[11px] leading-4 ' +
+        'text-secondary whitespace-nowrap';
       if (note) item.appendChild(html('dd', pill, note));
       el.keyNumbers.appendChild(item);
     });
@@ -622,7 +625,10 @@
   // The tap line is announced (aria-live) and the timeline's label names the selected slot, so the slot is labelled
   // when tapped or reached with the arrow keys. With nothing selected the label is the answer.
   function renderTapLine(slots, timeZone, label) {
-    if (state.selected === null || !slots[state.selected]) {
+    // The legend shares the row with the hint; a selected slot's line names its own values, so it takes the row.
+    const idle = state.selected === null || !slots[state.selected];
+    el.chartLegend.hidden = !idle;
+    if (idle) {
       el.tapLine.textContent = tapHint();
       el.timeline.setAttribute('aria-label', label);
       return;
@@ -697,6 +703,7 @@
     if (slots.length === 0) {
       el.timeline.replaceChildren();
       el.whySentence.textContent = '';
+      el.chartLegend.hidden = true;
       el.tapLine.textContent = 'No hours to show for this day.';
       return;
     }

@@ -152,7 +152,7 @@
       if (warmer && calmer) first = 'Warmer and less windy than the rest of the day.';
       else if (warmer) first = 'Warmer than the rest of the day.';
       else if (calmer) first = 'Less windy than the rest of the day.';
-      else first = 'Similar all day.';
+      else first = ''; // nothing stands out: no sentence rather than "similar all day"
     }
 
     const notes = [];
@@ -166,7 +166,7 @@
     }
     if (notes.length === 0) return first;
     const text = notes.join(', ');
-    return `${first} ${text.charAt(0).toUpperCase()}${text.slice(1)}.`;
+    return `${first} ${text.charAt(0).toUpperCase()}${text.slice(1)}.`.trim();
   }
 
   const api = { SHADES, GREY, RAIN, shadeClasses, rangeIndices, ticks, slotLine, chartModel, whySentence };

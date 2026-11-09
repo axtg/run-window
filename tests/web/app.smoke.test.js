@@ -537,9 +537,8 @@ describe('app.js privacy smoke test', () => {
     const desktop = loadPage({ navigator: { geolocation } });
     desktop.elements.get('use-location').listeners.click();
     await answered(desktop.elements);
-    expect(desktop.elements.get('tap-line').textContent).toBe(
-      'Tap the timeline, or use the arrow keys, for each slot.'
-    );
+    expect(desktop.elements.get('tap-line').textContent).toBe('Tap a slot or use the arrow keys.');
+    expect(desktop.elements.get('chart-legend').hidden).toBe(false);
 
     const phone = loadPage({
       navigator: { geolocation },
@@ -548,7 +547,16 @@ describe('app.js privacy smoke test', () => {
     phone.elements.get('use-location').listeners.click();
     await answered(phone.elements);
     expect(rejections).toEqual([]);
-    expect(phone.elements.get('tap-line').textContent).toBe('Tap the timeline for each slot.');
+    expect(phone.elements.get('tap-line').textContent).toBe('Tap a slot.');
+  });
+
+  it('swaps the chart legend for the slot line while a slot is selected', async () => {
+    const { elements } = loadPage({ navigator: { geolocation } });
+    elements.get('use-location').listeners.click();
+    await answered(elements);
+    elements.get('timeline').listeners.keydown({ key: 'Home', preventDefault() {} });
+    expect(elements.get('chart-legend').hidden).toBe(true);
+    expect(elements.get('tap-line').textContent).toMatch(/feels .* °C · wind .* km\/h/);
   });
 
   it('shows no wind line in little wind', async () => {
