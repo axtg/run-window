@@ -354,6 +354,19 @@
     return sky === 'dry' ? `Tomorrow ${time} is dry` : `Tomorrow ${time}, ${sky}`;
   }
 
+  // ---- The three days: today, tomorrow and the day after, named by the location's own dates ('2026-11-04').
+  const weekday = (date, style) =>
+    new Intl.DateTimeFormat('en-US', { weekday: style, timeZone: 'UTC' }).format(new Date(`${date}T12:00:00Z`));
+  const dayButton = date => weekday(date, 'short');
+  function dayLabel(index, date) {
+    if (index === 0) return 'today';
+    if (index === 1) return 'tomorrow';
+    return `on ${weekday(date, 'long')}`;
+  }
+  // The day after tomorrow is as far as the page looks: past that a forecast shifts too much to plan an hour on.
+  const OUTLOOK_NOTE = 'Two days out, the forecast can still shift: check again on the day.';
+  const outlookNote = index => (index >= 2 ? OUTLOOK_NOTE : null);
+
   // The longest run of back-to-back slots whose status is one of `statuses`, in minutes.
   function longestStretch(slots, statuses) {
     let longest = 0;
@@ -489,6 +502,9 @@
     icsText,
     noWindowText,
     noWindowCause,
+    dayButton,
+    dayLabel,
+    outlookNote,
     tomorrowHint,
     routeLine,
     apiUrl,

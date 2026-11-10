@@ -193,7 +193,7 @@ test('entries older than 3 hours are removed', async () => {
   expect(cache.stats().entries).toBe(1);
 });
 
-test('stale entry from before midnight still has a complete today and tomorrow', async () => {
+test('stale entry from before midnight still has today and tomorrow complete, and the day after to 23:00', async () => {
   const forecast = parseForecast(amsterdam);
   const tz = forecast.timezone;
   const fetchedAt = fromZonedTime('2026-11-02T23:50:00', tz).getTime();
@@ -209,13 +209,14 @@ test('stale entry from before midnight still has a complete today and tomorrow',
   expect(result.stale).toBe(true);
 
   const dates = localDates(failAt, tz);
-  expect(dates).toEqual(['2026-11-03', '2026-11-04']);
+  expect(dates).toEqual(['2026-11-03', '2026-11-04', '2026-11-05']);
   const avail = [{ startMin: 0, endMin: 1440 }];
-  for (const date of dates) {
+  // Fetched the evening before, the forecast's four days end at 23:00 on the third: that day misses only its last hour.
+  dates.forEach((date, index) => {
     const slots = buildDaySlots({ date, forecast: result.forecast, avail, dark: 'ok', nowMs: 0 });
-    expect(slots).toHaveLength(96);
+    expect(slots).toHaveLength(index < 2 ? 96 : 92);
     expect(slots.every(s => typeof s.values.precip === 'number' && typeof s.values.precipProb === 'number')).toBe(true);
     const last = slots[slots.length - 1].startMs;
-    expect(last).toBe(fromZonedTime(`${date}T23:45:00`, tz).getTime());
-  }
+    expect(last).toBe(fromZonedTime(`${date}T${index < 2 ? '23:45' : '22:45'}:00`, tz).getTime());
+  });
 });

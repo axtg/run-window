@@ -7,7 +7,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 Three things in one repo:
 
 1. **Run-window API** (`besttimetorun.com`, design call): a small, stateless, anonymous Express service. Given a location and
-   the hours someone can run, it returns the best weather window for each session length today and tomorrow.
+   the hours someone can run, it returns the best weather window for each session length today, tomorrow and the day after.
    Spec: `docs/superpowers/specs/2026-11-02-run-window-api-design.md`.
 2. **TRMNL "Running Board" plugin** (`integrations/trmnl-running-board/`): one full screen with this week's training
    (Tredict), a form graph (Tredict efforts) and today's run window (the API above).

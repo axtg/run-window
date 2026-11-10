@@ -59,12 +59,12 @@
 
   // Every element app.js uses, by id; el.sourceSet is #source-set.
   const IDS = (
-    'source source-map source-rough source-set source-pick clear-source day-today day-tomorrow ' +
+    'source source-map source-rough source-set source-pick clear-source day-today day-tomorrow day-after ' +
     'route-input use-location duration-group run-distance run-minutes pace-group pace-input ' +
     'duration-down duration-value duration-up hours-rows add-hours dark-times dark-ok prefer-balanced ' +
     'prefer-wind prefer-rain prefer-temp prefer-hint rain-input rain-fill rain-value prompt answer answer-label ' +
     'answer-time add-calendar calendar-menu calendar-google calendar-outlook key-numbers wind-line wind-compass ' +
-    'wind-arrow wind-text tomorrow-hint try-tomorrow tomorrow-text stale-note status ' +
+    'wind-arrow wind-text tomorrow-hint try-tomorrow tomorrow-text stale-note outlook-note status ' +
     'result timeline chart-legend tap-line why-sentence copy-link open-method open-api open-privacy ' +
     'method-dialog api-dialog privacy-dialog close-method close-api close-privacy open-about about-menu ' +
     'open-network network-menu copy-label copy-icon copy-check copy-note quota-bar quota-fill quota-saturate ' +
@@ -358,7 +358,24 @@
     state.selected = null;
     el.dayToday.setAttribute('aria-pressed', String(index === 0));
     el.dayTomorrow.setAttribute('aria-pressed', String(index === 1));
+    el.dayAfter.setAttribute('aria-pressed', String(index === 2));
     render();
+  }
+
+  // Tomorrow and the day after go by their weekday ('Wed', 'Thu'), so all three fit next to Route and Location. The
+  // location's dates once known, else the device's.
+  function renderDayButtons() {
+    const days = state.body ? state.body.days : null;
+    const today = new Date();
+    const deviceDate = offset => {
+      const d = new Date(today.getFullYear(), today.getMonth(), today.getDate() + offset, 12);
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    };
+    [el.dayTomorrow, el.dayAfter].forEach((button, i) => {
+      const date = days && days[i + 1] ? days[i + 1].date : deviceDate(i + 1);
+      button.textContent = Plan.dayButton(date);
+      button.setAttribute('aria-label', i === 0 ? 'Tomorrow' : Plan.dayLabel(2, date).replace(/^on /, ''));
+    });
   }
 
   // ---- Input: a route file or the device's location
@@ -668,6 +685,9 @@
     const hint = none && state.dayIndex === 0 ? tomorrowHint(minutes, timeZone) : null;
     el.tomorrowHint.hidden = !hint;
     el.tomorrowText.textContent = hint || '';
+    const outlook = Plan.outlookNote(state.dayIndex);
+    el.outlookNote.hidden = !outlook;
+    el.outlookNote.textContent = outlook || '';
     const stale = Plan.staleNote(state.body);
     el.staleNote.hidden = !stale;
     el.staleNote.textContent = stale || '';
@@ -710,6 +730,7 @@
 
   function render() {
     renderMcpPrompt();
+    renderDayButtons();
     renderSource();
     renderRunRow();
     renderDark();
@@ -725,7 +746,7 @@
     }
     const timeZone = state.body.location.timezone;
 
-    const dayLabel = state.dayIndex === 0 ? 'today' : 'tomorrow';
+    const dayLabel = Plan.dayLabel(state.dayIndex, day.date);
     const { result, minutes, text } = renderAnswer(day, timeZone, dayLabel);
     setSky(result, day);
     const slots = day.slots || [];
@@ -937,6 +958,7 @@
   });
   el.dayToday.addEventListener('click', () => setDay(0));
   el.dayTomorrow.addEventListener('click', () => setDay(1));
+  el.dayAfter.addEventListener('click', () => setDay(2));
   el.tryTomorrow.addEventListener('click', () => {
     setDay(1);
     el.dayTomorrow.focus(); // the button hides with the switch

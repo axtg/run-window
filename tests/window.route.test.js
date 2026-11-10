@@ -43,8 +43,8 @@ describe('GET /api/window', () => {
     expect(body.location).toEqual({ lat: 52.37, lon: 4.89, timezone: 'Europe/Amsterdam' });
     expect(body.generatedAt).toBe('2026-11-02T09:00:00.000Z');
     expect(body.params).toEqual({ avail: '07-09,12-14,17-21', dark: 'avoid', rain: 40, prefer: 'balanced' });
-    expect(body.days).toHaveLength(2);
-    expect(body.days.map(day => day.date)).toEqual(['2026-11-02', '2026-11-03']);
+    expect(body.days).toHaveLength(3);
+    expect(body.days.map(day => day.date)).toEqual(['2026-11-02', '2026-11-03', '2026-11-04']);
     expect(Object.keys(body.days[0].windows)).toHaveLength(12);
     expect(Object.keys(body.days[0])).toEqual(expect.arrayContaining(['date', 'sunrise', 'sunset', 'windows']));
     expect(body.attribution).toBe('Weather data by Open-Meteo.com');
@@ -352,7 +352,7 @@ describe('GET /api/window golden responses', () => {
   test.each([
     ['dry Amsterdam forecast', forecast, 'window-response-amsterdam.json'],
     ['wet forecast with a fallback', wetForecast, 'window-response-amsterdam-wet.json']
-  ])('slots=1 adds slots to both days and nothing else (%s)', async (_label, source, file) => {
+  ])('slots=1 adds slots to every day and nothing else (%s)', async (_label, source, file) => {
     const weather = fakeWeather({ forecast: source, stale: false });
     const { body } = await request(build(weather)).get(`${GOLDEN_URL}&slots=1`).expect(200);
 

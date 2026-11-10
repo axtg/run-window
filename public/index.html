@@ -6,7 +6,7 @@
     <title>Best time to run today · the weather window for your run</title>
     <meta
       name="description"
-      content="The best weather window for a run today and tomorrow: driest, calmest, most comfortable, and which way to start into the wind. On the web, or in Claude and other AI assistants."
+      content="The best weather window for a run today, tomorrow and the day after: driest, calmest, most comfortable, and which way to start into the wind. On the web, or in Claude and other AI assistants."
     />
     <link rel="canonical" href="https://besttimetorun.com/" />
     <!-- How a shared link looks: og.png is drawn by scripts/build-og-image.js -->
@@ -284,6 +284,14 @@
                   aria-pressed="false"
                 >
                   Tomorrow
+                </button>
+                <button
+                  id="day-after"
+                  type="button"
+                  class="rounded-full px-2.5 py-1 aria-pressed:bg-white aria-pressed:font-semibold aria-pressed:shadow-sm"
+                  aria-pressed="false"
+                >
+                  Thu
                 </button>
               </span>
             </div>
@@ -625,6 +633,7 @@
               <span id="tomorrow-text" class="text-xs text-secondary"></span>
             </div>
             <p id="stale-note" class="mt-1 text-xs text-secondary sm:col-start-1 sm:row-start-3" hidden></p>
+            <p id="outlook-note" class="mt-1 text-xs text-secondary sm:col-start-1 sm:row-start-3" hidden></p>
           </div>
           <p
             id="status"
@@ -748,8 +757,8 @@
           </button>
         </div>
         <p class="text-secondary">
-          The service looks at your hours today and tomorrow in 15-minute slots, drops the slots you can't or don't want
-          to run in, scores the rest on the weather and picks the best stretch as long as your run.
+          The service looks at your hours today, tomorrow and the day after in 15-minute slots, drops the slots you
+          can't or don't want to run in, scores the rest on the weather and picks the best stretch as long as your run.
         </p>
         <div class="space-y-2">
           <h3 class="font-semibold">1. The forecast</h3>
@@ -831,7 +840,7 @@
         </div>
         <p class="text-secondary">
           Give it a location and the hours you can run. It returns the best weather window for each session length,
-          today and tomorrow.
+          today, tomorrow and the day after.
         </p>
         <div class="space-y-2">
           <h3 class="font-semibold">Example request</h3>
