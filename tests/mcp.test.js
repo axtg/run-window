@@ -264,6 +264,30 @@ describe('POST /mcp', () => {
       expect(data.tryNext).toBe('More hours, a shorter run, darkOk.');
     });
 
+    test('a best time in the dark comes with the best one in daylight', async () => {
+      // Calm only at 19:00-20:00 local, after dark; windy otherwise
+      const evening = i => ({ wind_speed_10m: i === 19 ? 3 : 25, wind_direction_10m: 225, apparent_temperature: 10 });
+      const calmAfterDark = parseForecast(makeForecastJson({ startMs: START, hours: 72, sun: SUN, values: evening }));
+      const target = createApp({
+        weather: weatherWith(jest.fn().mockResolvedValue({ forecast: calmAfterDark, stale: false })),
+        now: () => NOW,
+        rateLimit: 1000
+      });
+      const args = { name: 'find_best_run_time', arguments: { ...AMSTERDAM, hours: '12-21', darkOk: true } };
+      const result = await callTool(args.name, args.arguments, target);
+      const data = JSON.parse(result.content[0].text);
+      expect(data.window).toMatchObject({ start: '2026-11-02T19:00+01:00', inDaylight: false });
+      expect(data.bestInDaylight).toMatchObject({ start: '2026-11-02T12:00+01:00', inDaylight: true });
+
+      const daylightOnly = JSON.parse(
+        (await callTool(args.name, { ...args.arguments, darkOk: false }, target)).content[0].text
+      );
+      expect(daylightOnly.bestInDaylight).toBeUndefined();
+      const noDaylightLeft = { ...args.arguments, hours: '18-21' };
+      const late = JSON.parse((await callTool(args.name, noDaylightLeft, target)).content[0].text);
+      expect(late.bestInDaylight).toBeNull();
+    });
+
     test('looks at the day after tomorrow by its date, with a note that the forecast can shift', async () => {
       const data = await toolData('find_best_run_time', { ...AMSTERDAM, day: '2026-11-04', darkOk: true });
       expect(data).toMatchObject({ day: '2026-11-04', date: '2026-11-04' });

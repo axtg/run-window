@@ -203,8 +203,10 @@ test approach. Read its `CLAUDE.md` first. Reuse rather than reinvent:
   `@modelcontextprotocol/server` and `/node` packages, the eu-dayahead pattern. It shares the API's rate limiter
   instance, refuses JSON-RPC batches and listen streams (both would get round that limit), and parses JSON for this
   route only. Two read-only tools: `find_best_run_time` (one window: local start and end, conditions, which way to
-  start; `{ available: false, reason, tryNext, leastBadHour }` when nothing fits) and `get_run_conditions` (the day's
-  15-minute slots). Both build their answer with `lib/windowResponse.js`, the same code as `/api/window`, so
+  start; with `darkOk` and a best time in the dark, also `bestInDaylight`; `{ available: false, reason, tryNext,
+leastBadHour }` when nothing fits, the reason from `Plan.noWindowCause`: hours gone by, too little time still ahead
+  or in daylight, and only then rain) and `get_run_conditions` (the day's 15-minute slots). `day` is `today`,
+  `tomorrow` or a local date up to two days ahead; the day after tomorrow carries `forecastNote`. Both build their answer with `lib/windowResponse.js`, the same code as `/api/window`, so
   validation, the 2-decimal rounding and the day's cap are identical. Only this app's 4xx messages and its own 503s
   (capacity, weather unavailable) reach the client; anything else is "Internal server error" and goes to `logError`.
   `find_best_run_time` comes with a view (an MCP App, since 2026-11-10): its `_meta.ui.resourceUri` names

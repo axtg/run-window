@@ -30,9 +30,9 @@ const CARDINAL_NAMES = {
 
 // One paragraph: the hard line breaks of a template literal would reach the client as they are.
 const INSTRUCTIONS = [
-  'Finds the best time to run outdoors today, tomorrow or the day after from the weather forecast: the driest, calmest,',
-  'most comfortable stretch within the hours someone can run, and which way to start so the wind is behind them on the',
-  "way back. It needs where the run starts: if you don't know the user's town, ask for it, then pass its",
+  'Finds the best time to run outdoors today, tomorrow or the day after from the weather forecast: the driest,',
+  'calmest, most comfortable stretch within the hours someone can run, and which way to start so the wind is behind',
+  "them on the way back. It needs where the run starts: if you don't know the user's town, ask for it, then pass its",
   'coordinates (they are rounded to about 1 km). Times are local to that place. Weather data by Open-Meteo.com',
   '(CC BY 4.0): mention it when you show results.'
 ].join(' ');
@@ -220,6 +220,12 @@ async function findBestRunTime(args, { weather, now }) {
       ...dayContext(body, picked),
       window: describeWindow(window, timezone)
     };
+    // The obvious follow-up to a run in the dark: the best one in daylight. The same forecast, from the cache.
+    if (args.darkOk && !window.inDaylight) {
+      const daylight = await buildWindowBody({ query: windowQuery({ ...args, darkOk: false }), weather, now });
+      const best = daylight.days[picked.index].windows[String(minutes)];
+      data.bestInDaylight = best ? describeWindow(best, timezone) : null;
+    }
     return { data, view };
   }
 
@@ -290,9 +296,10 @@ function createServerFactory(context) {
       'find_best_run_time',
       {
         description:
-          'Find the best time to run today, tomorrow or the day after: the stretch of the given length with the best weather ' +
-          'within the hours the user can run, never in the past. Returns its local start and end, the conditions ' +
-          '(rain, feels-like temperature, wind) and which way to start. When nothing fits, says why.',
+          'Find the best time to run today, tomorrow or the day after: the stretch of the given length with the ' +
+          'best weather within the hours the user can run, never in the past. Returns its local start and end, the ' +
+          'conditions (rain, feels-like temperature, wind) and which way to start. With darkOk, a best time in the ' +
+          'dark comes with the best daylight one (bestInDaylight, null when none fits). When nothing fits, says why.',
         inputSchema: bestTimeInput,
         annotations: READ_ONLY,
         // Hosts that show MCP Apps draw the answer and the day's timeline with it; both keys, as hosts read either.

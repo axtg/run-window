@@ -20,7 +20,7 @@ device's location. Everything it shows comes from the public JSON API below.
 
 - `https://besttimetorun.com/mcp`: a stateless MCP server (Streamable HTTP, no sign-in) for AI assistants. Tools:
   `find_best_run_time` (latitude, longitude, minutes, day `today`, `tomorrow` or a date up to two days ahead, and optional `hours`, `darkOk`,
-  `maxRainChance`, `mindMost`) returns the best stretch with its local times, conditions and which way to start;
+  `maxRainChance`, `mindMost`) returns the best stretch with its local times, conditions and which way to start (with `darkOk`, a best time in the dark comes with the best daylight one);
   `get_run_conditions` returns the day's 15-minute slots. Ask the user for their town if you don't know it.
   Hosts that show MCP Apps draw `find_best_run_time`'s answer with the day's timeline (`ui://besttimetorun/day.html`).
 - A first prompt: "Using Best time to run, when is the best time today for a 45-minute run near Utrecht? I can run
