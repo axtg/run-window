@@ -209,8 +209,8 @@ test approach. Read its `CLAUDE.md` first. Reuse rather than reinvent:
   (capacity, weather unavailable) reach the client; anything else is "Internal server error" and goes to `logError`.
   The API dialog has the connector link (and links `llms.txt`). The first prompt (`Plan.firstPrompt`, from the settings,
   with `[your town]` in place of the location) has a card of its own under the main one (`mt-5`, same width), with a
-  New badge, Copy prompt and More info, which opens the API dialog at its MCP section (counted as `Dialog: api`).
-  Both copy buttons confirm on themselves, each with its own polite note, like Copy API link.
+  New badge, More info at the top right (opens the API dialog at its MCP section, counted as `Dialog: api`) and a
+  Copy button inside the prompt's box, on the right. Both copy buttons confirm on themselves, each with its own polite note, like Copy API link.
 - A new public path goes in both `LOGGABLE_PATHS` (`middleware/logging.js`) and the nginx `$run_window_path` map;
   `tests/deployConfig.test.js` checks they match.
 - Release order: the manifest's `share_target` entry needs the nginx change live on the host, because without it a

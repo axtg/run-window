@@ -949,9 +949,7 @@
   el.copyLink.addEventListener('click', onCopyLink);
   el.mcpUrl.textContent = `${location.origin}/mcp`;
   el.copyMcp.addEventListener('click', () => copyFrom(el.copyMcp, 'Copy link', el.mcpUrl.textContent, el.mcpLinkNote));
-  el.copyPrompt.addEventListener('click', () =>
-    copyFrom(el.copyPrompt, 'Copy prompt', el.mcpPrompt.textContent, el.mcpNote)
-  );
+  el.copyPrompt.addEventListener('click', () => copyFrom(el.copyPrompt, 'Copy', el.mcpPrompt.textContent, el.mcpNote));
   // More info: the API dialog, scrolled to its MCP section. Counted as opening the API dialog.
   el.openMcpInfo.addEventListener('click', () => {
     track('Dialog', 'api');
