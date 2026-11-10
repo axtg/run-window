@@ -375,35 +375,29 @@
                   </button>
                 </div>
                 <span id="run-distance" class="whitespace-nowrap font-semibold" hidden></span>
-                <div id="pace-group" class="[&[hidden]]:hidden flex items-center gap-1.5">
-                  <span class="text-xs text-secondary">at</span>
-                  <label for="pace-input" class="sr-only">Pace per km</label>
-                  <button
-                    id="pace-down"
-                    type="button"
-                    class="flex h-7 w-7 flex-none items-center justify-center rounded-full border border-gray-300 bg-white hover:border-gray-400"
-                    aria-label="Pace 5 seconds faster"
-                  >
-                    −
-                  </button>
-                  <input
-                    id="pace-input"
-                    class="w-12 rounded border border-transparent bg-transparent px-1 text-center font-semibold hover:border-gray-300 focus:border-gray-400 focus:bg-white focus:outline-none"
-                    inputmode="text"
-                    autocomplete="off"
-                  />
-                  <button
-                    id="pace-up"
-                    type="button"
-                    class="flex h-7 w-7 flex-none items-center justify-center rounded-full border border-gray-300 bg-white hover:border-gray-400"
-                    aria-label="Pace 5 seconds slower"
-                  >
-                    +
-                  </button>
-                  <span class="text-xs text-secondary">/km</span>
-                </div>
               </div>
-              <p id="run-minutes" class="mt-0.5 text-xs text-secondary" aria-live="polite" hidden></p>
+              <!-- The pace range: without a route it gives the distance to plan for (the answer's Plan), with one the
+                   minutes. Typed, not stepped, so two fit on one line. -->
+              <div id="pace-group" class="mt-1 flex flex-wrap items-center gap-x-1 gap-y-1 text-xs text-secondary">
+                <span>at</span>
+                <label for="pace-input" class="sr-only">Fastest pace per km</label>
+                <input
+                  id="pace-input"
+                  class="w-12 rounded border border-gray-300 bg-white px-1 py-0.5 text-center text-sm font-semibold text-primary hover:border-gray-400 focus:border-gray-500 focus:outline-none"
+                  inputmode="text"
+                  autocomplete="off"
+                />
+                <span aria-hidden="true">–</span>
+                <label for="pace-slow-input" class="sr-only">Slowest pace per km</label>
+                <input
+                  id="pace-slow-input"
+                  class="w-12 rounded border border-gray-300 bg-white px-1 py-0.5 text-center text-sm font-semibold text-primary hover:border-gray-400 focus:border-gray-500 focus:outline-none"
+                  inputmode="text"
+                  autocomplete="off"
+                />
+                <span>/km</span>
+                <span id="run-minutes" class="ml-1" aria-live="polite" hidden></span>
+              </div>
             </div>
           </div>
 
@@ -753,8 +747,9 @@
           <p>
             The lowest score wins. On a tie, Mind most decides: the calmest, driest or closest to 11 °C feels-like (the
             middle of 6–16 °C), so Wind still finds the calmest hour when every hour is under 8 km/h. Then the earliest.
-            A window never spans two hour ranges. With a route, the run's length is its distance at your pace, rounded
-            up to 15 minutes; up to 3 hours.
+            A window never spans two hour ranges. With a route, the run's length is its distance at the slower end of
+            your pace range, rounded up to 15 minutes; up to 3 hours. Without one, the pace range turns your minutes
+            into the distance to plan for.
           </p>
           <p>
             When no hour-long window is dry enough, the page shows the least bad hour instead and says so: rain no

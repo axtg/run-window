@@ -36,6 +36,20 @@
     return Math.round((distanceKm * paceSec) / 60);
   }
 
+  // '6.9–7.2 km' for a run of `minutes` between the two paces (s/km), or one value when they round the same.
+  function planDistance(minutes, fastSec, slowSec) {
+    const near = ((minutes * 60) / Math.max(fastSec, slowSec)).toFixed(1);
+    const far = ((minutes * 60) / Math.min(fastSec, slowSec)).toFixed(1);
+    return near === far ? `${far} km` : `${near}–${far} km`;
+  }
+
+  // '= 65–68 min' for a route at the two paces, or one value when they round the same.
+  function routeMinutesText(distanceKm, fastSec, slowSec) {
+    const quick = Math.max(1, runMinutes(distanceKm, Math.min(fastSec, slowSec)));
+    const slow = Math.max(1, runMinutes(distanceKm, Math.max(fastSec, slowSec)));
+    return quick === slow ? `= ${slow} min` : `= ${quick}–${slow} min`;
+  }
+
   // "Near you" opens OpenStreetMap at the rounded location the page sends to the API.
   function mapUrl(lat, lon) {
     return `https://www.openstreetmap.org/?mlat=${lat}&mlon=${lon}#map=12/${lat}/${lon}`;
@@ -162,12 +176,14 @@
     };
   }
 
-  function keyNumbers(result, summary, minutes) {
+  // Without a route the last number is the distance to plan for at the pace range (`plan`, from planDistance); the
+  // run's minutes are already in the answer's label.
+  function keyNumbers(result, summary, minutes, plan = null) {
     if (result.kind === 'none') return [];
     const w = result.window;
-    const last = summary
-      ? { label: 'Climb', value: summary.climbM === null ? '–' : `+${summary.climbM} m` }
-      : { label: 'Run', value: `${minutes} min` };
+    let last = { label: 'Run', value: `${minutes} min` };
+    if (summary) last = { label: 'Climb', value: summary.climbM === null ? '–' : `+${summary.climbM} m` };
+    else if (plan) last = { label: 'Plan', value: plan };
     return [
       { label: 'Sky', value: skyValue(w) },
       { label: 'Feels', value: tempOf(w), note: feelsWord(w.apparentTempAvg) },
@@ -177,7 +193,7 @@
   }
 
   // A key number split so the page can set its units smaller: '16 km/h E' → 16, ' km/h' (unit), ' E'.
-  const UNIT = /(\s?(?:km\/h|°C|min|m|%)(?=\s|$))/;
+  const UNIT = /(\s?(?:km\/h|km|°C|min|m|%)(?=\s|$))/;
   function valueParts(value) {
     return value
       .split(UNIT)
@@ -215,7 +231,7 @@
   }
 
   // 'Sunday afternoon 10.4 km run', or '… 60 min run' without a route. Day and hour are the location's.
-  function calendarEvent(result, summary, { minutes, timeZone }) {
+  function calendarEvent(result, summary, { minutes, timeZone, plan = null }) {
     if (result.kind === 'none') return null;
     const { startMs, endMs } = answerSpan(result, minutes);
     const parts = new Intl.DateTimeFormat('en-US', {
@@ -232,7 +248,9 @@
     const conditions = `${skyValue(w)} · Feels ${tempOf(w)}, ${feelsWord(w.apparentTempAvg)} · ${wind}`;
     return {
       title: `${weekday} ${partOfDay(hour)} ${what} run`,
-      description: `${conditions}\n${windLine(summary, w)}\nForecast from besttimetorun.com`,
+      description: [plan ? `Plan ${plan}` : null, conditions, windLine(summary, w), 'Forecast from besttimetorun.com']
+        .filter(Boolean)
+        .join('\n'),
       startMs,
       endMs
     };
@@ -416,6 +434,8 @@
     parsePace,
     formatPace,
     runMinutes,
+    planDistance,
+    routeMinutesText,
     durationKey,
     pickResult,
     formatClock,

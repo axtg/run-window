@@ -3,7 +3,8 @@
 (function () {
   const STORAGE_KEY = 'run-window-settings';
   const DEFAULTS = Object.freeze({
-    paceSec: 360,
+    paceSec: 360, // the faster end of the pace range
+    paceSlowSec: 360, // the slower end; a stored single pace becomes both ends
     durationMin: 60,
     allowDark: false,
     prefer: 'balanced',
@@ -117,6 +118,7 @@
 
   const VALIDATORS = {
     paceSec: value => isInteger(value, 180, 900),
+    paceSlowSec: value => isInteger(value, 180, 900),
     durationMin: value => isInteger(value, 15, 300),
     allowDark: value => typeof value === 'boolean',
     prefer: value => PREFERENCES.includes(value),
@@ -130,6 +132,12 @@
     for (const key of Object.keys(DEFAULTS)) {
       const value = source && typeof source === 'object' ? source[key] : undefined;
       settings[key] = VALIDATORS[key](value) ? value : DEFAULTS[key];
+    }
+    // Before the range (2026-11-10) one pace was stored: without a valid slow end, the range is that one pace.
+    const slow = source && typeof source === 'object' ? source.paceSlowSec : undefined;
+    if (!VALIDATORS.paceSlowSec(slow)) settings.paceSlowSec = settings.paceSec;
+    if (settings.paceSlowSec < settings.paceSec) {
+      [settings.paceSec, settings.paceSlowSec] = [settings.paceSlowSec, settings.paceSec];
     }
     return settings;
   }

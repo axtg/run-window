@@ -97,8 +97,11 @@ test approach. Read its `CLAUDE.md` first. Reuse rather than reinvent:
   load, and again after a 503); the only other is Plausible's. Nothing
   from the file goes into storage, the URL or analytics.
 - The page is one card with slim settings rows:
-  - Run: without a route, only the duration stepper (pace would only feed an estimate, so it is hidden but kept in
-    storage). With a route: the route's distance and the pace − / + stepper, with `= 66 min` under it.
+  - Run: the duration stepper (without a route) or the route's distance, and under it the pace range: two typed
+    fields, `at [6:15]–[6:30] /km` (`paceSec` is the fast end, `paceSlowSec` the slow one; a stored single pace becomes
+    both, reversed ends are swapped). Without a route the range gives the answer's last number, `Plan 6.9–7.2 km`
+    (`Plan.planDistance`, also in the calendar description). With a route it gives `= 65–68 min`
+    (`Plan.routeMinutesText`), and the window is sized by the slow end.
   - The route name sits next to the ✕ on one line (cut short with `…`, full name in `title`), without its distance.
   - With a location, "Near you" (`#source-map`) links to OpenStreetMap at the rounded coordinates (new tab,
     `noreferrer`; a link only, nothing loads from there unless tapped). When the browser's accuracy is worse than
@@ -116,7 +119,8 @@ test approach. Read its `CLAUDE.md` first. Reuse rather than reinvent:
     four options wrap under the label below about 360 px.
   - Rain: a slider.
 - Under the settings is a big answer with key numbers: Sky, Feels and Wind (Feels and Wind with a context word such as
-  `ideal` or `light`, in a light pill next to the label, so the numbers take one line), then Climb or Run.
+  `ideal` or `light`, in a light pill next to the label, so the numbers take one line), then Climb (with a route) or
+  Plan (the distance at the pace range; the minutes are already in "Best time · 45 min").
   - From `sm:` up, the numbers sit to the right of the time in a 2 × 2 grid (four across doesn't fit the card). On a
     phone they sit under it.
   - The wind line is in words (`Wind from the east · start east, into it`), with a compass whose arrow shows where the
@@ -167,7 +171,7 @@ test approach. Read its `CLAUDE.md` first. Reuse rather than reinvent:
   most and rain change the request.
 - SVG elements have no `hidden` property: show or hide them with `toggleAttribute('hidden', …)`. The smoke test's fake
   DOM follows the browser here.
-- Settings (pace, duration, Allow dark, Mind most, Rain %, Hours) live in `localStorage` only, always in try/catch; the
+- Settings (the two ends of the pace range, duration, Allow dark, Mind most, Rain %, Hours) live in `localStorage` only, always in try/catch; the
   page works without it. A stored `windMatters: true` (the first, one-day version) loads as `prefer: 'wind'`.
 - The service worker has one job: catch `POST /share-target` (a route shared from Android's share sheet), put the file
   in the Cache API for the page to read once, and redirect to `/` without a network request. It never calls `fetch`

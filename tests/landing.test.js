@@ -190,7 +190,7 @@ test('the privacy dialog holds every privacy statement', () => {
 });
 
 test('the settings are in place, each control labelled', () => {
-  for (const id of ['pace-input', 'pace-up', 'pace-down', 'hours-rows', 'add-hours', 'clear-source', 'use-location']) {
+  for (const id of ['pace-input', 'pace-slow-input', 'hours-rows', 'add-hours', 'clear-source', 'use-location']) {
     expect(html).toContain(`id="${id}"`);
   }
   const dark = html.match(/<button\b[^>]*id="dark-ok"[^>]*>/);
@@ -202,6 +202,7 @@ test('the settings are in place, each control labelled', () => {
   expect(rain[0]).toMatch(/type="range"/);
   expect(html).toMatch(/<label\b[^>]*for="rain-input"/);
   expect(html).toMatch(/<label\b[^>]*for="pace-input"/);
+  expect(html).toMatch(/<label\b[^>]*for="pace-slow-input"/);
   expect(html).toMatch(/<svg\b[^>]*id="timeline"[^>]*>/);
 });
 
@@ -246,16 +247,17 @@ test("the legend's dark swatch is the graph's dark shade", () => {
   expect(html).toMatch(new RegExp(`<span class="text-${shade[1]}">▮</span> dark`));
 });
 
-test('the Run row holds duration, distance and pace, with the run minutes under it', () => {
+test('the Run row holds duration or distance, and under it the pace range with the run minutes', () => {
   expect(html).not.toContain('id="pace-row"');
   expect(html).not.toContain('id="duration-row"');
-  expect(html).not.toContain('id="run-estimate"'); // no distance estimate without a route
-  const row = html.match(/<div\b[^>]*id="run-row"[^>]*>([\s\S]*?)<p\b[^>]*id="run-minutes"/);
+  expect(html).not.toContain('id="pace-up"'); // two typed ends, no steppers
+  const row = html.match(/<div\b[^>]*id="run-row"[^>]*>([\s\S]*?)id="hours-rows"/);
   expect(row).not.toBeNull();
-  for (const id of ['duration-group', 'run-distance', 'pace-group', 'pace-down', 'pace-input', 'pace-up'])
+  for (const id of ['duration-group', 'run-distance', 'pace-group', 'pace-input', 'pace-slow-input', 'run-minutes'])
     expect(row[1]).toContain(`id="${id}"`);
-  // app.js hides the pace group without a route: the class must let [hidden] win over flex.
-  expect(html.match(/<div\b[^>]*id="pace-group"[^>]*>/)[0]).toContain('[&[hidden]]:hidden');
+  const pace = row[1].slice(row[1].indexOf('id="pace-group"'));
+  expect(pace.indexOf('id="pace-input"')).toBeLessThan(pace.indexOf('id="pace-slow-input"'));
+  expect(pace).toContain('id="run-minutes"');
 });
 
 test('the route name stays on one line, without the distance beside it', () => {
