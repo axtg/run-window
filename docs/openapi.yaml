@@ -2,8 +2,8 @@ openapi: 3.0.3
 info:
   title: Best time to run API
   description: |
-    Given a location and the hours someone can run, returns the best weather window for each session length, today and
-    tomorrow (local days at the location).
+    Given a location and the hours someone can run, returns the best weather window for each session length, today,
+    tomorrow and the day after (local days at the location).
 
     The service is stateless and anonymous. Weather data by [Open-Meteo.com](https://open-meteo.com/) (CC BY 4.0).
 
@@ -44,9 +44,9 @@ paths:
         - Windows
       summary: Best weather window per session length
       description: |
-        For each session length from 15 to 180 minutes, returns the best window today and tomorrow that falls inside
-        the available hours, or `null` if no window qualifies. Empty parameter values mean "use the default".
-        Invalid, out-of-range or repeated parameters return 400 with a message naming the parameter.
+        For each session length from 15 to 180 minutes, returns the best window today, tomorrow and the day after
+        that falls inside the available hours, or `null` if no window qualifies. Empty parameter values mean "use the
+        default". Invalid, out-of-range or repeated parameters return 400 with a message naming the parameter.
       parameters:
         - name: lat
           in: query
@@ -71,7 +71,7 @@ paths:
           required: false
           description: |
             Comma-separated local-time ranges, `HH-HH` or `HH:MM-HH:MM`. `24` and `24:00` are allowed as an end only.
-            Ranges may not cross midnight or overlap. A window never spans two ranges. Applies to both days.
+            Ranges may not cross midnight or overlap. A window never spans two ranges. Applies to every day.
           schema:
             type: string
             default: 06-22
@@ -146,7 +146,7 @@ paths:
             default: en
       responses:
         '200':
-          description: Windows for today and tomorrow
+          description: Windows for today, tomorrow and the day after
           content:
             application/json:
               schema:
@@ -240,6 +240,72 @@ paths:
               description: Seconds to wait.
               schema:
                 type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/places:
+    get:
+      tags:
+        - Windows
+      summary: Find a place by name
+      description: |
+        Up to 5 places matching a town or city name, with coordinates rounded to 2 decimals, to pass on to
+        /api/window. A comma narrows the matches by country, country code or region (`Bergen, Norway`). The name is
+        looked up through Open-Meteo's geocoding (GeoNames data) and is never logged or kept. It does not count
+        towards the day's cap of new locations.
+      parameters:
+        - name: q
+          in: query
+          required: true
+          description: The place's name, 2 to 80 characters.
+          schema:
+            type: string
+            minLength: 2
+            maxLength: 80
+          example: Utrecht
+      responses:
+        '200':
+          description: The matches, best first (an empty list when none)
+          headers:
+            Cache-Control:
+              description: public, max-age=86400
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Places'
+              example:
+                places:
+                  - name: Utrecht
+                    region: Utrecht
+                    country: Netherlands
+                    countryCode: NL
+                    lat: 52.09
+                    lon: 5.12
+                    label: Utrecht, Netherlands
+                attribution: Place search by Open-Meteo.com, with data from GeoNames
+        '400':
+          description: A missing, repeated, too short or too long name.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          description: Too many requests from this client (per-second limit), as for /api/window.
+          headers:
+            Retry-After:
+              description: Seconds to wait.
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: Place search unavailable.
           content:
             application/json:
               schema:
@@ -348,9 +414,9 @@ components:
           $ref: '#/components/schemas/Params'
         days:
           type: array
-          description: Today and tomorrow, in the location's timezone.
-          minItems: 2
-          maxItems: 2
+          description: Today, tomorrow and the day after, in the location's timezone.
+          minItems: 3
+          maxItems: 3
           items:
             $ref: '#/components/schemas/WindowDay'
         warnings:
@@ -547,6 +613,38 @@ components:
           type: string
           description: Local time range and summary in the location's timezone, in `lang`.
           example: 12:15–13:30 · dry · 18 km/h SW · 8°C
+    Places:
+      type: object
+      required: [places, attribution]
+      properties:
+        places:
+          type: array
+          maxItems: 5
+          items:
+            type: object
+            required: [name, region, country, countryCode, lat, lon, label]
+            properties:
+              name:
+                type: string
+              region:
+                type: string
+                nullable: true
+              country:
+                type: string
+                nullable: true
+              countryCode:
+                type: string
+                nullable: true
+                description: ISO 3166-1 alpha-2
+              lat:
+                type: number
+              lon:
+                type: number
+              label:
+                type: string
+                description: Name, region and country, without repeats.
+        attribution:
+          type: string
     Error:
       type: object
       required: [status, message]

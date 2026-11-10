@@ -7,7 +7,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 Three things in one repo:
 
 1. **Run-window API** (`besttimetorun.com`, design call): a small, stateless, anonymous Express service. Given a location and
-   the hours someone can run, it returns the best weather window for each session length today and tomorrow.
+   the hours someone can run, it returns the best weather window for each session length today, tomorrow and the day after.
    Spec: `docs/superpowers/specs/2026-11-02-run-window-api-design.md`.
 2. **TRMNL "Running Board" plugin** (`integrations/trmnl-running-board/`): one full screen with this week's training
    (Tredict), a form graph (Tredict efforts) and today's run window (the API above).
@@ -90,12 +90,12 @@ test approach. Read its `CLAUDE.md` first. Reuse rather than reinvent:
 - Plausible (since 2026-11-06): its snippet's init lives in `analytics.js` (deferred, before `app.js`), since the CSP
   allows no inline script. Events carry names only, from the fixed list in `analytics.js` (`EVENTS`), once per page
   view: `Setting` (which setting was changed), `Dialog` (Method, API, Privacy, the network menu), `Source` (file,
-  share, location), `Calendar` (`google`, `outlook` or `ics`) and `Network` (which site in the menu). Never a value, a coordinate or anything from the route.
+  share, location, place), `Calendar` (`google`, `outlook` or `ics`) and `Network` (which site in the menu). Never a value, a coordinate or anything from the route.
   Blocked Plausible changes nothing. Each event needs a goal in the Plausible dashboard to show up there.
 - Tailwind scans only `index.html`, `app.js` and `strip.js`: run `npm run build:css` after editing them, comments too.
-- The route file never leaves the browser. The page makes two requests to its own server: `/api/window` with `lat`
-  and `lon` at 2 decimals plus `avail`, `dark`, `rain`, `prefer` and `slots=1`, and `/api/capacity` with nothing (on
-  load, and again after a 503); the only other is Plausible's. Nothing
+- The route file never leaves the browser. The page makes requests to its own server only: `/api/window` with `lat`
+  and `lon` at 2 decimals plus `avail`, `dark`, `rain`, `prefer` and `slots=1`, `/api/capacity` with nothing (on
+  load, and again after a 503), and `/api/places?q=` with a town someone searched for; the only other is Plausible's. Nothing
   from the file goes into storage, the URL or analytics.
 - The page is one card with slim settings rows:
   - Run, on one line down to 360 px: the duration stepper (without a route) or the route's distance, then the average
@@ -104,6 +104,11 @@ test approach. Read its `CLAUDE.md` first. Reuse rather than reinvent:
     calendar description); with a route it gives `= 66 min` at the end of the line.
   - No time-zone note: times are the location's own, unlabelled (a "Europe/Amsterdam time" note next to Today /
     Tomorrow was removed on 2026-11-10).
+  - Without a source, the prompt has a town search (`#place-form`, `#place-input`, Find). It asks
+    `/api/places` (`routes/places.js`, `lib/geocoding.js`: Open-Meteo's geocoding, GeoNames data, up to 5 matches,
+    `Bergen, Norway` narrows by country, code or region, cached in memory for a week, never logged or stored, not
+    counted towards the day's cap). One match is used at once, more are listed in `#place-results` to pick from.
+    A town goes by its name in the source line (`#source-map`, full label in `title`), else "Near you".
   - The route name sits next to the ✕ on one line (cut short with `…`, full name in `title`), without its distance.
   - With a location, "Near you" (`#source-map`) links to OpenStreetMap at the rounded coordinates (new tab,
     `noreferrer`; a link only, nothing loads from there unless tapped). When the browser's accuracy is worse than
@@ -129,12 +134,21 @@ test approach. Read its `CLAUDE.md` first. Reuse rather than reinvent:
     wind blows to, as on a weather map, so you start running against the arrow. In little wind (under 10 km/h) the
     line and compass are hidden: the Wind pill already says `light` or `calm`. The calendar description keeps
     `Little wind`.
+  - The day switch is Today · Wed · Thu (`#day-today`, `#day-tomorrow`, `#day-after`; weekdays from the location's
+    dates, `Plan.dayButton`). The API covers three days; further out a forecast shifts too much to plan an hour on,
+    so the day after carries `#outlook-note` (`Plan.outlookNote`).
+  - When nothing fits, the line says why (`Plan.noWindowCause`, shared with the MCP): hours gone by, too little time
+    left or in daylight, and only then no dry window.
   - When today has no window and tomorrow has one, a `Try tomorrow →` button shows what tomorrow holds.
   - A calendar-plus button (`#add-calendar`) after the time adds the run to a calendar (`Plan.calendarEvent`): title
     like `Sunday afternoon 10.4 km run` (or `60 min`), the conditions and wind line as description. Never the location
     or the route's name. It opens `#calendar-menu` (a dropdown like the others): Google Calendar and Outlook.com links
     (`Plan.googleCalendarUrl`, `Plan.outlookCalendarUrl`, new tab, `noopener noreferrer`, refreshed on each render)
     and Calendar file (.ics), which downloads `run.ics` built in the page (`Plan.icsText`, folded at 75 octets).
+    The description ends with a recheck link (`Check again on the day: https://besttimetorun.com/?run=…`,
+    `Settings.linkQuery`): run minutes, pace, hours, dark, prefer, rain and the run's date, never the location or the
+    route. Opened, `receiveLink` saves those settings, clears the address bar, picks that date's day once the answer
+    is in, and uses the location at once only when the browser already allows it; otherwise it says the run is set.
     An Android `intent:` URL was tried first (2026-11-07) and doesn't work: Chrome marks web intents browsable and
     the calendar's new-event screen doesn't accept them.
 - The page's tint: `<body data-sky="…">`, set by `Plan.skyTheme` from the shown window (wet, then dark, windy, cold,
@@ -203,9 +217,12 @@ test approach. Read its `CLAUDE.md` first. Reuse rather than reinvent:
   `@modelcontextprotocol/server` and `/node` packages, the eu-dayahead pattern. It shares the API's rate limiter
   instance, refuses JSON-RPC batches and listen streams (both would get round that limit), and parses JSON for this
   route only. Two read-only tools: `find_best_run_time` (one window: local start and end, conditions, which way to
-  start; `{ available: false, reason, tryNext, leastBadHour }` when nothing fits) and `get_run_conditions` (the day's
-  15-minute slots). Both build their answer with `lib/windowResponse.js`, the same code as `/api/window`, so
-  validation, the 2-decimal rounding and the day's cap are identical. Only this app's 4xx messages and its own 503s
+  start; with `darkOk` and a best time in the dark, also `bestInDaylight`; `{ available: false, reason, tryNext,
+leastBadHour }` when nothing fits, the reason from `Plan.noWindowCause`: hours gone by, too little time still ahead
+  or in daylight, and only then rain) and `get_run_conditions` (the day's 15-minute slots). `day` is `today`,
+  `tomorrow` or a local date up to two days ahead; the day after tomorrow carries `forecastNote`. Both build their answer with `lib/windowResponse.js`, the same code as `/api/window`, so
+  validation, the 2-decimal rounding and the day's cap are identical. Both take `latitude` and `longitude`, or
+  `place` (looked up like the page's search; the answer names the place it found and `otherMatches`). Only this app's 4xx messages and its own 503s
   (capacity, weather unavailable) reach the client; anything else is "Internal server error" and goes to `logError`.
   `find_best_run_time` comes with a view (an MCP App, since 2026-11-10): its `_meta.ui.resourceUri` names
   `ui://besttimetorun/day.html`, which `lib/mcpView.js` serves as one HTML file (`text/html;profile=mcp-app`) built

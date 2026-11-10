@@ -25,10 +25,14 @@ const sunFor = (sunrise, sunset, date = DATE) => [{ sunriseMs: local(sunrise, da
 const day = (fc, params, nowMs = EARLY, date = DATE) =>
   computeDay({ date, forecast: fc, params: { avail: ALL_DAY, dark: 'ok', rain: 100, ...params }, nowMs });
 
-test('localDates gives today and tomorrow in the location timezone', () => {
-  expect(localDates(Date.parse('2026-11-02T23:30:00Z'), TZ)).toEqual(['2026-11-03', '2026-11-04']);
-  expect(localDates(Date.parse('2026-11-02T23:30:00Z'), 'America/New_York')).toEqual(['2026-11-02', '2026-11-03']);
-  expect(localDates(Date.parse('2026-12-31T12:00:00Z'), TZ)).toEqual(['2026-12-31', '2027-01-01']);
+test('localDates gives today, tomorrow and the day after in the location timezone', () => {
+  expect(localDates(Date.parse('2026-11-02T23:30:00Z'), TZ)).toEqual(['2026-11-03', '2026-11-04', '2026-11-05']);
+  expect(localDates(Date.parse('2026-11-02T23:30:00Z'), 'America/New_York')).toEqual([
+    '2026-11-02',
+    '2026-11-03',
+    '2026-11-04'
+  ]);
+  expect(localDates(Date.parse('2026-12-31T12:00:00Z'), TZ)).toEqual(['2026-12-31', '2027-01-01', '2027-01-02']);
 });
 
 test('23-hour day has 92 slots, 25-hour day 100', () => {
@@ -302,7 +306,7 @@ console.log(JSON.stringify(localDates(Date.parse('2026-11-02T09:00:00Z'), 'Europ
       cwd: require('path').join(__dirname, '..'),
       env: { ...process.env, TZ: tz }
     });
-    expect(JSON.parse(out)).toEqual(['2026-11-02', '2026-11-03']);
+    expect(JSON.parse(out)).toEqual(['2026-11-02', '2026-11-03', '2026-11-04']);
   }
 });
 

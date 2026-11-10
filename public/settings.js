@@ -159,6 +159,44 @@
     }
   }
 
+  // ---- A recheck link, as a calendar event carries it: the settings and the run's date, never the location or
+  // anything from a route. Opened, it loads the settings; the page then asks for the location as always.
+  const DATE = /^\d{4}-\d{2}-\d{2}$/;
+  const PACE = /^(\d{1,2}):([0-5]\d)$/;
+
+  function linkQuery(settings, { minutes, date }) {
+    const pace = `${Math.floor(settings.paceSec / 60)}:${String(settings.paceSec % 60).padStart(2, '0')}`;
+    return new URLSearchParams({
+      run: String(Math.min(300, Math.max(15, Math.round(minutes)))),
+      pace,
+      hours: settings.hours,
+      dark: settings.allowDark ? 'ok' : 'avoid',
+      prefer: settings.prefer,
+      rain: String(settings.rain),
+      date
+    }).toString();
+  }
+
+  // The link's valid settings ({} when none) and date, or null without `run` (not a recheck link).
+  function fromLink(search) {
+    const params = new URLSearchParams(search);
+    if (!params.has('run')) return null;
+    const pace = PACE.exec(params.get('pace') || '');
+    const dark = params.get('dark');
+    const raw = {
+      durationMin: Number(params.get('run')),
+      paceSec: pace ? Number(pace[1]) * 60 + Number(pace[2]) : null,
+      hours: params.get('hours'),
+      allowDark: dark === 'ok' ? true : dark === 'avoid' ? false : null,
+      prefer: params.get('prefer'),
+      rain: params.get('rain') === null ? null : Number(params.get('rain'))
+    };
+    const settings = {};
+    for (const key of Object.keys(raw)) if (VALIDATORS[key](raw[key])) settings[key] = raw[key];
+    const date = params.get('date');
+    return { settings, date: DATE.test(date || '') ? date : null };
+  }
+
   const api = {
     STORAGE_KEY,
     DEFAULTS,
@@ -171,7 +209,9 @@
     addRow,
     removeRow,
     loadSettings,
-    saveSettings
+    saveSettings,
+    linkQuery,
+    fromLink
   };
 
   if (typeof module !== 'undefined') module.exports = api;

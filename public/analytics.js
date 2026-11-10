@@ -8,7 +8,7 @@
   const EVENTS = Object.freeze({
     Setting: { prop: 'setting', names: ['duration', 'pace', 'hours', 'add-hours', 'dark', 'prefer', 'rain', 'day'] },
     Dialog: { prop: 'dialog', names: ['method', 'api', 'privacy', 'network'] },
-    Source: { prop: 'source', names: ['file', 'share', 'location'] },
+    Source: { prop: 'source', names: ['file', 'share', 'location', 'place'] },
     Calendar: { prop: 'via', names: ['google', 'outlook', 'ics'] },
     Network: {
       prop: 'site',

@@ -90,12 +90,14 @@ describe('POST /mcp', () => {
       expect(result.instructions).toContain('Open-Meteo');
     });
 
-    test('lists the two read-only tools, each needing a place', async () => {
+    test('lists the two read-only tools, each taking coordinates or a place name', async () => {
       const { result } = parseReply(await rpc('tools/list').expect(200));
       expect(result.tools.map(tool => tool.name).sort()).toEqual(['find_best_run_time', 'get_run_conditions']);
       for (const tool of result.tools) {
         expect(tool.annotations).toMatchObject({ readOnlyHint: true });
-        expect(tool.inputSchema.required).toEqual(expect.arrayContaining(['latitude', 'longitude']));
+        expect(Object.keys(tool.inputSchema.properties)).toEqual(
+          expect.arrayContaining(['latitude', 'longitude', 'place'])
+        );
       }
     });
 
@@ -204,7 +206,7 @@ describe('POST /mcp', () => {
     test("gives the view the day's slots and the window in _meta, outside the model's text", async () => {
       const result = await callTool('find_best_run_time', { ...AMSTERDAM, minutes: 60, hours: '12-16' });
       const view = result._meta['com.besttimetorun/day'];
-      expect(view).toMatchObject({ dayLabel: 'today', minutes: 60, timeZone: 'Europe/Amsterdam' });
+      expect(view).toMatchObject({ dayIndex: 0, date: '2026-11-02', minutes: 60, timeZone: 'Europe/Amsterdam' });
       expect(Object.keys(view.day.windows)).toEqual(['60']);
       expect(view.day.windows['60'].start).toBe('2026-11-02T12:00:00.000Z');
       expect(view.day.slots).toHaveLength(16);
@@ -230,12 +232,80 @@ describe('POST /mcp', () => {
       const data = await toolData('find_best_run_time', { ...AMSTERDAM, day: 'tomorrow' });
       expect(data.available).toBe(false);
       expect(data.reason).toBe(
-        'No 60-minute stretch tomorrow within 06-22 stays within 40 % chance of rain, in daylight.'
+        'Every 60-minute stretch within 06-22 tomorrow is too wet: part of it has over 40 % chance of rain, ' +
+          'or rain expected.'
       );
       expect(data.tryNext).toMatch(/higher maxRainChance/);
       expect(data.leastBadHour).toMatchObject({ dry: false, rainChanceMax: 90 });
       const { _meta } = await callTool('find_best_run_time', { ...AMSTERDAM, day: 'tomorrow' });
       expect(_meta['com.besttimetorun/day'].day).toMatchObject({ windows: {}, fallback: expect.any(Object) });
+    });
+
+    test('hours already gone by are the reason, not rain', async () => {
+      const data = await toolData('find_best_run_time', { ...AMSTERDAM, hours: '06-08' }); // it is 08:00
+      expect(data).toMatchObject({
+        available: false,
+        reason: 'All of 06-08 has already passed today.',
+        tryNext: 'Tomorrow, or later hours today.'
+      });
+    });
+
+    test('too little time left is the reason, not rain', async () => {
+      const data = await toolData('find_best_run_time', { ...AMSTERDAM, hours: '07-08:30' });
+      expect(data.reason).toBe(
+        'Not enough time: the longest stretch that is still ahead within 07-08:30 today is 30 minutes.'
+      );
+      expect(data.tryNext).toBe('Tomorrow, more hours, a shorter run.');
+    });
+
+    test('too little daylight is the reason, not rain', async () => {
+      const data = await toolData('find_best_run_time', { ...AMSTERDAM, minutes: 90, hours: '16-19' });
+      expect(data.reason).toBe(
+        'Not enough time: the longest stretch that is in daylight within 16-19 today is 60 minutes.'
+      );
+      expect(data.tryNext).toBe('More hours, a shorter run, darkOk.');
+    });
+
+    test('a best time in the dark comes with the best one in daylight', async () => {
+      // Calm only at 19:00-20:00 local, after dark; windy otherwise
+      const evening = i => ({ wind_speed_10m: i === 19 ? 3 : 25, wind_direction_10m: 225, apparent_temperature: 10 });
+      const calmAfterDark = parseForecast(makeForecastJson({ startMs: START, hours: 72, sun: SUN, values: evening }));
+      const target = createApp({
+        weather: weatherWith(jest.fn().mockResolvedValue({ forecast: calmAfterDark, stale: false })),
+        now: () => NOW,
+        rateLimit: 1000
+      });
+      const args = { name: 'find_best_run_time', arguments: { ...AMSTERDAM, hours: '12-21', darkOk: true } };
+      const result = await callTool(args.name, args.arguments, target);
+      const data = JSON.parse(result.content[0].text);
+      expect(data.window).toMatchObject({ start: '2026-11-02T19:00+01:00', inDaylight: false });
+      expect(data.bestInDaylight).toMatchObject({ start: '2026-11-02T12:00+01:00', inDaylight: true });
+
+      const daylightOnly = JSON.parse(
+        (await callTool(args.name, { ...args.arguments, darkOk: false }, target)).content[0].text
+      );
+      expect(daylightOnly.bestInDaylight).toBeUndefined();
+      const noDaylightLeft = { ...args.arguments, hours: '18-21' };
+      const late = JSON.parse((await callTool(args.name, noDaylightLeft, target)).content[0].text);
+      expect(late.bestInDaylight).toBeNull();
+    });
+
+    test('looks at the day after tomorrow by its date, with a note that the forecast can shift', async () => {
+      const data = await toolData('find_best_run_time', { ...AMSTERDAM, day: '2026-11-04', darkOk: true });
+      expect(data).toMatchObject({ day: '2026-11-04', date: '2026-11-04' });
+      expect(data.forecastNote).toMatch(/can still shift/);
+      const today = await toolData('find_best_run_time', AMSTERDAM);
+      expect(today.forecastNote).toBeUndefined();
+    });
+
+    test('a date without a forecast here is a tool error naming the days there are', async () => {
+      const result = await callTool('find_best_run_time', { ...AMSTERDAM, day: '2026-11-09' });
+      expect(result.isError).toBe(true);
+      expect(JSON.parse(result.content[0].text).error).toBe(
+        'Invalid day: 2026-11-09 is not one of the days with a forecast here (2026-11-02, 2026-11-03, 2026-11-04)'
+      );
+      const wrong = await callTool('find_best_run_time', { ...AMSTERDAM, day: 'Thursday' });
+      expect(wrong.isError).toBe(true);
     });
 
     test('a bad hours value is a tool error with the reason', async () => {
@@ -270,6 +340,60 @@ describe('POST /mcp', () => {
       const result = await callTool('find_best_run_time', AMSTERDAM, broken);
       expect(result.isError).toBe(true);
       expect(result.content[0].text).toBe(JSON.stringify({ error: 'Internal server error' }));
+    });
+  });
+
+  describe('a place by name', () => {
+    const UTRECHT = {
+      name: 'Utrecht',
+      region: 'Utrecht',
+      country: 'Netherlands',
+      countryCode: 'NL',
+      lat: 52.09,
+      lon: 5.12
+    };
+    const OTHER = {
+      name: 'Utrecht',
+      region: 'KwaZulu-Natal',
+      country: 'South Africa',
+      countryCode: 'ZA',
+      lat: -27.66,
+      lon: 30.32
+    };
+    const placesWith = found => ({ search: jest.fn().mockResolvedValue(found) });
+    const appWith = places => createApp({ weather, places, now: () => NOW, rateLimit: 1000 });
+
+    test('is looked up, named in the answer with the other matches, and its coordinates used', async () => {
+      const places = placesWith([UTRECHT, OTHER]);
+      const result = await callTool('find_best_run_time', { place: 'Utrecht' }, appWith(places));
+      const data = JSON.parse(result.content[0].text);
+      expect(places.search).toHaveBeenCalledWith('Utrecht');
+      expect(data.location).toMatchObject({
+        name: 'Utrecht, Netherlands',
+        otherMatches: ['Utrecht, KwaZulu-Natal, South Africa'],
+        latitude: 52.09,
+        longitude: 5.12
+      });
+      expect(weather.getForecast).toHaveBeenCalledWith(52.09, 5.12);
+    });
+
+    test('coordinates win over a place, which is then not looked up', async () => {
+      const places = placesWith([UTRECHT]);
+      const data = JSON.parse(
+        (await callTool('get_run_conditions', { ...AMSTERDAM, place: 'Utrecht' }, appWith(places))).content[0].text
+      );
+      expect(places.search).not.toHaveBeenCalled();
+      expect(data.location.name).toBeUndefined();
+    });
+
+    test('nothing found, or nothing given, is a tool error that says what to do', async () => {
+      const none = await callTool('find_best_run_time', { place: 'Nowhereville' }, appWith(placesWith([])));
+      expect(JSON.parse(none.content[0].text).error).toBe(
+        'No place found for "Nowhereville": try a larger town nearby, or give coordinates.'
+      );
+      const empty = await callTool('find_best_run_time', {}, appWith(placesWith([])));
+      expect(JSON.parse(empty.content[0].text).error).toBe('Give latitude and longitude, or a place.');
+      expect(weather.getForecast).not.toHaveBeenCalled();
     });
   });
 

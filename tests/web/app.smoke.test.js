@@ -154,7 +154,7 @@ class QuietDOMParser extends DOMParser {
   }
 }
 
-function loadPage({ navigator = {}, stored = null, app = api, matchMedia } = {}) {
+function loadPage({ navigator = {}, stored = null, app = api, matchMedia, search = '' } = {}) {
   const elements = new Map();
   const created = [];
   const record = { fetches: [], capacity: [], storage: [], history: [] };
@@ -166,7 +166,7 @@ function loadPage({ navigator = {}, stored = null, app = api, matchMedia } = {})
     Blob,
     TextEncoder,
     DOMParser: QuietDOMParser,
-    location: { origin: ORIGIN, search: '' },
+    location: { origin: ORIGIN, search },
     navigator,
     document: {
       body: fakeElement('body'),
@@ -390,6 +390,120 @@ describe('app.js privacy smoke test', () => {
     expect(pace.value).toBe('6:50');
     await flush();
     expect(record.fetches).toHaveLength(1);
+  });
+
+  describe('a town by name', () => {
+    const UTRECHT = {
+      name: 'Utrecht',
+      region: 'Utrecht',
+      country: 'Netherlands',
+      countryCode: 'NL',
+      lat: 52.09,
+      lon: 5.12
+    };
+    const OTHER = {
+      name: 'Utrecht',
+      region: 'KwaZulu-Natal',
+      country: 'South Africa',
+      countryCode: 'ZA',
+      lat: -27.66,
+      lon: 30.32
+    };
+    const withPlaces = found =>
+      createApp({ weather, places: { search: jest.fn().mockResolvedValue(found) }, now: () => NOW, rateLimit: 1000 });
+    const submit = elements => elements.get('place-form').listeners.submit({ preventDefault() {} });
+
+    it('one match is used at once: named in the source line, its coordinates sent', async () => {
+      const { elements, record } = loadPage({ app: withPlaces([UTRECHT]) });
+      elements.get('place-input').value = '  Utrecht ';
+      await submit(elements);
+      await answered(elements);
+      expect(rejections).toEqual([]);
+      const sent = new URL(record.fetches.at(-1));
+      expect(sent.pathname).toBe('/api/window');
+      expect([sent.searchParams.get('lat'), sent.searchParams.get('lon')]).toEqual(['52.09', '5.12']);
+      expect(new URL(record.fetches[0]).searchParams.get('q')).toBe('Utrecht');
+      expect(elements.get('source-map').textContent).toBe('Utrecht');
+      expect(elements.get('source-map').title).toBe('Utrecht, Netherlands');
+      expect(elements.get('prompt').hidden).toBe(true);
+    });
+
+    it('more matches are listed to pick from; none says so', async () => {
+      const { elements } = loadPage({ app: withPlaces([UTRECHT, OTHER]) });
+      elements.get('place-input').value = 'Utrecht';
+      await submit(elements);
+      expect(elements.get('place-note').textContent).toBe('Which one?');
+      const buttons = elements.get('place-results').children.map(item => item.children[0]);
+      expect(buttons.map(button => button.textContent)).toEqual([
+        'Utrecht, Netherlands',
+        'Utrecht, KwaZulu-Natal, South Africa'
+      ]);
+      buttons[1].listeners.click();
+      await answered(elements);
+      expect(elements.get('source-map').title).toBe('Utrecht, KwaZulu-Natal, South Africa');
+
+      const empty = loadPage({ app: withPlaces([]) });
+      empty.elements.get('place-input').value = 'Nowhereville';
+      await submit(empty.elements);
+      expect(empty.elements.get('place-note').textContent).toBe('No town found by that name.');
+      expect(empty.record.fetches.filter(url => url.includes('/api/window'))).toEqual([]);
+    });
+
+    it('asks for at least 2 letters before sending anything', async () => {
+      const { elements, record } = loadPage({ app: withPlaces([UTRECHT]) });
+      elements.get('place-input').value = 'U';
+      await submit(elements);
+      expect(elements.get('place-note').textContent).toBe('Type at least 2 letters.');
+      expect(record.fetches).toEqual([]);
+    });
+  });
+
+  describe('a recheck link from a calendar event', () => {
+    const search = '?run=45&pace=5:30&hours=07-09%2C17-21&dark=ok&prefer=wind&rain=30&date=2026-11-03';
+
+    it('sets the run and its day, leaves the address bar, and checks at once when location is allowed', async () => {
+      const permissions = { query: async () => ({ state: 'granted' }) };
+      const { sandbox, elements, record, store } = loadPage({ navigator: { geolocation, permissions }, search });
+      await answered(elements);
+      expect(rejections).toEqual([]);
+      expect(record.history).toEqual(['/']);
+      const sent = new URL(record.fetches[0]).searchParams;
+      expect(['avail', 'dark', 'prefer', 'rain'].map(key => sent.get(key))).toEqual([
+        '07-09,17-21',
+        'ok',
+        'wind',
+        '30'
+      ]);
+      const saved = JSON.parse(store.get(sandbox.RunSettings.STORAGE_KEY));
+      expect(saved).toMatchObject({ durationMin: 45, paceSec: 330, allowDark: true, prefer: 'wind', rain: 30 });
+      expect(elements.get('day-tomorrow').attributes['aria-pressed']).toBe('true');
+
+      // The calendar event links back the same way, and never with the location
+      const details = new URL(elements.get('calendar-google').href).searchParams.get('details');
+      const link = new URL(details.match(/Check again on the day: (\S+)/)[1]);
+      expect(link.origin).toBe(ORIGIN);
+      expect(Object.fromEntries(link.searchParams)).toEqual({
+        run: '45',
+        pace: '5:30',
+        hours: '07-09,17-21',
+        dark: 'ok',
+        prefer: 'wind',
+        rain: '30',
+        date: '2026-11-03'
+      });
+      expect(details).not.toMatch(/52\.3|4\.8|4\.9/);
+    });
+
+    it('without location allowed, sets the run and asks, with nothing sent', async () => {
+      const { elements, record } = loadPage({ navigator: { geolocation }, search });
+      for (let i = 0; i < 20; i++) await flush();
+      expect(record.fetches).toEqual([]);
+      expect(record.history).toEqual(['/']);
+      expect(elements.get('status').textContent).toBe(
+        'Your run is set. Use your location or a route to check it again.'
+      );
+      expect(elements.get('duration-value').textContent).toBe('45 min');
+    });
   });
 
   it('shows the route distance and the run minutes in the same Run row with a route', async () => {

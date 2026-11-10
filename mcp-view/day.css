@@ -105,6 +105,9 @@ body {
 .arrow {
   fill: var(--text);
 }
+.outlook {
+  margin-top: 8px;
+}
 .timeline {
   display: block;
   width: 100%;

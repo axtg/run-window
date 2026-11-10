@@ -86,7 +86,7 @@ test('documents every parameter and the 200, 400, 429 and 503 responses', () => 
 
 test('documents the other routes', () => {
   expect(Object.keys(spec.paths).sort()).toEqual(
-    ['/api/capacity', '/api/window', '/health', '/health/cache', '/openapi.yaml'].sort()
+    ['/api/capacity', '/api/places', '/api/window', '/health', '/health/cache', '/openapi.yaml'].sort()
   );
 });
 

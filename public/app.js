@@ -4,7 +4,8 @@
   const { parseRoute, summarizeRoute } = globalThis.RouteFile;
   const Plan = globalThis.RunPlan;
   const Strip = globalThis.DayStrip;
-  const { loadSettings, saveSettings, splitHours, joinHours, moveHandle, addRow, removeRow } = globalThis.RunSettings;
+  const { loadSettings, saveSettings, splitHours, joinHours, moveHandle, addRow, removeRow, linkQuery, fromLink } =
+    globalThis.RunSettings;
   // Names only, once per page view (analytics.js). Without it (not loaded) nothing is tracked and all else works.
   const track = (globalThis.Analytics && globalThis.Analytics.track) || (() => false);
 
@@ -51,7 +52,12 @@
     copied: 'Copied',
     copyFailed: "Couldn't copy",
     pace: 'Pace is m:ss per km, from 3:00 to 15:00.',
-    shareFailed: "The shared route didn't arrive. Open it again."
+    shareFailed: "The shared route didn't arrive. Open it again.",
+    linkLoaded: 'Your run is set. Use your location or a route to check it again.',
+    placeShort: 'Type at least 2 letters.',
+    placeSearching: 'Searching…',
+    placeNone: 'No town found by that name.',
+    placePick: 'Which one?'
   };
   // Where sw.js leaves a shared route file for the page to read once.
   const SHARE_CACHE = 'shared-route';
@@ -59,12 +65,13 @@
 
   // Every element app.js uses, by id; el.sourceSet is #source-set.
   const IDS = (
-    'source source-map source-rough source-set source-pick clear-source day-today day-tomorrow ' +
+    'source source-map source-rough source-set source-pick clear-source day-today day-tomorrow day-after ' +
+    'place-form place-input place-note place-results ' +
     'route-input use-location duration-group run-distance run-minutes pace-group pace-input ' +
     'duration-down duration-value duration-up hours-rows add-hours dark-times dark-ok prefer-balanced ' +
     'prefer-wind prefer-rain prefer-temp prefer-hint rain-input rain-fill rain-value prompt answer answer-label ' +
     'answer-time add-calendar calendar-menu calendar-google calendar-outlook key-numbers wind-line wind-compass ' +
-    'wind-arrow wind-text tomorrow-hint try-tomorrow tomorrow-text stale-note status ' +
+    'wind-arrow wind-text tomorrow-hint try-tomorrow tomorrow-text stale-note outlook-note status ' +
     'result timeline chart-legend tap-line why-sentence copy-link open-method open-api open-privacy ' +
     'method-dialog api-dialog privacy-dialog close-method close-api close-privacy open-about about-menu ' +
     'open-network network-menu copy-label copy-icon copy-check copy-note quota-bar quota-fill quota-saturate ' +
@@ -92,6 +99,8 @@
     summary: null, // the opened route's summary, memory only
     location: null, // { lat, lon }, already rounded to 2 decimals
     dayIndex: 0,
+    linkDate: null, // a recheck link's date, picked once its day is known
+    placeRequest: 0,
     body: null, // the last /api/window response
     selected: null,
     calendar: null, // the shown answer as a calendar event, or null
@@ -352,13 +361,34 @@
       : '';
   }
 
-  function setDay(index) {
-    track('Setting', 'day');
+  function pickDay(index) {
     state.dayIndex = index;
     state.selected = null;
     el.dayToday.setAttribute('aria-pressed', String(index === 0));
     el.dayTomorrow.setAttribute('aria-pressed', String(index === 1));
+    el.dayAfter.setAttribute('aria-pressed', String(index === 2));
+  }
+
+  function setDay(index) {
+    track('Setting', 'day');
+    pickDay(index);
     render();
+  }
+
+  // Tomorrow and the day after go by their weekday ('Wed', 'Thu'), so all three fit next to Route and Location. The
+  // location's dates once known, else the device's.
+  function renderDayButtons() {
+    const days = state.body ? state.body.days : null;
+    const today = new Date();
+    const deviceDate = offset => {
+      const d = new Date(today.getFullYear(), today.getMonth(), today.getDate() + offset, 12);
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    };
+    [el.dayTomorrow, el.dayAfter].forEach((button, i) => {
+      const date = days && days[i + 1] ? days[i + 1].date : deviceDate(i + 1);
+      button.textContent = Plan.dayButton(date);
+      button.setAttribute('aria-label', i === 0 ? 'Tomorrow' : Plan.dayLabel(2, date).replace(/^on /, ''));
+    });
   }
 
   // ---- Input: a route file or the device's location
@@ -374,6 +404,9 @@
     el.sourceMap.hidden = !near;
     if (near) el.sourceMap.setAttribute('href', Plan.mapUrl(state.location.lat, state.location.lon));
     else el.sourceMap.removeAttribute('href');
+    // A town found by name goes by its name (the full label on hover), the device's location by "Near you".
+    el.sourceMap.textContent = near && state.location.name ? state.location.name : 'Near you';
+    el.sourceMap.title = near && state.location.label ? state.location.label : '';
     const rough = near ? Plan.roughNote(state.location.accuracyM) : '';
     el.sourceRough.hidden = !rough;
     el.sourceRough.textContent = rough;
@@ -419,6 +452,72 @@
       () => setStatus(MESSAGES.locationOff),
       { maximumAge: 10 * 60 * 1000, timeout: 15000 }
     );
+  }
+
+  // ---- A town by name: /api/places looks it up (Open-Meteo's geocoding); one match is used at once, more are listed.
+
+  function choosePlace(place) {
+    track('Source', 'place');
+    state.summary = null;
+    state.location = { lat: place.lat, lon: place.lon, name: place.name, label: place.label };
+    el.placeInput.value = '';
+    el.placeNote.textContent = '';
+    el.placeResults.replaceChildren();
+    el.placeResults.hidden = true;
+    render();
+    return refresh();
+  }
+
+  async function onPlaceSearch(event) {
+    event.preventDefault();
+    const text = el.placeInput.value.trim();
+    el.placeResults.hidden = true;
+    if (text.length < 2) {
+      el.placeNote.textContent = MESSAGES.placeShort;
+      return undefined;
+    }
+    const ask = ++state.placeRequest;
+    el.placeNote.textContent = MESSAGES.placeSearching;
+    let places = null;
+    let message;
+    try {
+      const response = await fetch(new URL(`/api/places?q=${encodeURIComponent(text)}`, location.origin).toString());
+      const json = await response.json().catch(() => null);
+      if (response.ok && json && Array.isArray(json.places)) places = json.places;
+      else {
+        const retryAfter = Number(response.headers.get('Retry-After')) || null;
+        message = Plan.errorMessage({ status: response.status, message: json && json.message, retryAfter });
+      }
+    } catch {
+      message = Plan.errorMessage({ status: 0 });
+    }
+    if (ask !== state.placeRequest) return undefined; // a newer search has started
+    if (!places) {
+      el.placeNote.textContent = message;
+      return undefined;
+    }
+    if (places.length === 0) {
+      el.placeNote.textContent = MESSAGES.placeNone;
+      return undefined;
+    }
+    if (places.length === 1) return choosePlace(places[0]);
+    el.placeNote.textContent = MESSAGES.placePick;
+    el.placeResults.replaceChildren(
+      ...places.map(place => {
+        const item = html('li');
+        const button = html(
+          'button',
+          'w-full truncate rounded-lg px-3 py-1.5 text-left text-sm text-primary ring-1 ring-black/10 hover:bg-gray-50',
+          place.label
+        );
+        button.type = 'button';
+        button.addEventListener('click', () => choosePlace(place));
+        item.appendChild(button);
+        return item;
+      })
+    );
+    el.placeResults.hidden = false;
+    return undefined;
   }
 
   // ✕ forgets the route or location and drops any answer still on its way.
@@ -474,6 +573,28 @@
     return openRouteText(shared.text, shared.fileName, 'share');
   }
 
+  // ---- A recheck link from a calendar event: /?run=60&pace=6:00&hours=…&date=…. It sets the run, then leaves the
+  // address bar. With location already allowed it checks right away; otherwise the page asks as always.
+  async function receiveLink() {
+    const link = fromLink(location.search);
+    if (!link) return undefined;
+    history.replaceState(null, '', '/');
+    save(link.settings);
+    state.rows = splitHours(state.settings.hours);
+    state.linkDate = link.date;
+    render();
+    let allowed;
+    try {
+      const permission = navigator.permissions && (await navigator.permissions.query({ name: 'geolocation' }));
+      allowed = Boolean(permission) && permission.state === 'granted';
+    } catch {
+      allowed = false; // no Permissions API: ask as always
+    }
+    if (allowed && !state.location) return onUseLocation();
+    if (!state.location) setStatus(MESSAGES.linkLoaded);
+    return undefined;
+  }
+
   function registerWorker() {
     try {
       if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => {});
@@ -506,6 +627,11 @@
     if (request !== state.request) return undefined; // a newer request has started
     state.body = body;
     state.selected = null;
+    if (body && state.linkDate) {
+      const index = body.days.findIndex(day => day.date === state.linkDate);
+      if (index !== -1) pickDay(index);
+      state.linkDate = null;
+    }
     setStatus(message);
     return render();
   }
@@ -653,12 +779,14 @@
     el.answerLabel.textContent = Plan.answerLabel(result, minutes);
     el.answerLabel.hidden = none;
     el.answerTime.textContent = none
-      ? Plan.noWindowText(minutes, dayLabel)
+      ? Plan.noWindowText(minutes, dayLabel, Plan.noWindowCause(day.slots || [], minutes))
       : Plan.answerTime(result, { minutes, timeZone });
     el.answerTime.className = none ? 'text-xl font-semibold' : 'whitespace-nowrap text-3xl font-bold tracking-tight';
     const plan = planText();
     renderKeyNumbers(Plan.keyNumbers(result, state.summary, minutes, plan));
-    state.calendar = Plan.calendarEvent(result, state.summary, { minutes, timeZone, plan });
+    // A link back with the settings and the day, so the run can be checked again on the day; never the location.
+    const checkUrl = `${location.origin}/?${linkQuery(state.settings, { minutes, date: day.date })}`;
+    state.calendar = Plan.calendarEvent(result, state.summary, { minutes, timeZone, plan, checkUrl });
     renderCalendar();
     const arrow = result.window ? Plan.windArrowDeg(result.window) : null;
     // In little wind there is no direction to start into, and the Wind pill already says so: no line, no compass.
@@ -668,6 +796,9 @@
     const hint = none && state.dayIndex === 0 ? tomorrowHint(minutes, timeZone) : null;
     el.tomorrowHint.hidden = !hint;
     el.tomorrowText.textContent = hint || '';
+    const outlook = Plan.outlookNote(state.dayIndex);
+    el.outlookNote.hidden = !outlook;
+    el.outlookNote.textContent = outlook || '';
     const stale = Plan.staleNote(state.body);
     el.staleNote.hidden = !stale;
     el.staleNote.textContent = stale || '';
@@ -710,6 +841,7 @@
 
   function render() {
     renderMcpPrompt();
+    renderDayButtons();
     renderSource();
     renderRunRow();
     renderDark();
@@ -725,7 +857,7 @@
     }
     const timeZone = state.body.location.timezone;
 
-    const dayLabel = state.dayIndex === 0 ? 'today' : 'tomorrow';
+    const dayLabel = Plan.dayLabel(state.dayIndex, day.date);
     const { result, minutes, text } = renderAnswer(day, timeZone, dayLabel);
     setSky(result, day);
     const slots = day.slots || [];
@@ -937,6 +1069,8 @@
   });
   el.dayToday.addEventListener('click', () => setDay(0));
   el.dayTomorrow.addEventListener('click', () => setDay(1));
+  el.dayAfter.addEventListener('click', () => setDay(2));
+  el.placeForm.addEventListener('submit', onPlaceSearch);
   el.tryTomorrow.addEventListener('click', () => {
     setDay(1);
     el.dayTomorrow.focus(); // the button hides with the switch
@@ -976,6 +1110,7 @@
   loadCapacity();
   registerWorker();
   receiveShare();
+  receiveLink();
 
   globalThis.RunApp = { openRouteText };
 })();

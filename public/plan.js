@@ -241,7 +241,7 @@
   }
 
   // 'Sunday afternoon 10.4 km run', or '… 60 min run' without a route. Day and hour are the location's.
-  function calendarEvent(result, summary, { minutes, timeZone, plan = null }) {
+  function calendarEvent(result, summary, { minutes, timeZone, plan = null, checkUrl = null }) {
     if (result.kind === 'none') return null;
     const { startMs, endMs } = answerSpan(result, minutes);
     const parts = new Intl.DateTimeFormat('en-US', {
@@ -258,7 +258,12 @@
     const conditions = `${skyValue(w)} · Feels ${tempOf(w)}, ${feelsWord(w.apparentTempAvg)} · ${wind}`;
     return {
       title: `${weekday} ${partOfDay(hour)} ${what} run`,
-      description: [plan ? `Plan ${plan}` : null, conditions, windLine(summary, w), 'Forecast from besttimetorun.com']
+      description: [
+        plan ? `Plan ${plan}` : null,
+        conditions,
+        windLine(summary, w),
+        checkUrl ? `Check again on the day: ${checkUrl}` : 'Forecast from besttimetorun.com'
+      ]
         .filter(Boolean)
         .join('\n'),
       startMs,
@@ -354,7 +359,63 @@
     return sky === 'dry' ? `Tomorrow ${time} is dry` : `Tomorrow ${time}, ${sky}`;
   }
 
-  function noWindowText(minutes, dayLabel) {
+  // ---- The three days: today, tomorrow and the day after, named by the location's own dates ('2026-11-04').
+  const weekday = (date, style) =>
+    new Intl.DateTimeFormat('en-US', { weekday: style, timeZone: 'UTC' }).format(new Date(`${date}T12:00:00Z`));
+  const dayButton = date => weekday(date, 'short');
+  function dayLabel(index, date) {
+    if (index === 0) return 'today';
+    if (index === 1) return 'tomorrow';
+    return `on ${weekday(date, 'long')}`;
+  }
+  // The day after tomorrow is as far as the page looks: past that a forecast shifts too much to plan an hour on.
+  const OUTLOOK_NOTE = 'Two days out, the forecast can still shift: check again on the day.';
+  const outlookNote = index => (index >= 2 ? OUTLOOK_NOTE : null);
+
+  // The longest run of back-to-back slots whose status is one of `statuses`, in minutes.
+  function longestStretch(slots, statuses) {
+    let longest = 0;
+    let current = 0;
+    slots.forEach((slot, index) => {
+      const joined = index > 0 && Date.parse(slot.start) - Date.parse(slots[index - 1].start) === KEY_STEP_MIN * 60000;
+      if (!statuses.includes(slot.status)) current = 0;
+      else current = joined ? current + 1 : 1;
+      longest = Math.max(longest, current);
+    });
+    return longest * KEY_STEP_MIN;
+  }
+
+  // Why no window fits, from the API's slot statuses (past, then dark, then missing, then rain, as lib/windows.js
+  // tags them), so the answer never blames rain when the hours have simply gone by. `minutesLeft` is the longest
+  // stretch that is still ahead, in daylight (when that is asked) and forecast, wet or dry.
+  function noWindowCause(slots, minutes) {
+    const statuses = new Set(slots.map(slot => slot.status));
+    const minutesLeft = longestStretch(slots, ['ok', 'rain']);
+    let cause = 'rain';
+    if (slots.length > 0 && slots.every(slot => slot.status === 'past')) cause = 'past';
+    else if (minutesLeft < minutes) cause = 'time';
+    return {
+      cause,
+      minutesLeft,
+      past: statuses.has('past'),
+      dark: statuses.has('dark'),
+      missing: statuses.has('missing')
+    };
+  }
+
+  // The answer's line when nothing fits. Without a cause (or with rain as the cause) it is the dry-window line.
+  function noWindowText(minutes, dayLabel, cause = null) {
+    if (cause && cause.cause === 'past') return `Your hours ${dayLabel} have passed`;
+    if (cause && cause.cause === 'time') {
+      const left = cause.minutesLeft;
+      if (cause.dark && !cause.past) {
+        return left === 0
+          ? `No daylight in your hours ${dayLabel}`
+          : `Only ${left} min of daylight in your hours ${dayLabel}`;
+      }
+      const what = cause.dark ? 'left in daylight' : 'left';
+      return `Only ${left} min ${what} in your hours ${dayLabel}`;
+    }
     return `No dry window of ${minutes} min ${dayLabel}`;
   }
 
@@ -445,6 +506,10 @@
     outlookCalendarUrl,
     icsText,
     noWindowText,
+    noWindowCause,
+    dayButton,
+    dayLabel,
+    outlookNote,
     tomorrowHint,
     routeLine,
     apiUrl,
