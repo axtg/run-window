@@ -128,6 +128,40 @@
     return sky === 'dry' ? 'Dry' : `Rain${sky.slice('rain'.length)}`;
   }
 
+  // The page's tint, from the shown window: wet, then dark, windy, cold, warm, else mild. Without a window, the time of
+  // day on the device picks morning or evening. Names match the `data-sky` variants on <body> in index.html.
+  const SKY_THEMES = ['mild', 'cold', 'warm', 'wet', 'windy', 'dark', 'morning', 'evening'];
+  function skyTheme(result, day, localHour) {
+    if (!result || result.kind === 'none') return localHour < 12 ? 'morning' : 'evening';
+    const w = result.window;
+    if (result.kind === 'fallback' || skyOf(w) !== 'dry') return 'wet';
+    if (day && day.sunrise && day.sunset) {
+      const outside = Date.parse(w.start) < Date.parse(day.sunrise) || Date.parse(w.end) > Date.parse(day.sunset);
+      if (outside) return 'dark';
+    }
+    if (['fresh', 'strong', 'very strong'].includes(windWord(w.windAvg))) return 'windy';
+    const feels = feelsWord(w.apparentTempAvg);
+    if (feels === 'freezing' || feels === 'cold') return 'cold';
+    if (feels === 'ideal') return 'mild';
+    return 'warm';
+  }
+
+  // The rainbow under the header from /api/capacity: shorter and paler as today's new places are used, amber under
+  // 10 %. Null when the answer is missing or malformed, so the page simply shows no bar.
+  function quotaBar(capacity) {
+    if (!capacity || typeof capacity.remainingShare !== 'number' || typeof capacity.full !== 'boolean') return null;
+    const share = capacity.full ? 0 : Math.min(1, Math.max(0, capacity.remainingShare));
+    const percent = Math.round(share * 100);
+    const amber = share > 0 && share < 0.1;
+    return {
+      width: `${percent}%`,
+      amber,
+      opacity: amber ? '1' : (0.35 + 0.65 * share).toFixed(2),
+      saturate: amber ? '1' : (0.15 + 0.85 * share).toFixed(2),
+      label: capacity.full ? 'No new places left today' : `About ${percent} % of today's new places left`
+    };
+  }
+
   function keyNumbers(result, summary, minutes) {
     if (result.kind === 'none') return [];
     const w = result.window;
@@ -407,7 +441,10 @@
     zoneNote,
     apiUrl,
     errorMessage,
-    staleNote
+    staleNote,
+    SKY_THEMES,
+    skyTheme,
+    quotaBar
   };
 
   if (typeof module !== 'undefined') module.exports = api;

@@ -353,3 +353,47 @@ describe('retention without traffic', () => {
     });
   });
 });
+
+describe('capacity', () => {
+  const HOUR = 60 * MIN;
+  const ten = { keysPerDay: 100, callsPerMinute: 1000, callsPerDay: 1000 };
+
+  test('starts full of room, with the day and the hour it describes', () => {
+    const { cache } = setup(ten);
+    expect(cache.capacity()).toEqual({
+      perDay: 100,
+      remainingShare: 1,
+      full: false,
+      asOf: '2026-11-02T10:00:00.000Z',
+      resetsAt: '2026-11-03T00:00:00.000Z'
+    });
+  });
+
+  test('the share is taken once an hour, so one new location does not move it within the hour', async () => {
+    const { cache, get, clock } = setup(ten);
+    for (let n = 1; n <= 12; n++) await get(n);
+    expect(cache.capacity().remainingShare).toBe(0.85); // 88 left: 0.88 rounded down to 5 % steps
+    await get(13);
+    await get(14);
+    await get(15);
+    await get(16);
+    expect(cache.capacity().remainingShare).toBe(0.85); // 84 left, but the same hour
+    clock.t += HOUR;
+    expect(cache.capacity()).toMatchObject({ remainingShare: 0.8, asOf: '2026-11-02T11:00:00.000Z' });
+  });
+
+  test('never reads 0 while room is left, and full is live', async () => {
+    const { cache, get } = setup({ keysPerDay: 3, callsPerMinute: 10, callsPerDay: 10 });
+    await get(1);
+    await get(2);
+    expect(cache.capacity()).toMatchObject({ remainingShare: 0.3, full: false }); // 1 of 3 left, 0.333 → 0.3
+    await get(3);
+    expect(cache.capacity()).toMatchObject({ remainingShare: 0, full: true });
+  });
+
+  test('a small remainder still shows as 5 %', async () => {
+    const { cache, get } = setup(ten);
+    for (let n = 1; n <= 99; n++) await get(n);
+    expect(cache.capacity()).toMatchObject({ remainingShare: 0.05, full: false });
+  });
+});

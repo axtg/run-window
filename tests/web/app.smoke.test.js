@@ -25,6 +25,8 @@ const QUERY_KEYS = ['avail', 'dark', 'lat', 'lon', 'prefer', 'rain', 'slots'];
 // Every coordinate in the fixture written with more than 2 decimals: none of them may leave memory.
 const PRECISE_COORDS = [...GPX.matchAll(/(?:lat|lon)="(-?\d+\.\d{3,})"/g)].map(match => match[1]);
 
+const CAPACITY = { perDay: 300, remainingShare: 0.85, full: false, asOf: 'a', resetsAt: 'b' };
+
 const weather = {
   getForecast: jest.fn().mockResolvedValue({
     forecast: parseForecast(
@@ -39,9 +41,11 @@ const weather = {
     ),
     stale: false
   }),
-  stats: jest.fn().mockReturnValue({})
+  stats: jest.fn().mockReturnValue({}),
+  capacity: () => CAPACITY
 };
-const api = createApp({ weather, now: () => NOW });
+// A high rate limit: these tests load many pages in quick succession through one app, and are not about the limit.
+const api = createApp({ weather, now: () => NOW, rateLimit: 1000 });
 
 // An app of its own for a test that needs other weather. `values(i)` overrides hour i (Open-Meteo names).
 function apiWith(values) {
@@ -56,8 +60,12 @@ function apiWith(values) {
       values
     })
   );
-  const own = { getForecast: jest.fn().mockResolvedValue({ forecast, stale: false }), stats: () => ({}) };
-  return createApp({ weather: own, now: () => NOW });
+  const own = {
+    getForecast: jest.fn().mockResolvedValue({ forecast, stale: false }),
+    stats: () => ({}),
+    capacity: () => CAPACITY
+  };
+  return createApp({ weather: own, now: () => NOW, rateLimit: 1000 });
 }
 const geolocation = { getCurrentPosition: onOk => onOk({ coords: { latitude: 52.3702, longitude: 4.8952 } }) };
 
@@ -67,9 +75,19 @@ const focusLog = [];
 
 // SVG elements, as in a browser, have no reflected `hidden` property: assigning `.hidden` only adds an expando that
 // changes nothing. They hide through the attribute alone, which isHidden() reads. Ids of the page's SVG elements:
-const SVG_IDS = new Set(['wind-compass', 'wind-arrow', 'copy-icon', 'copy-check', 'timeline', 'rain-fill']);
+const SVG_IDS = new Set([
+  'wind-compass',
+  'wind-arrow',
+  'copy-icon',
+  'copy-check',
+  'timeline',
+  'rain-fill',
+  'quota-bar',
+  'quota-fill',
+  'quota-saturate'
+]);
 // The page's markup starts these hidden.
-const HIDDEN_IN_HTML = new Set(['copy-check']);
+const HIDDEN_IN_HTML = new Set(['copy-check', 'quota-bar']);
 
 const isHidden = node => (node.svg ? 'hidden' in node.attributes : node.hidden === true);
 
@@ -139,7 +157,7 @@ class QuietDOMParser extends DOMParser {
 function loadPage({ navigator = {}, stored = null, app = api, matchMedia } = {}) {
   const elements = new Map();
   const created = [];
-  const record = { fetches: [], storage: [], history: [] };
+  const record = { fetches: [], capacity: [], storage: [], history: [] };
   const store = new Map();
   if (stored !== null) store.set('run-window-settings', stored);
   const sandbox = {
@@ -151,6 +169,7 @@ function loadPage({ navigator = {}, stored = null, app = api, matchMedia } = {})
     location: { origin: ORIGIN, search: '' },
     navigator,
     document: {
+      body: fakeElement('body'),
       getElementById(id) {
         if (!elements.has(id)) {
           const node = fakeElement(SVG_IDS.has(id) ? 'svg' : 'div', { svg: SVG_IDS.has(id) });
@@ -192,7 +211,9 @@ function loadPage({ navigator = {}, stored = null, app = api, matchMedia } = {})
     setTimeout: (handler, ms) => setTimeout(handler, ms), // looked up per call, so Jest's fake timers apply
     clearTimeout: id => clearTimeout(id),
     async fetch(url) {
-      record.fetches.push(String(url));
+      // /api/capacity is kept apart: it carries nothing about the visitor (its own test checks that).
+      if (new URL(url).pathname === '/api/capacity') record.capacity.push(String(url));
+      else record.fetches.push(String(url));
       const target = new URL(url);
       const response = await request(app).get(target.pathname + target.search);
       return {
@@ -557,6 +578,24 @@ describe('app.js privacy smoke test', () => {
     elements.get('timeline').listeners.keydown({ key: 'Home', preventDefault() {} });
     expect(elements.get('chart-legend').hidden).toBe(true);
     expect(elements.get('tap-line').textContent).toMatch(/feels .* °C · wind .* km\/h/);
+  });
+
+  it('asks /api/capacity without parameters and draws the bar from it', async () => {
+    const { elements, record } = loadPage({ navigator: { geolocation } });
+    // The request goes through supertest, which takes many event-loop turns.
+    for (let i = 0; i < 500 && isHidden(elements.get('quota-bar')); i++) await flush();
+    expect(record.capacity).toEqual([`${ORIGIN}/api/capacity`]);
+    expect(isHidden(elements.get('quota-bar'))).toBe(false);
+    expect(elements.get('quota-fill').attributes.width).toBe('85%');
+    expect(elements.get('quota-bar').attributes['aria-label']).toBe("About 85 % of today's new places left");
+  });
+
+  it('tints the page by the answer, and by the hour before one', async () => {
+    const { elements, sandbox } = loadPage({ navigator: { geolocation } });
+    expect(['morning', 'evening']).toContain(sandbox.document.body.attributes['data-sky']);
+    elements.get('use-location').listeners.click();
+    await answered(elements);
+    expect(sandbox.document.body.attributes['data-sky']).toBe('mild'); // dry, 10 °C, calm
   });
 
   it('shows no wind line in little wind', async () => {

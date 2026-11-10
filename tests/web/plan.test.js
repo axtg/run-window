@@ -660,3 +660,63 @@ describe('add to calendar', () => {
     expect(unfolded).toContain('DESCRIPTION:Rain 41 % · Feels 5 °C\\, cold · Wind 11 km/h S\\, light\\nWind from');
   });
 });
+
+describe('skyTheme', () => {
+  const { skyTheme } = RunPlan;
+  const day = { sunrise: '2026-11-04T06:42:00.000Z', sunset: '2026-11-04T16:05:00.000Z' };
+  const shown = (overrides, kind = 'window') => ({ kind, window: win(overrides) });
+
+  it('follows the time of day before there is a window', () => {
+    expect(skyTheme(null, null, 8)).toBe('morning');
+    expect(skyTheme({ kind: 'none', window: null }, day, 11)).toBe('morning');
+    expect(skyTheme(null, null, 12)).toBe('evening');
+    expect(skyTheme(null, null, 23)).toBe('evening');
+  });
+
+  it('picks wet, then dark, windy, cold, warm, else mild', () => {
+    expect(skyTheme(shown({}), day, 9)).toBe('mild'); // 7 °C, 14 km/h, dry, in daylight
+    expect(skyTheme(shown({ qualifies: false, precipProbMax: 60 }, 'fallback'), day, 9)).toBe('wet');
+    expect(skyTheme(shown({ precipProbMax: 35 }), day, 9)).toBe('wet');
+    expect(skyTheme(shown({ start: '2026-11-04T15:30:00.000Z', end: '2026-11-04T16:30:00.000Z' }), day, 9)).toBe(
+      'dark'
+    );
+    expect(skyTheme(shown({ windAvg: 29 }), day, 9)).toBe('windy');
+    expect(skyTheme(shown({ windAvg: 28 }), day, 9)).toBe('mild');
+    expect(skyTheme(shown({ apparentTempAvg: 5 }), day, 9)).toBe('cold');
+    expect(skyTheme(shown({ apparentTempAvg: -3 }), day, 9)).toBe('cold');
+    expect(skyTheme(shown({ apparentTempAvg: 17 }), day, 9)).toBe('warm');
+    expect(skyTheme(shown({ apparentTempAvg: 16 }), day, 9)).toBe('mild');
+  });
+
+  it('has a body variant in index.html for every theme it can return', () => {
+    const html = require('fs').readFileSync(require('path').join(__dirname, '../../public/index.html'), 'utf8');
+    for (const theme of RunPlan.SKY_THEMES) expect(html).toContain(`data-[sky=${theme}]:bg-[linear-gradient(`);
+  });
+});
+
+describe('quotaBar', () => {
+  const { quotaBar } = RunPlan;
+  const capacity = (remainingShare, full = false) => ({ perDay: 300, remainingShare, full, asOf: 'a', resetsAt: 'b' });
+
+  it('is a full, bright rainbow with all places left', () => {
+    expect(quotaBar(capacity(1))).toEqual({
+      width: '100%',
+      amber: false,
+      opacity: '1.00',
+      saturate: '1.00',
+      label: "About 100 % of today's new places left"
+    });
+  });
+
+  it('shortens and fades as places are used, and turns amber under 10 %', () => {
+    expect(quotaBar(capacity(0.5))).toMatchObject({ width: '50%', amber: false, opacity: '0.68', saturate: '0.57' });
+    expect(quotaBar(capacity(0.05))).toMatchObject({ width: '5%', amber: true, opacity: '1', saturate: '1' });
+  });
+
+  it('is empty when full, and null for a missing or malformed answer', () => {
+    expect(quotaBar(capacity(0.2, true))).toMatchObject({ width: '0%', label: 'No new places left today' });
+    expect(quotaBar(null)).toBeNull();
+    expect(quotaBar({ remainingShare: '0.5', full: false })).toBeNull();
+    expect(quotaBar({ remainingShare: 0.5 })).toBeNull();
+  });
+});
