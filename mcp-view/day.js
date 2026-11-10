@@ -40,7 +40,9 @@
     const arrow = none ? null : Plan.windArrowDeg(result.window);
     return {
       label: none ? capitalise(dayLabel) : `${capitalise(dayLabel)} · ${Plan.answerLabel(result, minutes)}`,
-      time: none ? Plan.noWindowText(minutes, dayLabel) : Plan.answerTime(result, { minutes, timeZone }),
+      time: none
+        ? Plan.noWindowText(minutes, dayLabel, Plan.noWindowCause(slots, minutes))
+        : Plan.answerTime(result, { minutes, timeZone }),
       none,
       fallback: result.kind === 'fallback',
       numbers: Plan.keyNumbers(result, null, minutes),

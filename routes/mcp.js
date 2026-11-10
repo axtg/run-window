@@ -7,6 +7,7 @@ const { z } = require('zod');
 const { VIEW_MIME_TYPE, VIEW_URI, viewHtml } = require('../lib/mcpView');
 const { buildWindowBody } = require('../lib/windowResponse');
 const { VIEW_META_KEY } = require('../mcp-view/day');
+const { noWindowCause } = require('../public/plan');
 const { PREFERENCES, cardinal } = require('../lib/windows');
 const { logError } = require('../middleware/logging');
 const { version } = require('../package.json');
@@ -150,41 +151,24 @@ function viewPayload(apiDay, args, minutes, timezone) {
   };
 }
 
-// The longest run of back-to-back slots whose status is one of `statuses`, in minutes.
-function longestStretch(slots, statuses) {
-  let longest = 0;
-  let current = 0;
-  slots.forEach((slot, index) => {
-    const joined = index > 0 && Date.parse(slot.start) - Date.parse(slots[index - 1].start) === SLOT_MINUTES * 60000;
-    if (!statuses.includes(slot.status)) current = 0;
-    else current = joined ? current + 1 : 1;
-    longest = Math.max(longest, current);
-  });
-  return longest * SLOT_MINUTES;
-}
-
-// What really rules the run out, from the slots' statuses (past, then dark, then missing, then rain, as tagged in
-// lib/windows.js): blaming rain when the hours have simply gone by would send the user the wrong way.
 function whyNothingFits(slots, minutes, params, dayLabel) {
   const hours = params.avail;
-  if (slots.length > 0 && slots.every(slot => slot.status === 'past')) {
+  const why = noWindowCause(slots, minutes);
+  if (why.cause === 'past') {
     return { reason: `All of ${hours} has already passed today.`, tryNext: 'Tomorrow, or later hours today.' };
   }
-  const left = longestStretch(slots, ['ok', 'rain']);
-  if (left < minutes) {
-    const statuses = new Set(slots.map(slot => slot.status));
+  if (why.cause === 'time') {
     const limits = [
-      statuses.has('past') && 'still ahead',
-      statuses.has('dark') && 'in daylight',
-      statuses.has('missing') && 'covered by the forecast'
+      why.past && 'still ahead',
+      why.dark && 'in daylight',
+      why.missing && 'covered by the forecast'
     ].filter(Boolean);
     const stretch = limits.length > 0 ? `stretch that is ${limits.join(' and ')}` : 'stretch';
-    const tries = [statuses.has('past') && 'tomorrow', 'more hours', 'a shorter run', statuses.has('dark') && 'darkOk']
-      .filter(Boolean)
-      .join(', ');
+    const tries = [why.past && 'tomorrow', 'more hours', 'a shorter run', why.dark && 'darkOk'].filter(Boolean);
+    const next = tries.join(', ');
     return {
-      reason: `Not enough time: the longest ${stretch} within ${hours} ${dayLabel} is ${left} minutes.`,
-      tryNext: `${tries.charAt(0).toUpperCase()}${tries.slice(1)}.`
+      reason: `Not enough time: the longest ${stretch} within ${hours} ${dayLabel} is ${why.minutesLeft} minutes.`,
+      tryNext: `${next.charAt(0).toUpperCase()}${next.slice(1)}.`
     };
   }
   return {

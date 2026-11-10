@@ -653,7 +653,7 @@
     el.answerLabel.textContent = Plan.answerLabel(result, minutes);
     el.answerLabel.hidden = none;
     el.answerTime.textContent = none
-      ? Plan.noWindowText(minutes, dayLabel)
+      ? Plan.noWindowText(minutes, dayLabel, Plan.noWindowCause(day.slots || [], minutes))
       : Plan.answerTime(result, { minutes, timeZone });
     el.answerTime.className = none ? 'text-xl font-semibold' : 'whitespace-nowrap text-3xl font-bold tracking-tight';
     const plan = planText();

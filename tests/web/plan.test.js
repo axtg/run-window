@@ -21,6 +21,7 @@ const {
   answerLabel,
   answerTime,
   noWindowText,
+  noWindowCause,
   windArrowDeg,
   tomorrowHint,
   windWord,
@@ -455,6 +456,45 @@ describe('answer helpers', () => {
 
   test('answerTime ends a fitting run at start + minutes', () => {
     expect(answerTime(windowResult, { minutes: 50, timeZone })).toBe('21:15–22:05');
+  });
+
+  describe('why nothing fits', () => {
+    const at = (hour, minute) => new Date(Date.UTC(2026, 10, 2, hour, minute)).toISOString();
+    const slot = (hour, minute, status) => ({ start: at(hour, minute), status });
+    const run = (statuses, hour = 10) =>
+      statuses.map((status, i) => slot(hour + Math.floor(i / 4), (i % 4) * 15, status));
+
+    test('all hours past: the hours have gone by, whatever the rain', () => {
+      const cause = noWindowCause(run(['past', 'past', 'past', 'past']), 60);
+      expect(cause).toMatchObject({ cause: 'past', minutesLeft: 0 });
+      expect(noWindowText(60, 'today', cause)).toBe('Your hours today have passed');
+    });
+
+    test('too little left: names how much, still ahead', () => {
+      const cause = noWindowCause(run(['past', 'past', 'ok', 'ok']), 60);
+      expect(cause).toMatchObject({ cause: 'time', minutesLeft: 30, past: true, dark: false });
+      expect(noWindowText(60, 'today', cause)).toBe('Only 30 min left in your hours today');
+    });
+
+    test('too little daylight, or none', () => {
+      const short = noWindowCause(run(['ok', 'rain', 'dark', 'dark']), 60);
+      expect(noWindowText(60, 'tomorrow', short)).toBe('Only 30 min of daylight in your hours tomorrow');
+      const none = noWindowCause(run(['dark', 'dark']), 60);
+      expect(noWindowText(60, 'tomorrow', none)).toBe('No daylight in your hours tomorrow');
+      const both = noWindowCause(run(['past', 'ok', 'dark', 'dark']), 60);
+      expect(noWindowText(60, 'today', both)).toBe('Only 15 min left in daylight in your hours today');
+    });
+
+    test('a gap between hour ranges breaks a stretch', () => {
+      const slots = [...run(['ok', 'ok'], 10), ...run(['ok', 'ok'], 14)];
+      expect(noWindowCause(slots, 60)).toMatchObject({ cause: 'time', minutesLeft: 30 });
+    });
+
+    test('enough time: rain is the cause, with the dry-window line', () => {
+      const cause = noWindowCause(run(['rain', 'rain', 'rain', 'rain', 'ok']), 60);
+      expect(cause.cause).toBe('rain');
+      expect(noWindowText(60, 'today', cause)).toBe('No dry window of 60 min today');
+    });
   });
 
   test('noWindowText reuses the goLine wording', () => {
