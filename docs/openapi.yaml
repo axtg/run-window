@@ -206,6 +206,45 @@ paths:
                 status: error
                 message: The service is at capacity for new locations today. Try again after midnight UTC.
 
+  /api/capacity:
+    get:
+      tags:
+        - Windows
+      summary: How much of today's cap for new locations is left
+      description: |
+        The service accepts at most `perDay` distinct locations per UTC day. `remainingShare` is the share left, rounded
+        down to 5 % steps and taken once an hour, so it never shows whether one location was requested. `full` is live:
+        when it is true, a new location gets a 503 until `resetsAt`; locations already asked for today keep working.
+      responses:
+        '200':
+          description: The cap and what is left of it
+          headers:
+            Cache-Control:
+              description: public, max-age=300
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Capacity'
+              example:
+                perDay: 300
+                remainingShare: 0.85
+                full: false
+                asOf: '2026-11-10T09:00:00.000Z'
+                resetsAt: '2026-11-11T00:00:00.000Z'
+        '429':
+          description: Too many requests from this client (per-second limit), as for /api/window.
+          headers:
+            Retry-After:
+              description: Seconds to wait.
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
   /health:
     get:
       tags:
@@ -270,6 +309,31 @@ paths:
 
 components:
   schemas:
+    Capacity:
+      type: object
+      required: [perDay, remainingShare, full, asOf, resetsAt]
+      properties:
+        perDay:
+          type: integer
+          description: Distinct locations (2-decimal coordinates) accepted per UTC day.
+          example: 300
+        remainingShare:
+          type: number
+          minimum: 0
+          maximum: 1
+          multipleOf: 0.05
+          description: Share of today's locations still free, rounded down to 0.05 and at least 0.05 until full.
+        full:
+          type: boolean
+          description: No new location is accepted until resetsAt.
+        asOf:
+          type: string
+          format: date-time
+          description: Start of the hour remainingShare was taken in.
+        resetsAt:
+          type: string
+          format: date-time
+          description: Next midnight UTC.
     WindowResponse:
       type: object
       required: [location, generatedAt, params, days, attribution]

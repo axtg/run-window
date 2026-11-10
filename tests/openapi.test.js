@@ -85,7 +85,19 @@ test('documents every parameter and the 200, 400, 429 and 503 responses', () => 
 });
 
 test('documents the other routes', () => {
-  expect(Object.keys(spec.paths).sort()).toEqual(['/api/window', '/health', '/health/cache', '/openapi.yaml'].sort());
+  expect(Object.keys(spec.paths).sort()).toEqual(
+    ['/api/capacity', '/api/window', '/health', '/health/cache', '/openapi.yaml'].sort()
+  );
+});
+
+test('the capacity response matches the Capacity schema', async () => {
+  const capacity = { perDay: 300, remainingShare: 0.85, full: false, asOf: 'a', resetsAt: 'b' };
+  const app = createApp({ weather: { getForecast: jest.fn(), stats: () => ({}), capacity: () => capacity } });
+  const { body, headers } = await request(app).get('/api/capacity').expect(200);
+  expect(body).toEqual(capacity);
+  expect(headers['cache-control']).toBe('public, max-age=300');
+  expect(Object.keys(body).sort()).toEqual(keysOf(schemas.Capacity));
+  expect(schemas.Capacity.required.sort()).toEqual(keysOf(schemas.Capacity));
 });
 
 test('the development server is on the port the app defaults to', () => {

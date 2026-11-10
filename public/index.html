@@ -21,7 +21,10 @@
     <script src="/settings.js" defer></script>
     <script src="/app.js" defer></script>
   </head>
-  <body class="min-h-screen bg-gray-100 text-primary antialiased">
+  <!-- The tint behind the card follows the shown window (Plan.skyTheme sets data-sky); the card stays white. -->
+  <body
+    class="min-h-screen bg-gray-100 bg-no-repeat text-primary antialiased data-[sky=mild]:bg-[linear-gradient(180deg,#cfe8ff_0%,#e3f6ec_51%,#f3f4f6_100%)] data-[sky=cold]:bg-[linear-gradient(180deg,#d3eafb_0%,#edf6fc_54%,#f8fafc_100%)] data-[sky=warm]:bg-[linear-gradient(180deg,#ffdfc2_0%,#fff2d4_54%,#f9fafb_100%)] data-[sky=wet]:bg-[linear-gradient(180deg,#c0cad7_0%,#dce2ea_54%,#eef1f4_100%)] data-[sky=windy]:bg-[linear-gradient(165deg,#d6dbe2_0%,#eef0f3_47%,#e1e5eb_74%,#f5f6f8_100%)] data-[sky=dark]:bg-[linear-gradient(180deg,#c6cbf5_0%,#e3dbf6_40%,#f3f4f6_94%)] data-[sky=morning]:bg-[linear-gradient(180deg,#ffd6cb_0%,#fdead6_47%,#f3f4f6_100%)] data-[sky=evening]:bg-[linear-gradient(180deg,#d0d5ef_0%,#e5e2f1_47%,#f3f4f6_100%)]"
+  >
     <svg class="absolute h-0 w-0" aria-hidden="true" focusable="false">
       <defs>
         <pattern id="night-hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
@@ -31,177 +34,207 @@
       </defs>
     </svg>
 
-    <header class="relative mx-auto flex max-w-xl flex-wrap items-center justify-between gap-y-1 px-4 pb-3 pt-5">
-      <div class="flex items-center gap-2 text-base font-semibold">
-        <svg viewBox="0 0 512 512" class="h-6 w-6" aria-hidden="true" focusable="false">
-          <rect width="512" height="512" rx="112" fill="#111827" />
-          <rect x="84" y="280" width="56" height="112" rx="14" fill="#BBF7D0" />
-          <rect x="156" y="200" width="56" height="192" rx="14" fill="#4ADE80" />
-          <rect x="228" y="128" width="56" height="264" rx="14" fill="#16A34A" />
-          <rect x="300" y="176" width="56" height="216" rx="14" fill="#22C55E" />
-          <rect x="372" y="248" width="56" height="144" rx="14" fill="#86EFAC" />
-        </svg>
-        <h1>besttimetorun<span class="font-medium text-gray-500">.com</span></h1>
-      </div>
-      <nav class="-mr-1 ml-auto flex items-center gap-1 text-sm text-gray-600" aria-label="About the page">
-        <!-- On a phone Method, API and Privacy fold into "About", so the header stays on one line -->
-        <button
-          id="open-about"
-          type="button"
-          class="flex items-center gap-1 rounded-lg px-2 py-1.5 hover:bg-white hover:text-gray-900 sm:hidden"
-          aria-expanded="false"
-          aria-controls="about-menu"
-        >
-          About
-          <svg
-            viewBox="0 0 12 12"
-            class="h-3 w-3"
-            aria-hidden="true"
-            focusable="false"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="1.5"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          >
-            <path d="M3 4.5l3 3 3-3" />
+    <!-- Milky glass, so the header reads on every tint. z-20 keeps its menus above the card. -->
+    <div class="relative z-20 border-b border-white/70 bg-white/55 backdrop-blur-md backdrop-saturate-150">
+      <header class="relative mx-auto flex max-w-xl flex-wrap items-center justify-between gap-y-1 px-4 pb-3 pt-5">
+        <div class="flex items-center gap-2 text-base font-semibold">
+          <svg viewBox="0 0 512 512" class="h-6 w-6" aria-hidden="true" focusable="false">
+            <rect width="512" height="512" rx="112" fill="#111827" />
+            <rect x="84" y="280" width="56" height="112" rx="14" fill="#BBF7D0" />
+            <rect x="156" y="200" width="56" height="192" rx="14" fill="#4ADE80" />
+            <rect x="228" y="128" width="56" height="264" rx="14" fill="#16A34A" />
+            <rect x="300" y="176" width="56" height="216" rx="14" fill="#22C55E" />
+            <rect x="372" y="248" width="56" height="144" rx="14" fill="#86EFAC" />
           </svg>
-        </button>
+          <h1>besttimetorun<span class="font-medium text-gray-500">.com</span></h1>
+        </div>
+        <nav class="-mr-1 ml-auto flex items-center gap-1 text-sm text-gray-600" aria-label="About the page">
+          <!-- On a phone Method, API and Privacy fold into "About", so the header stays on one line -->
+          <button
+            id="open-about"
+            type="button"
+            class="flex items-center gap-1 rounded-lg px-2 py-1.5 hover:bg-white hover:text-gray-900 sm:hidden"
+            aria-expanded="false"
+            aria-controls="about-menu"
+          >
+            About
+            <svg
+              viewBox="0 0 12 12"
+              class="h-3 w-3"
+              aria-hidden="true"
+              focusable="false"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.5"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path d="M3 4.5l3 3 3-3" />
+            </svg>
+          </button>
+          <div
+            id="about-menu"
+            class="absolute right-14 top-full z-20 -mt-1 flex w-40 flex-col rounded-2xl bg-white p-1.5 text-gray-700 shadow-[0_12px_32px_rgba(17,24,39,0.18)] ring-1 ring-black/5 [&[hidden]]:hidden sm:static sm:mt-0 sm:w-auto sm:flex-row sm:items-center sm:gap-1 sm:bg-transparent sm:p-0 sm:text-gray-600 sm:shadow-none sm:ring-0 sm:[&[hidden]]:flex"
+            hidden
+          >
+            <button
+              id="open-method"
+              type="button"
+              class="w-full rounded-xl px-3 py-2 text-left hover:bg-gray-100 sm:w-auto sm:rounded-lg sm:py-1.5 sm:hover:bg-white sm:hover:text-gray-900"
+              aria-haspopup="dialog"
+            >
+              Method
+            </button>
+            <button
+              id="open-api"
+              type="button"
+              class="w-full rounded-xl px-3 py-2 text-left hover:bg-gray-100 sm:w-auto sm:rounded-lg sm:py-1.5 sm:hover:bg-white sm:hover:text-gray-900"
+              aria-haspopup="dialog"
+            >
+              API
+            </button>
+            <button
+              id="open-privacy"
+              type="button"
+              class="w-full rounded-xl px-3 py-2 text-left hover:bg-gray-100 sm:w-auto sm:rounded-lg sm:py-1.5 sm:hover:bg-white sm:hover:text-gray-900"
+              aria-haspopup="dialog"
+            >
+              Privacy
+            </button>
+          </div>
+          <button
+            id="open-network"
+            type="button"
+            class="flex h-8 w-8 items-center justify-center rounded-full bg-white sm:ml-1 text-gray-700 ring-1 ring-black/10 hover:text-gray-900"
+            aria-label="More by Xander"
+            aria-expanded="false"
+            aria-controls="network-menu"
+          >
+            <svg viewBox="0 0 14 14" class="h-3.5 w-3.5 fill-current" aria-hidden="true" focusable="false">
+              <rect x="0" y="0" width="3" height="3" rx="0.75" />
+              <rect x="5.5" y="0" width="3" height="3" rx="0.75" />
+              <rect x="11" y="0" width="3" height="3" rx="0.75" />
+              <rect x="0" y="5.5" width="3" height="3" rx="0.75" />
+              <rect x="5.5" y="5.5" width="3" height="3" rx="0.75" />
+              <rect x="11" y="5.5" width="3" height="3" rx="0.75" />
+              <rect x="0" y="11" width="3" height="3" rx="0.75" />
+              <rect x="5.5" y="11" width="3" height="3" rx="0.75" />
+              <rect x="11" y="11" width="3" height="3" rx="0.75" />
+            </svg>
+          </button>
+        </nav>
         <div
-          id="about-menu"
-          class="absolute right-14 top-full z-20 -mt-1 flex w-40 flex-col rounded-2xl bg-white p-1.5 text-gray-700 shadow-[0_12px_32px_rgba(17,24,39,0.18)] ring-1 ring-black/5 [&[hidden]]:hidden sm:static sm:mt-0 sm:w-auto sm:flex-row sm:items-center sm:gap-1 sm:bg-transparent sm:p-0 sm:text-gray-600 sm:shadow-none sm:ring-0 sm:[&[hidden]]:flex"
+          id="network-menu"
+          class="absolute right-4 top-full z-20 -mt-1 w-72 max-w-[calc(100%-2rem)] rounded-2xl bg-white p-1.5 text-sm shadow-[0_12px_32px_rgba(17,24,39,0.18)] ring-1 ring-black/5"
           hidden
         >
-          <button
-            id="open-method"
-            type="button"
-            class="w-full rounded-xl px-3 py-2 text-left hover:bg-gray-100 sm:w-auto sm:rounded-lg sm:py-1.5 sm:hover:bg-white sm:hover:text-gray-900"
-            aria-haspopup="dialog"
+          <p class="px-3 pb-1 pt-2 text-[11px] font-medium uppercase tracking-wide text-gray-400">More by Xander</p>
+          <a
+            data-site="xadi.nl"
+            href="https://xadi.nl"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="flex items-center gap-3 rounded-xl px-3 py-2 hover:bg-gray-100 focus-visible:bg-gray-100"
           >
-            Method
-          </button>
-          <button
-            id="open-api"
-            type="button"
-            class="w-full rounded-xl px-3 py-2 text-left hover:bg-gray-100 sm:w-auto sm:rounded-lg sm:py-1.5 sm:hover:bg-white sm:hover:text-gray-900"
-            aria-haspopup="dialog"
+            <img src="/network/xadi.png" alt="" width="20" height="20" class="h-5 w-5 flex-none rounded" />
+            <span
+              ><span class="block font-semibold">xadi.nl</span>
+              <span class="text-xs text-gray-500">Professional site</span></span
+            >
+          </a>
+          <a
+            data-site="dap.xadi.eu"
+            href="https://dap.xadi.eu"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="flex items-center gap-3 rounded-xl px-3 py-2 hover:bg-gray-100 focus-visible:bg-gray-100"
           >
-            API
-          </button>
-          <button
-            id="open-privacy"
-            type="button"
-            class="w-full rounded-xl px-3 py-2 text-left hover:bg-gray-100 sm:w-auto sm:rounded-lg sm:py-1.5 sm:hover:bg-white sm:hover:text-gray-900"
-            aria-haspopup="dialog"
+            <img src="/network/dap.svg" alt="" width="20" height="20" class="h-5 w-5 flex-none rounded" />
+            <span
+              ><span class="block font-semibold">dap.xadi.eu</span>
+              <span class="text-xs text-gray-500">Day-ahead electricity prices for the EU</span></span
+            >
+          </a>
+          <a
+            data-site="emailconnect.eu"
+            href="https://emailconnect.eu"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="flex items-center gap-3 rounded-xl px-3 py-2 hover:bg-gray-100 focus-visible:bg-gray-100"
           >
-            Privacy
-          </button>
+            <img src="/network/emailconnect.png" alt="" width="20" height="20" class="h-5 w-5 flex-none rounded" />
+            <span
+              ><span class="block font-semibold">emailconnect.eu</span>
+              <span class="text-xs text-gray-500">Turn emails into JSON</span></span
+            >
+          </a>
+          <a
+            data-site="webhooktest.eu"
+            href="https://webhooktest.eu"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="flex items-center gap-3 rounded-xl px-3 py-2 hover:bg-gray-100 focus-visible:bg-gray-100"
+          >
+            <img src="/network/webhooktest.png" alt="" width="20" height="20" class="h-5 w-5 flex-none rounded" />
+            <span
+              ><span class="block font-semibold">webhooktest.eu</span>
+              <span class="text-xs text-gray-500">Feature-rich webhook testing</span></span
+            >
+          </a>
+          <a
+            data-site="stackcheck.eu"
+            href="https://stackcheck.eu"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="flex items-center gap-3 rounded-xl px-3 py-2 hover:bg-gray-100 focus-visible:bg-gray-100"
+          >
+            <img src="/network/stackcheck.png" alt="" width="20" height="20" class="h-5 w-5 flex-none rounded" />
+            <span
+              ><span class="block font-semibold">stackcheck.eu</span>
+              <span class="text-xs text-gray-500">Two-level analysis of a service's stack</span></span
+            >
+          </a>
+          <a
+            data-site="buymeacoffee.com"
+            href="https://buymeacoffee.com/xander.groesbeek"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="mt-1 flex items-center gap-3 rounded-xl border-t border-gray-100 px-3 py-2.5 font-semibold text-amber-800 hover:bg-amber-50 focus-visible:bg-amber-50"
+          >
+            <span class="w-5 flex-none text-center" aria-hidden="true">☕</span> Buy me a coffee
+          </a>
         </div>
-        <button
-          id="open-network"
-          type="button"
-          class="flex h-8 w-8 items-center justify-center rounded-full bg-white sm:ml-1 text-gray-700 ring-1 ring-black/10 hover:text-gray-900"
-          aria-label="More by Xander"
-          aria-expanded="false"
-          aria-controls="network-menu"
-        >
-          <svg viewBox="0 0 14 14" class="h-3.5 w-3.5 fill-current" aria-hidden="true" focusable="false">
-            <rect x="0" y="0" width="3" height="3" rx="0.75" />
-            <rect x="5.5" y="0" width="3" height="3" rx="0.75" />
-            <rect x="11" y="0" width="3" height="3" rx="0.75" />
-            <rect x="0" y="5.5" width="3" height="3" rx="0.75" />
-            <rect x="5.5" y="5.5" width="3" height="3" rx="0.75" />
-            <rect x="11" y="5.5" width="3" height="3" rx="0.75" />
-            <rect x="0" y="11" width="3" height="3" rx="0.75" />
-            <rect x="5.5" y="11" width="3" height="3" rx="0.75" />
-            <rect x="11" y="11" width="3" height="3" rx="0.75" />
-          </svg>
-        </button>
-      </nav>
-      <div
-        id="network-menu"
-        class="absolute right-4 top-full z-20 -mt-1 w-72 max-w-[calc(100%-2rem)] rounded-2xl bg-white p-1.5 text-sm shadow-[0_12px_32px_rgba(17,24,39,0.18)] ring-1 ring-black/5"
-        hidden
-      >
-        <p class="px-3 pb-1 pt-2 text-[11px] font-medium uppercase tracking-wide text-gray-400">More by Xander</p>
-        <a
-          data-site="xadi.nl"
-          href="https://xadi.nl"
-          target="_blank"
-          rel="noopener noreferrer"
-          class="flex items-center gap-3 rounded-xl px-3 py-2 hover:bg-gray-100 focus-visible:bg-gray-100"
-        >
-          <img src="/network/xadi.png" alt="" width="20" height="20" class="h-5 w-5 flex-none rounded" />
-          <span
-            ><span class="block font-semibold">xadi.nl</span>
-            <span class="text-xs text-gray-500">Professional site</span></span
-          >
-        </a>
-        <a
-          data-site="dap.xadi.eu"
-          href="https://dap.xadi.eu"
-          target="_blank"
-          rel="noopener noreferrer"
-          class="flex items-center gap-3 rounded-xl px-3 py-2 hover:bg-gray-100 focus-visible:bg-gray-100"
-        >
-          <img src="/network/dap.svg" alt="" width="20" height="20" class="h-5 w-5 flex-none rounded" />
-          <span
-            ><span class="block font-semibold">dap.xadi.eu</span>
-            <span class="text-xs text-gray-500">Day-ahead electricity prices for the EU</span></span
-          >
-        </a>
-        <a
-          data-site="emailconnect.eu"
-          href="https://emailconnect.eu"
-          target="_blank"
-          rel="noopener noreferrer"
-          class="flex items-center gap-3 rounded-xl px-3 py-2 hover:bg-gray-100 focus-visible:bg-gray-100"
-        >
-          <img src="/network/emailconnect.png" alt="" width="20" height="20" class="h-5 w-5 flex-none rounded" />
-          <span
-            ><span class="block font-semibold">emailconnect.eu</span>
-            <span class="text-xs text-gray-500">Turn emails into JSON</span></span
-          >
-        </a>
-        <a
-          data-site="webhooktest.eu"
-          href="https://webhooktest.eu"
-          target="_blank"
-          rel="noopener noreferrer"
-          class="flex items-center gap-3 rounded-xl px-3 py-2 hover:bg-gray-100 focus-visible:bg-gray-100"
-        >
-          <img src="/network/webhooktest.png" alt="" width="20" height="20" class="h-5 w-5 flex-none rounded" />
-          <span
-            ><span class="block font-semibold">webhooktest.eu</span>
-            <span class="text-xs text-gray-500">Feature-rich webhook testing</span></span
-          >
-        </a>
-        <a
-          data-site="stackcheck.eu"
-          href="https://stackcheck.eu"
-          target="_blank"
-          rel="noopener noreferrer"
-          class="flex items-center gap-3 rounded-xl px-3 py-2 hover:bg-gray-100 focus-visible:bg-gray-100"
-        >
-          <img src="/network/stackcheck.png" alt="" width="20" height="20" class="h-5 w-5 flex-none rounded" />
-          <span
-            ><span class="block font-semibold">stackcheck.eu</span>
-            <span class="text-xs text-gray-500">Two-level analysis of a service's stack</span></span
-          >
-        </a>
-        <a
-          data-site="buymeacoffee.com"
-          href="https://buymeacoffee.com/xander.groesbeek"
-          target="_blank"
-          rel="noopener noreferrer"
-          class="mt-1 flex items-center gap-3 rounded-xl border-t border-gray-100 px-3 py-2.5 font-semibold text-amber-800 hover:bg-amber-50 focus-visible:bg-amber-50"
-        >
-          <span class="w-5 flex-none text-center" aria-hidden="true">☕</span> Buy me a coffee
-        </a>
-      </div>
-    </header>
+      </header>
+    </div>
+    <!-- Today's new places left (Plan.quotaBar, from /api/capacity): a rainbow fixed to the full width, so it
+         shortens from the right and loses colour as places are used; amber under 10 %. app.js sets the fill and
+         filter, which point at the gradient and filter below. -->
+    <svg
+      id="quota-bar"
+      class="[&[hidden]]:hidden block h-[3px] w-full"
+      role="img"
+      aria-label="Today's new places"
+      hidden
+    >
+      <defs>
+        <linearGradient id="quota-rainbow" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="100%" y2="0">
+          <stop offset="0" stop-color="#ef4444" />
+          <stop offset="0.17" stop-color="#f97316" />
+          <stop offset="0.33" stop-color="#eab308" />
+          <stop offset="0.5" stop-color="#22c55e" />
+          <stop offset="0.67" stop-color="#06b6d4" />
+          <stop offset="0.83" stop-color="#3b82f6" />
+          <stop offset="1" stop-color="#8b5cf6" />
+        </linearGradient>
+        <filter id="quota-fade">
+          <feColorMatrix id="quota-saturate" type="saturate" values="1" />
+        </filter>
+      </defs>
+      <rect width="100%" height="3" class="fill-gray-900/5" />
+      <rect id="quota-fill" width="100%" height="3" />
+    </svg>
 
-    <main class="mx-auto max-w-xl px-3 pb-10 sm:px-4">
+    <main class="mx-auto max-w-xl px-3 pb-10 pt-3 sm:px-4">
       <section
         class="overflow-hidden rounded-2xl bg-white shadow-[0_1px_2px_rgba(0,0,0,0.05),0_8px_24px_rgba(17,24,39,0.06)] ring-1 ring-black/5"
         aria-label="Best time to run"
@@ -772,7 +805,8 @@
           <p>
             The service accepts at most 300 locations per UTC day, to stay within the weather provider's free limits. A
             location that was admitted keeps working all day. A new location over the limit gets a 503 until UTC
-            midnight.
+            midnight. <code>GET /api/capacity</code> says how much is left: the share in 5 % steps, taken once an hour,
+            and whether it is full. The coloured line under the header shows it.
           </p>
         </div>
       </div>
@@ -815,6 +849,10 @@
             the event only when you choose them; this service never does.
           </li>
           <li>The service receives the coordinates you send.</li>
+          <li>
+            The coloured line under the header asks how much of today's capacity is left. That request carries nothing
+            about you, and the answer is coarse and up to an hour old, so it cannot show whether a place was looked up.
+          </li>
           <li>
             The service needs no token and knows nothing about your training. The TRMNL Running Board calls Tredict from
             inside TRMNL, so its token never comes here.

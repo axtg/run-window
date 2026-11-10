@@ -92,8 +92,9 @@ test approach. Read its `CLAUDE.md` first. Reuse rather than reinvent:
   share, location), `Calendar` (`google`, `outlook` or `ics`) and `Network` (which site in the menu). Never a value, a coordinate or anything from the route.
   Blocked Plausible changes nothing. Each event needs a goal in the Plausible dashboard to show up there.
 - Tailwind scans only `index.html`, `app.js` and `strip.js`: run `npm run build:css` after editing them, comments too.
-- The route file never leaves the browser. The only request the page makes to its own server is `/api/window` with `lat`
-  and `lon` at 2 decimals plus `avail`, `dark`, `rain`, `prefer` and `slots=1`; the only other is Plausible's. Nothing
+- The route file never leaves the browser. The page makes two requests to its own server: `/api/window` with `lat`
+  and `lon` at 2 decimals plus `avail`, `dark`, `rain`, `prefer` and `slots=1`, and `/api/capacity` with nothing (on
+  load, and again after a 503); the only other is Plausible's. Nothing
   from the file goes into storage, the URL or analytics.
 - The page is one card with slim settings rows:
   - Run: without a route, only the duration stepper (pace would only feed an estimate, so it is hidden but kept in
@@ -130,6 +131,15 @@ test approach. Read its `CLAUDE.md` first. Reuse rather than reinvent:
     and Calendar file (.ics), which downloads `run.ics` built in the page (`Plan.icsText`, folded at 75 octets).
     An Android `intent:` URL was tried first (2026-11-07) and doesn't work: Chrome marks web intents browsable and
     the calendar's new-event screen doesn't accept them.
+- The page's tint: `<body data-sky="…">`, set by `Plan.skyTheme` from the shown window (wet, then dark, windy, cold,
+  warm, else mild) or, without one, the device's hour (morning before 12, else evening). Each theme is a
+  `data-[sky=…]:bg-[linear-gradient(…)]` variant on `<body>`; `tests/web/plan.test.js` checks every name has one. The
+  card stays white. The header sits on milky glass (`bg-white/55 backdrop-blur-md`, `z-20` so its menus stay above
+  the card).
+- Under the header, `#quota-bar` (an SVG; `Plan.quotaBar`) shows today's new places left from `/api/capacity`: a
+  rainbow fixed to the full width, so it shortens from the right; paler (opacity and an SVG saturate filter) as it
+  shrinks, amber under 10 %, gone when full. Always shown; any failure leaves it out. app.js sets its `fill` and
+  `filter`, as `tests/landing.test.js` allows no `url(` in index.html.
 - Below the answer: one timeline joining strip and graph, then one row with the legend (`#chart-legend`: feels, wind,
   rain, dark; no units, the chart has no axis values) and the hint, then the why line. A selected slot's line names
   its own values and takes the row: the legend hides until nothing is selected.
@@ -161,6 +171,11 @@ test approach. Read its `CLAUDE.md` first. Reuse rather than reinvent:
 - nginx has a `/share-target` location for when the worker isn't there: `client_max_body_size 0` (nginx checks the size
   before `return`, so the default would answer 413), `return 303 /?share=failed`, never proxied, so the body never
   reaches Node. Express has no body parser and must not get one. It is the only location without `proxy_pass`.
+- `/api/capacity` (`routes/capacity.js`, `weatherCache.capacity`): `perDay`, `remainingShare`, `full`, `asOf`,
+  `resetsAt`. A live count would show whether a location was requested today (ask for it, watch the count; the reason
+  `/health/cache` is host-only), so the share is taken once an hour and rounded down to 5 % steps (at least 0.05 until
+  full). `full` is live, as the 503 already tells. Meant for the page's bar and for the TRMNL plugin to say why it
+  shows no window.
 - A new public path goes in both `LOGGABLE_PATHS` (`middleware/logging.js`) and the nginx `$run_window_path` map;
   `tests/deployConfig.test.js` checks they match.
 - Release order: the manifest's `share_target` entry needs the nginx change live on the host, because without it a

@@ -35,6 +35,7 @@ const getClientId = ip => {
 const LOGGABLE_PATHS = new Set([
   '/',
   '/api/window',
+  '/api/capacity',
   '/health',
   '/health/cache',
   '/openapi.yaml',

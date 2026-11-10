@@ -69,7 +69,7 @@
     'wind-arrow wind-text tomorrow-hint try-tomorrow tomorrow-text stale-note status ' +
     'result timeline chart-legend tap-line why-sentence copy-link open-method open-api open-privacy ' +
     'method-dialog api-dialog privacy-dialog close-method close-api close-privacy open-about about-menu ' +
-    'open-network network-menu copy-label copy-icon copy-check copy-note'
+    'open-network network-menu copy-label copy-icon copy-check copy-note quota-bar quota-fill quota-saturate'
   ).split(' ');
   const camel = id => id.replace(/-(\w)/g, (_, letter) => letter.toUpperCase());
   const el = Object.fromEntries(IDS.map(id => [camel(id), document.getElementById(id)]));
@@ -498,6 +498,7 @@
       } else {
         const retryAfter = Number(response.headers.get('Retry-After')) || null;
         message = Plan.errorMessage({ status: response.status, message: json && json.message, retryAfter });
+        if (response.status === 503) loadCapacity(); // it may be the day's cap: let the bar say so
       }
     } catch {
       message = Plan.errorMessage({ status: 0 });
@@ -672,6 +673,32 @@
     return { result, minutes, text: `${el.answerLabel.textContent} ${el.answerTime.textContent}`.trim() };
   }
 
+  // The page's tint (index.html has a `data-sky` variant per theme). Without an answer, the device's hour picks it.
+  function setSky(result, day) {
+    document.body.setAttribute('data-sky', Plan.skyTheme(result, day, new Date().getHours()));
+  }
+
+  // The rainbow under the header. It asks /api/capacity, which takes no parameters and says nothing about this visitor;
+  // any failure just leaves the bar out.
+  async function loadCapacity() {
+    let bar = null;
+    try {
+      const response = await fetch(new URL('/api/capacity', location.origin).toString());
+      if (response.ok) bar = Plan.quotaBar(await response.json());
+    } catch {
+      bar = null;
+    }
+    // SVG elements have no `hidden` property, only the attribute.
+    el.quotaBar.toggleAttribute('hidden', !bar);
+    if (!bar) return;
+    el.quotaBar.setAttribute('aria-label', bar.label);
+    el.quotaFill.setAttribute('width', bar.width);
+    el.quotaFill.setAttribute('fill', bar.amber ? '#f59e0b' : 'url(#quota-rainbow)');
+    el.quotaFill.setAttribute('filter', 'url(#quota-fade)');
+    el.quotaFill.setAttribute('opacity', bar.opacity);
+    el.quotaSaturate.setAttribute('values', bar.saturate);
+  }
+
   function render() {
     renderSource();
     renderRunRow();
@@ -681,6 +708,7 @@
     const day = state.location ? currentDay() : null;
     el.prompt.hidden = Boolean(state.location);
     if (!day) {
+      setSky(null, null);
       el.answer.hidden = true;
       el.result.hidden = true;
       el.zoneNote.hidden = true;
@@ -694,6 +722,7 @@
 
     const dayLabel = state.dayIndex === 0 ? 'today' : 'tomorrow';
     const { result, minutes, text } = renderAnswer(day, timeZone, dayLabel);
+    setSky(result, day);
     const slots = day.slots || [];
     const range = outlineRange(slots, result, minutes);
     const label = `Timeline, ${dayLabel}: ${text}`;
@@ -910,6 +939,7 @@
   showRain(state.settings.rain);
   buildHours();
   render();
+  loadCapacity();
   registerWorker();
   receiveShare();
 

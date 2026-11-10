@@ -10,6 +10,7 @@ const { securityHeaders } = require('./middleware/securityHeaders');
 const { createWeatherCache } = require('./lib/weatherCache');
 const { fetchForecast } = require('./lib/openMeteo');
 const { createWindowRouter } = require('./routes/window');
+const { createCapacityRouter } = require('./routes/capacity');
 
 const OPENAPI_FILE = path.join(__dirname, 'docs', 'openapi.yaml');
 const LOOPBACK = new Set(['127.0.0.1', '::1', '::ffff:127.0.0.1']);
@@ -56,7 +57,12 @@ function createApp({ weather, now = Date.now, rateLimit } = {}) {
     });
   });
 
-  app.use('/api', createRateLimiter({ limit }), createWindowRouter({ weather: forecasts, now }));
+  app.use(
+    '/api',
+    createRateLimiter({ limit }),
+    createWindowRouter({ weather: forecasts, now }),
+    createCapacityRouter({ weather: forecasts })
+  );
 
   app.use((req, res) => {
     res.status(404).json({ status: 'error', message: 'Endpoint not found.' });
