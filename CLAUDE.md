@@ -207,6 +207,12 @@ test approach. Read its `CLAUDE.md` first. Reuse rather than reinvent:
   15-minute slots). Both build their answer with `lib/windowResponse.js`, the same code as `/api/window`, so
   validation, the 2-decimal rounding and the day's cap are identical. Only this app's 4xx messages and its own 503s
   (capacity, weather unavailable) reach the client; anything else is "Internal server error" and goes to `logError`.
+  `find_best_run_time` comes with a view (an MCP App, since 2026-11-10): its `_meta.ui.resourceUri` names
+  `ui://besttimetorun/day.html`, which `lib/mcpView.js` serves as one HTML file (`text/html;profile=mcp-app`) built
+  from `mcp-view/` with the page's own `plan.js` and `strip.js` inlined, so it shows the page's answer and timeline.
+  The day's slots and window go to it in the result's `_meta` (`com.besttimetorun/day`), not in the model's text. It
+  speaks the MCP Apps postMessage protocol itself (no SDK in the frame), loads and fetches nothing (`csp: {}`), and
+  opens besttimetorun.com through `ui/open-link`. Hosts without MCP Apps get the same JSON as before.
   The API dialog has the connector link (and links `llms.txt`). The first prompt (`Plan.firstPrompt`, from the settings,
   with `[your town]` in place of the location) has a card of its own under the main one (`mt-5`, same width), with a
   New badge, More info at the top right (opens the API dialog at its MCP section, counted as `Dialog: api`) and a

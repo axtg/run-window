@@ -99,6 +99,25 @@ describe('POST /mcp', () => {
       }
     });
 
+    test('find_best_run_time names its view, for hosts that show MCP Apps', async () => {
+      const { result } = parseReply(await rpc('tools/list').expect(200));
+      const byName = Object.fromEntries(result.tools.map(tool => [tool.name, tool]));
+      expect(byName.find_best_run_time._meta).toEqual({
+        ui: { resourceUri: 'ui://besttimetorun/day.html' },
+        'ui/resourceUri': 'ui://besttimetorun/day.html'
+      });
+      expect(byName.get_run_conditions._meta).toBeUndefined();
+    });
+
+    test('serves the view as one HTML file that may load nothing', async () => {
+      const { result } = parseReply(await rpc('resources/read', { uri: 'ui://besttimetorun/day.html' }).expect(200));
+      const [view] = result.contents;
+      expect(view.mimeType).toBe('text/html;profile=mcp-app');
+      expect(view.text).toMatch(/^<!doctype html>/i);
+      expect(view._meta).toEqual({ ui: { csp: {}, prefersBorder: true } });
+      expect(weather.getForecast).not.toHaveBeenCalled();
+    });
+
     test('a current client gets plain JSON', async () => {
       const response = await post(
         {
@@ -182,6 +201,17 @@ describe('POST /mcp', () => {
       );
     });
 
+    test("gives the view the day's slots and the window in _meta, outside the model's text", async () => {
+      const result = await callTool('find_best_run_time', { ...AMSTERDAM, minutes: 60, hours: '12-16' });
+      const view = result._meta['com.besttimetorun/day'];
+      expect(view).toMatchObject({ dayLabel: 'today', minutes: 60, timeZone: 'Europe/Amsterdam' });
+      expect(Object.keys(view.day.windows)).toEqual(['60']);
+      expect(view.day.windows['60'].start).toBe('2026-11-02T12:00:00.000Z');
+      expect(view.day.slots).toHaveLength(16);
+      expect(view.day.slots[0]).toMatchObject({ start: '2026-11-02T11:00:00.000Z', status: 'ok' });
+      expect(result.content[0].text).not.toContain('slots');
+    });
+
     test('rounds the length up to 15 minutes, and sends the settings as the API takes them', async () => {
       const data = await toolData('find_best_run_time', {
         ...AMSTERDAM,
@@ -204,6 +234,8 @@ describe('POST /mcp', () => {
       );
       expect(data.tryNext).toMatch(/higher maxRainChance/);
       expect(data.leastBadHour).toMatchObject({ dry: false, rainChanceMax: 90 });
+      const { _meta } = await callTool('find_best_run_time', { ...AMSTERDAM, day: 'tomorrow' });
+      expect(_meta['com.besttimetorun/day'].day).toMatchObject({ windows: {}, fallback: expect.any(Object) });
     });
 
     test('a bad hours value is a tool error with the reason', async () => {
@@ -254,6 +286,7 @@ describe('POST /mcp', () => {
         rainMm: 0
       });
       expect(data.statuses).toContain('rain: over maxRainChance');
+      expect((await callTool('get_run_conditions', AMSTERDAM))._meta).toBeUndefined();
     });
 
     test('marks slots already past and the dark', async () => {

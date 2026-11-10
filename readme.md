@@ -13,7 +13,8 @@ planned.
   sign-in. In Claude, add it as a custom connector with "No sign in", then ask something like "when is the best time
   today for a 45-minute run near Utrecht? I can run 7–9 or 17–21". Tools: `find_best_run_time` (the best stretch of a
   given length today or tomorrow, its conditions and which way to start) and `get_run_conditions` (the day's
-  15-minute slots). They answer exactly as `/api/window` does.
+  15-minute slots). They answer exactly as `/api/window` does. In assistants that show MCP Apps, such as Claude,
+  the best time comes with the page's timeline.
 - `integrations/trmnl-running-board`: TRMNL plugin combining this week's Tredict training, a form graph and today's
   run window on one screen.
 

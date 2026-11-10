@@ -4,7 +4,9 @@ const { toNodeHandler } = require('@modelcontextprotocol/node');
 const { formatInTimeZone } = require('date-fns-tz');
 const { z } = require('zod');
 
+const { VIEW_MIME_TYPE, VIEW_URI, viewHtml } = require('../lib/mcpView');
 const { buildWindowBody } = require('../lib/windowResponse');
+const { VIEW_META_KEY } = require('../mcp-view/day');
 const { PREFERENCES, cardinal } = require('../lib/windows');
 const { logError } = require('../middleware/logging');
 const { version } = require('../package.json');
@@ -130,24 +132,44 @@ function dayContext(body, day) {
 
 const pickDay = (body, day) => body.days[day === 'tomorrow' ? 1 : 0];
 
+// What the view (mcp-view/day.js) draws: the day's slots and the chosen window, in the API's own shape, so it can use
+// the page's plan.js and strip.js unchanged. It goes in the result's `_meta`, which the model doesn't read.
+function viewPayload(apiDay, args, minutes, timezone) {
+  const window = apiDay.windows[String(minutes)];
+  return {
+    dayLabel: args.day,
+    minutes,
+    timeZone: timezone,
+    day: {
+      sunrise: apiDay.sunrise,
+      sunset: apiDay.sunset,
+      windows: window ? { [String(minutes)]: window } : {},
+      fallback: apiDay.fallback || null,
+      slots: apiDay.slots || []
+    }
+  };
+}
+
 async function findBestRunTime(args, { weather, now }) {
-  const body = await buildWindowBody({ query: windowQuery(args), weather, now });
+  const body = await buildWindowBody({ query: windowQuery(args, { slots: true }), weather, now });
   const day = pickDay(body, args.day);
   const minutes = Math.ceil(args.minutes / SLOT_MINUTES) * SLOT_MINUTES;
   const { timezone } = body.location;
   const window = day.windows[String(minutes)];
+  const view = viewPayload(day, args, minutes, timezone);
   if (window) {
-    return {
+    const data = {
       available: true,
       day: args.day,
       minutes,
       ...dayContext(body, day),
       window: describeWindow(window, timezone)
     };
+    return { data, view };
   }
 
   const limits = `${body.params.rain} % chance of rain${body.params.dark === 'avoid' ? ', in daylight' : ''}`;
-  return {
+  const data = {
     available: false,
     day: args.day,
     minutes,
@@ -157,6 +179,7 @@ async function findBestRunTime(args, { weather, now }) {
     ...(day.fallback && { leastBadHour: describeWindow(day.fallback, timezone) }),
     ...dayContext(body, day)
   };
+  return { data, view };
 }
 
 async function getRunConditions(args, { weather, now }) {
@@ -181,8 +204,8 @@ async function getRunConditions(args, { weather, now }) {
   };
 }
 
-function toolResult(data) {
-  return { content: [{ type: 'text', text: JSON.stringify(data) }] };
+function toolResult(data, view) {
+  return { content: [{ type: 'text', text: JSON.stringify(data) }], ...(view && { _meta: { [VIEW_META_KEY]: view } }) };
 }
 
 // Only this app's own 4xx messages and its 503s (capacity, weather unavailable) reach the client, as in app.js.
@@ -197,7 +220,8 @@ function toolError(error) {
 function safely(handler, context) {
   return async args => {
     try {
-      return toolResult(await handler(args, context));
+      const result = await handler(args, context);
+      return result.view ? toolResult(result.data, result.view) : toolResult(result);
     } catch (error) {
       return toolError(error);
     }
@@ -216,7 +240,9 @@ function createServerFactory(context) {
           'within the hours the user can run, never in the past. Returns its local start and end, the conditions ' +
           '(rain, feels-like temperature, wind) and which way to start. When nothing fits, says why.',
         inputSchema: bestTimeInput,
-        annotations: READ_ONLY
+        annotations: READ_ONLY,
+        // Hosts that show MCP Apps draw the answer and the day's timeline with it; both keys, as hosts read either.
+        _meta: { ui: { resourceUri: VIEW_URI }, 'ui/resourceUri': VIEW_URI }
       },
       safely(findBestRunTime, context)
     );
@@ -231,6 +257,26 @@ function createServerFactory(context) {
         annotations: READ_ONLY
       },
       safely(getRunConditions, context)
+    );
+
+    server.registerResource(
+      'day-view',
+      VIEW_URI,
+      {
+        title: 'Best time to run: the day',
+        description: 'The answer and the day timeline, as on besttimetorun.com. Loads and fetches nothing.',
+        mimeType: VIEW_MIME_TYPE
+      },
+      async () => ({
+        contents: [
+          {
+            uri: VIEW_URI,
+            mimeType: VIEW_MIME_TYPE,
+            text: viewHtml(),
+            _meta: { ui: { csp: {}, prefersBorder: true } } // no network at all
+          }
+        ]
+      })
     );
 
     return server;
