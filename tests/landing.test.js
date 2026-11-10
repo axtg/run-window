@@ -297,11 +297,14 @@ test('Dark has its own row with the times and an OK switch; add hours is a round
 
 test('the answer puts the key numbers beside the time from sm up, and the wind line has a hidden compass', () => {
   const numbers = html.match(/<dl\b[^>]*id="key-numbers"[^>]*>/)[0];
-  // Two auto columns: four minmax(0,1fr) ones in this shrink-to-fit list collapsed and overlapped (2026-11-07).
-  expect(numbers).toMatch(/sm:grid-cols-\[repeat\(2,auto\)\]/);
+  // Two equal 1fr columns: in this shrink-to-fit list each takes the widest cell's width. Never minmax(0,1fr): four of
+  // those collapsed and overlapped (2026-11-07).
+  expect(numbers).toMatch(/["\s]grid-cols-2["\s]/);
+  expect(numbers).not.toMatch(/minmax\(0/);
   expect(numbers).toMatch(/sm:col-start-2/);
   expect(numbers).toMatch(/sm:justify-self-end/); // beside the time with its own gaps, not spread over the row
-  expect(html).toMatch(/id="answer"[^>]*sm:grid-cols-\[auto_1fr\]/); // the left column takes the width it needs
+  // The numbers' column keeps its width, the time's side gives way (its wind line wraps)
+  expect(html).toMatch(/id="answer"[^>]*sm:grid-cols-\[minmax\(0,1fr\)_auto\]/);
   const time = html.match(/<p\b[^>]*id="answer-time"[^>]*>/)[0];
   expect(time).toMatch(/["\s]whitespace-nowrap["\s]/); // never "14:00–" / "14:45"
   const wind = html.match(/<p\b[^>]*id="wind-line"[^>]*>([\s\S]*?)<\/p>/);

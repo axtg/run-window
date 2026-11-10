@@ -128,15 +128,18 @@ test approach. Read its `CLAUDE.md` first. Reuse rather than reinvent:
 - Under the settings is a big answer with key numbers: Sky, Feels and Wind (Feels and Wind with a context word such as
   `ideal` or `light`, in a light pill next to the label, so the numbers take one line), then Climb (with a route) or
   Plan (the distance at the pace; the minutes are already in "Best time · 45 min").
-  - From `sm:` up, the numbers sit to the right of the time in a 2 × 2 grid (four across doesn't fit the card). On a
-    phone they sit under it.
+  - The numbers are one outlined 2 × 2 block of equal cells: the `dl`'s grey shows through 1 px gaps as the lines,
+    its rounded corners round only the outer ones. Its two `1fr` columns take the widest cell's width (never
+    `minmax(0,1fr)`, which collapsed), and the block shrinks to them. From `sm:` up it sits to the right of the time,
+    40 px from it (the answer's columns are `minmax(0,1fr)_auto`, so the time's side gives way); on a phone, under it.
   - The wind line is in words (`Wind from the east · start east, into it`), with a compass whose arrow shows where the
     wind blows to, as on a weather map, so you start running against the arrow. In little wind (under 10 km/h) the
     line and compass are hidden: the Wind pill already says `light` or `calm`. The calendar description keeps
     `Little wind`.
   - The day switch is Today · Wed · Thu (`#day-today`, `#day-tomorrow`, `#day-after`; weekdays from the location's
     dates, `Plan.dayButton`). The API covers three days; further out a forecast shifts too much to plan an hour on,
-    so the day after carries `#outlook-note` (`Plan.outlookNote`).
+    so the day after carries `#outlook-note` (`Plan.outlookNote`, one line: `💡 The forecast can still shift.`; the
+    MCP's `forecastNote` adds `check again on the day`).
   - When nothing fits, the line says why (`Plan.noWindowCause`, shared with the MCP): hours gone by, too little time
     left or in daylight, and only then no dry window.
   - When today has no window and tomorrow has one, a `Try tomorrow →` button shows what tomorrow holds.

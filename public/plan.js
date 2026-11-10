@@ -369,8 +369,13 @@
     return `on ${weekday(date, 'long')}`;
   }
   // The day after tomorrow is as far as the page looks: past that a forecast shifts too much to plan an hour on.
-  const OUTLOOK_NOTE = 'Two days out, the forecast can still shift: check again on the day.';
-  const outlookNote = index => (index >= 2 ? OUTLOOK_NOTE : null);
+  // The page and the MCP view show the one-line form under the answer; the MCP's text says what to do about it.
+  const OUTLOOK_NOTE = 'The forecast can still shift: check again on the day.';
+  const OUTLOOK_SHORT = '💡 The forecast can still shift.';
+  const outlookNote = (index, { short = false } = {}) => {
+    if (index < 2) return null;
+    return short ? OUTLOOK_SHORT : OUTLOOK_NOTE;
+  };
 
   // The longest run of back-to-back slots whose status is one of `statuses`, in minutes.
   function longestStretch(slots, statuses) {

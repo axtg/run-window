@@ -50,7 +50,7 @@
       numbers: Plan.keyNumbers(result, null, minutes),
       arrow,
       windText: arrow === null ? '' : Plan.windLine(null, result.window),
-      outlook: Plan.outlookNote(index),
+      outlook: Plan.outlookNote(index, { short: true }),
       // No why line for the least bad hour: it is the dry stretch's sentence, and that hour isn't dry.
       why:
         range && result.kind === 'window' ? Strip.whySentence(slots, range, { timeZone, sunsetIso: day.sunset }) : '',

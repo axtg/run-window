@@ -763,3 +763,10 @@ describe('firstPrompt', () => {
     expect(firstPrompt({ ...base, prefer: 'temp' })).toContain('I mind the temperature most.');
   });
 });
+
+test('outlookNote: only the day after, one line on the page, what to do in the MCP text', () => {
+  const { outlookNote } = RunPlan;
+  expect(outlookNote(1)).toBeNull();
+  expect(outlookNote(2, { short: true })).toBe('💡 The forecast can still shift.');
+  expect(outlookNote(2)).toBe('The forecast can still shift: check again on the day.');
+});
