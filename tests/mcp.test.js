@@ -204,7 +204,7 @@ describe('POST /mcp', () => {
     test("gives the view the day's slots and the window in _meta, outside the model's text", async () => {
       const result = await callTool('find_best_run_time', { ...AMSTERDAM, minutes: 60, hours: '12-16' });
       const view = result._meta['com.besttimetorun/day'];
-      expect(view).toMatchObject({ dayLabel: 'today', minutes: 60, timeZone: 'Europe/Amsterdam' });
+      expect(view).toMatchObject({ dayIndex: 0, date: '2026-11-02', minutes: 60, timeZone: 'Europe/Amsterdam' });
       expect(Object.keys(view.day.windows)).toEqual(['60']);
       expect(view.day.windows['60'].start).toBe('2026-11-02T12:00:00.000Z');
       expect(view.day.slots).toHaveLength(16);
@@ -262,6 +262,24 @@ describe('POST /mcp', () => {
         'Not enough time: the longest stretch that is in daylight within 16-19 today is 60 minutes.'
       );
       expect(data.tryNext).toBe('More hours, a shorter run, darkOk.');
+    });
+
+    test('looks at the day after tomorrow by its date, with a note that the forecast can shift', async () => {
+      const data = await toolData('find_best_run_time', { ...AMSTERDAM, day: '2026-11-04', darkOk: true });
+      expect(data).toMatchObject({ day: '2026-11-04', date: '2026-11-04' });
+      expect(data.forecastNote).toMatch(/can still shift/);
+      const today = await toolData('find_best_run_time', AMSTERDAM);
+      expect(today.forecastNote).toBeUndefined();
+    });
+
+    test('a date without a forecast here is a tool error naming the days there are', async () => {
+      const result = await callTool('find_best_run_time', { ...AMSTERDAM, day: '2026-11-09' });
+      expect(result.isError).toBe(true);
+      expect(JSON.parse(result.content[0].text).error).toBe(
+        'Invalid day: 2026-11-09 is not one of the days with a forecast here (2026-11-02, 2026-11-03, 2026-11-04)'
+      );
+      const wrong = await callTool('find_best_run_time', { ...AMSTERDAM, day: 'Thursday' });
+      expect(wrong.isError).toBe(true);
     });
 
     test('a bad hours value is a tool error with the reason', async () => {

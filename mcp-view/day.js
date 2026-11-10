@@ -32,14 +32,16 @@
   function viewModel(payload) {
     if (!payload || !payload.day || !payload.timeZone || !payload.minutes) return null;
     const { day, minutes, timeZone } = payload;
-    const dayLabel = payload.dayLabel === 'tomorrow' ? 'tomorrow' : 'today';
+    const index = [0, 1, 2].includes(payload.dayIndex) ? payload.dayIndex : 0;
+    const dayLabel = Plan.dayLabel(index, payload.date || '');
+    const dayName = capitalise(dayLabel.replace(/^on /, '')); // Today, Tomorrow, Thursday
     const result = Plan.pickResult({ windows: day.windows || {}, fallback: day.fallback || null }, minutes);
     const none = result.kind === 'none';
     const slots = Array.isArray(day.slots) ? day.slots : [];
     const range = outlineRange(slots, result, minutes);
     const arrow = none ? null : Plan.windArrowDeg(result.window);
     return {
-      label: none ? capitalise(dayLabel) : `${capitalise(dayLabel)} · ${Plan.answerLabel(result, minutes)}`,
+      label: none ? dayName : `${dayName} · ${Plan.answerLabel(result, minutes)}`,
       time: none
         ? Plan.noWindowText(minutes, dayLabel, Plan.noWindowCause(slots, minutes))
         : Plan.answerTime(result, { minutes, timeZone }),
@@ -48,6 +50,7 @@
       numbers: Plan.keyNumbers(result, null, minutes),
       arrow,
       windText: arrow === null ? '' : Plan.windLine(null, result.window),
+      outlook: Plan.outlookNote(index),
       // No why line for the least bad hour: it is the dry stretch's sentence, and that hour isn't dry.
       why:
         range && result.kind === 'window' ? Strip.whySentence(slots, range, { timeZone, sunsetIso: day.sunset }) : '',
@@ -157,6 +160,8 @@
     $('wind').hidden = model.arrow === null;
     $('wind-text').textContent = model.windText;
     if (model.arrow !== null) $('wind-arrow').setAttribute('transform', `rotate(${model.arrow} 14 14)`);
+    $('outlook').hidden = !model.outlook;
+    $('outlook').textContent = model.outlook || '';
     $('why').textContent = model.why;
     draw();
   }

@@ -7,7 +7,7 @@ const { z } = require('zod');
 const { VIEW_MIME_TYPE, VIEW_URI, viewHtml } = require('../lib/mcpView');
 const { buildWindowBody } = require('../lib/windowResponse');
 const { VIEW_META_KEY } = require('../mcp-view/day');
-const { noWindowCause } = require('../public/plan');
+const Plan = require('../public/plan');
 const { PREFERENCES, cardinal } = require('../lib/windows');
 const { logError } = require('../middleware/logging');
 const { version } = require('../package.json');
@@ -30,8 +30,8 @@ const CARDINAL_NAMES = {
 
 // One paragraph: the hard line breaks of a template literal would reach the client as they are.
 const INSTRUCTIONS = [
-  'Finds the best time to run outdoors today or tomorrow from the weather forecast: the driest, calmest, most',
-  'comfortable stretch within the hours someone can run, and which way to start so the wind is behind them on the',
+  'Finds the best time to run outdoors today, tomorrow or the day after from the weather forecast: the driest, calmest,',
+  'most comfortable stretch within the hours someone can run, and which way to start so the wind is behind them on the',
   "way back. It needs where the run starts: if you don't know the user's town, ask for it, then pass its",
   'coordinates (they are rounded to about 1 km). Times are local to that place. Weather data by Open-Meteo.com',
   '(CC BY 4.0): mention it when you show results.'
@@ -43,7 +43,14 @@ const place = {
 };
 
 const preferences = {
-  day: z.enum(['today', 'tomorrow']).default('today').describe('The day to look at. Today skips times already past.'),
+  day: z
+    .string()
+    .regex(/^(today|tomorrow|\d{4}-\d{2}-\d{2})$/, "Use 'today', 'tomorrow' or a date as YYYY-MM-DD")
+    .default('today')
+    .describe(
+      "The day to look at: 'today', 'tomorrow' or a local date (YYYY-MM-DD) up to two days ahead, such as " +
+        "Thursday's when it is Tuesday. Today skips times already past. Further out the forecast shifts too much."
+    ),
   hours: z
     .string()
     .max(100)
@@ -118,27 +125,45 @@ function describeWindow(window, timezone) {
   };
 }
 
-function dayContext(body, day) {
+function dayContext(body, picked) {
+  const { day } = picked;
   const { timezone, lat, lon } = body.location;
+  const note = Plan.outlookNote(picked.index);
   return {
     location: { latitude: lat, longitude: lon, timezone },
     date: day.date,
     sunrise: day.sunrise ? clock(day.sunrise, timezone) : null,
     sunset: day.sunset ? clock(day.sunset, timezone) : null,
     hours: body.params.avail,
+    ...(note && { forecastNote: note }),
     ...(body.warnings && { warnings: body.warnings }),
     attribution: body.attribution
   };
 }
 
-const pickDay = (body, day) => body.days[day === 'tomorrow' ? 1 : 0];
+// The day asked for, with its place in the API's days (0 today, 1 tomorrow, 2 the day after).
+function pickDay(body, day) {
+  const index = { today: 0, tomorrow: 1 }[day] ?? body.days.findIndex(entry => entry.date === day);
+  if (index === -1) {
+    const dates = body.days.map(entry => entry.date).join(', ');
+    throw Object.assign(new Error(`Invalid day: ${day} is not one of the days with a forecast here (${dates})`), {
+      statusCode: 400
+    });
+  }
+  return { day: body.days[index], index };
+}
+
+// Text that names the day: today, tomorrow, on Thursday.
+const nameDay = picked => Plan.dayLabel(picked.index, picked.day.date);
 
 // What the view (mcp-view/day.js) draws: the day's slots and the chosen window, in the API's own shape, so it can use
 // the page's plan.js and strip.js unchanged. It goes in the result's `_meta`, which the model doesn't read.
-function viewPayload(apiDay, args, minutes, timezone) {
+function viewPayload(picked, minutes, timezone) {
+  const apiDay = picked.day;
   const window = apiDay.windows[String(minutes)];
   return {
-    dayLabel: args.day,
+    dayIndex: picked.index,
+    date: apiDay.date,
     minutes,
     timeZone: timezone,
     day: {
@@ -153,7 +178,7 @@ function viewPayload(apiDay, args, minutes, timezone) {
 
 function whyNothingFits(slots, minutes, params, dayLabel) {
   const hours = params.avail;
-  const why = noWindowCause(slots, minutes);
+  const why = Plan.noWindowCause(slots, minutes);
   if (why.cause === 'past') {
     return { reason: `All of ${hours} has already passed today.`, tryNext: 'Tomorrow, or later hours today.' };
   }
@@ -181,17 +206,18 @@ function whyNothingFits(slots, minutes, params, dayLabel) {
 
 async function findBestRunTime(args, { weather, now }) {
   const body = await buildWindowBody({ query: windowQuery(args, { slots: true }), weather, now });
-  const day = pickDay(body, args.day);
+  const picked = pickDay(body, args.day);
+  const { day } = picked;
   const minutes = Math.ceil(args.minutes / SLOT_MINUTES) * SLOT_MINUTES;
   const { timezone } = body.location;
   const window = day.windows[String(minutes)];
-  const view = viewPayload(day, args, minutes, timezone);
+  const view = viewPayload(picked, minutes, timezone);
   if (window) {
     const data = {
       available: true,
       day: args.day,
       minutes,
-      ...dayContext(body, day),
+      ...dayContext(body, picked),
       window: describeWindow(window, timezone)
     };
     return { data, view };
@@ -201,21 +227,22 @@ async function findBestRunTime(args, { weather, now }) {
     available: false,
     day: args.day,
     minutes,
-    ...whyNothingFits(day.slots || [], minutes, body.params, args.day),
+    ...whyNothingFits(day.slots || [], minutes, body.params, nameDay(picked)),
     // The API's least bad hour, rain no longer ruling slots out, when no dry hour exists at all
     ...(day.fallback && { leastBadHour: describeWindow(day.fallback, timezone) }),
-    ...dayContext(body, day)
+    ...dayContext(body, picked)
   };
   return { data, view };
 }
 
 async function getRunConditions(args, { weather, now }) {
   const body = await buildWindowBody({ query: windowQuery(args, { slots: true }), weather, now });
-  const day = pickDay(body, args.day);
+  const picked = pickDay(body, args.day);
+  const { day } = picked;
   const { timezone } = body.location;
   return {
     day: args.day,
-    ...dayContext(body, day),
+    ...dayContext(body, picked),
     statuses: 'ok: runnable; rain: over maxRainChance; dark: outside daylight; past: already started; missing: no data',
     slots: day.slots.map(slot => ({
       time: clock(slot.start, timezone),
@@ -263,7 +290,7 @@ function createServerFactory(context) {
       'find_best_run_time',
       {
         description:
-          'Find the best time to run today or tomorrow: the stretch of the given length with the best weather ' +
+          'Find the best time to run today, tomorrow or the day after: the stretch of the given length with the best weather ' +
           'within the hours the user can run, never in the past. Returns its local start and end, the conditions ' +
           '(rain, feels-like temperature, wind) and which way to start. When nothing fits, says why.',
         inputSchema: bestTimeInput,

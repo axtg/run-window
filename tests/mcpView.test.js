@@ -29,7 +29,7 @@ const window = {
   windFromCardinal: 'E'
 };
 
-const payload = (day, extra = {}) => ({ dayLabel: 'today', minutes: 60, timeZone: ZONE, day, ...extra });
+const payload = (day, extra = {}) => ({ dayIndex: 0, date: '2026-11-02', minutes: 60, timeZone: ZONE, day, ...extra });
 
 describe('viewModel', () => {
   test('the answer as on the page: label, time, numbers, wind line and the outlined slots', () => {
@@ -48,11 +48,18 @@ describe('viewModel', () => {
   });
 
   test('no window: says so, still with the day to draw', () => {
-    const model = viewModel(payload({ windows: {}, slots: slots() }, { dayLabel: 'tomorrow', minutes: 45 }));
+    const model = viewModel(payload({ windows: {}, slots: slots() }, { dayIndex: 1, date: '2026-11-03', minutes: 45 }));
     expect(model).toMatchObject({ label: 'Tomorrow', time: 'No dry window of 45 min tomorrow', none: true });
     expect(model.range).toBeNull();
     expect(model.numbers).toEqual([]);
     expect(model.slots).toHaveLength(8);
+  });
+
+  test('the day after tomorrow goes by its weekday, with the note that the forecast can shift', () => {
+    const later = viewModel(payload({ windows: { 60: window }, slots: slots() }, { dayIndex: 2, date: '2026-11-04' }));
+    expect(later.label).toBe('Wednesday · Best time · 60 min');
+    expect(later.outlook).toMatch(/can still shift/);
+    expect(viewModel(payload({ windows: { 60: window }, slots: slots() })).outlook).toBeNull();
   });
 
   test('the least bad hour is outlined, without the dry stretch sentence', () => {
