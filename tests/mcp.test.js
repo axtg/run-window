@@ -230,12 +230,38 @@ describe('POST /mcp', () => {
       const data = await toolData('find_best_run_time', { ...AMSTERDAM, day: 'tomorrow' });
       expect(data.available).toBe(false);
       expect(data.reason).toBe(
-        'No 60-minute stretch tomorrow within 06-22 stays within 40 % chance of rain, in daylight.'
+        'Every 60-minute stretch within 06-22 tomorrow is too wet: part of it has over 40 % chance of rain, ' +
+          'or rain expected.'
       );
       expect(data.tryNext).toMatch(/higher maxRainChance/);
       expect(data.leastBadHour).toMatchObject({ dry: false, rainChanceMax: 90 });
       const { _meta } = await callTool('find_best_run_time', { ...AMSTERDAM, day: 'tomorrow' });
       expect(_meta['com.besttimetorun/day'].day).toMatchObject({ windows: {}, fallback: expect.any(Object) });
+    });
+
+    test('hours already gone by are the reason, not rain', async () => {
+      const data = await toolData('find_best_run_time', { ...AMSTERDAM, hours: '06-08' }); // it is 08:00
+      expect(data).toMatchObject({
+        available: false,
+        reason: 'All of 06-08 has already passed today.',
+        tryNext: 'Tomorrow, or later hours today.'
+      });
+    });
+
+    test('too little time left is the reason, not rain', async () => {
+      const data = await toolData('find_best_run_time', { ...AMSTERDAM, hours: '07-08:30' });
+      expect(data.reason).toBe(
+        'Not enough time: the longest stretch that is still ahead within 07-08:30 today is 30 minutes.'
+      );
+      expect(data.tryNext).toBe('Tomorrow, more hours, a shorter run.');
+    });
+
+    test('too little daylight is the reason, not rain', async () => {
+      const data = await toolData('find_best_run_time', { ...AMSTERDAM, minutes: 90, hours: '16-19' });
+      expect(data.reason).toBe(
+        'Not enough time: the longest stretch that is in daylight within 16-19 today is 60 minutes.'
+      );
+      expect(data.tryNext).toBe('More hours, a shorter run, darkOk.');
     });
 
     test('a bad hours value is a tool error with the reason', async () => {

@@ -150,6 +150,51 @@ function viewPayload(apiDay, args, minutes, timezone) {
   };
 }
 
+// The longest run of back-to-back slots whose status is one of `statuses`, in minutes.
+function longestStretch(slots, statuses) {
+  let longest = 0;
+  let current = 0;
+  slots.forEach((slot, index) => {
+    const joined = index > 0 && Date.parse(slot.start) - Date.parse(slots[index - 1].start) === SLOT_MINUTES * 60000;
+    if (!statuses.includes(slot.status)) current = 0;
+    else current = joined ? current + 1 : 1;
+    longest = Math.max(longest, current);
+  });
+  return longest * SLOT_MINUTES;
+}
+
+// What really rules the run out, from the slots' statuses (past, then dark, then missing, then rain, as tagged in
+// lib/windows.js): blaming rain when the hours have simply gone by would send the user the wrong way.
+function whyNothingFits(slots, minutes, params, dayLabel) {
+  const hours = params.avail;
+  if (slots.length > 0 && slots.every(slot => slot.status === 'past')) {
+    return { reason: `All of ${hours} has already passed today.`, tryNext: 'Tomorrow, or later hours today.' };
+  }
+  const left = longestStretch(slots, ['ok', 'rain']);
+  if (left < minutes) {
+    const statuses = new Set(slots.map(slot => slot.status));
+    const limits = [
+      statuses.has('past') && 'still ahead',
+      statuses.has('dark') && 'in daylight',
+      statuses.has('missing') && 'covered by the forecast'
+    ].filter(Boolean);
+    const stretch = limits.length > 0 ? `stretch that is ${limits.join(' and ')}` : 'stretch';
+    const tries = [statuses.has('past') && 'tomorrow', 'more hours', 'a shorter run', statuses.has('dark') && 'darkOk']
+      .filter(Boolean)
+      .join(', ');
+    return {
+      reason: `Not enough time: the longest ${stretch} within ${hours} ${dayLabel} is ${left} minutes.`,
+      tryNext: `${tries.charAt(0).toUpperCase()}${tries.slice(1)}.`
+    };
+  }
+  return {
+    reason:
+      `Every ${minutes}-minute stretch within ${hours} ${dayLabel} is too wet: part of it has over ` +
+      `${params.rain} % chance of rain, or rain expected.`,
+    tryNext: 'Another day, more hours, a shorter run or a higher maxRainChance.'
+  };
+}
+
 async function findBestRunTime(args, { weather, now }) {
   const body = await buildWindowBody({ query: windowQuery(args, { slots: true }), weather, now });
   const day = pickDay(body, args.day);
@@ -168,13 +213,11 @@ async function findBestRunTime(args, { weather, now }) {
     return { data, view };
   }
 
-  const limits = `${body.params.rain} % chance of rain${body.params.dark === 'avoid' ? ', in daylight' : ''}`;
   const data = {
     available: false,
     day: args.day,
     minutes,
-    reason: `No ${minutes}-minute stretch ${args.day} within ${body.params.avail} stays within ${limits}.`,
-    tryNext: 'Another day, more hours, a shorter run, darkOk or a higher maxRainChance.',
+    ...whyNothingFits(day.slots || [], minutes, body.params, args.day),
     // The API's least bad hour, rain no longer ruling slots out, when no dry hour exists at all
     ...(day.fallback && { leastBadHour: describeWindow(day.fallback, timezone) }),
     ...dayContext(body, day)
