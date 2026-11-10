@@ -382,3 +382,28 @@ test('search and sharing: title, description, canonical, social card, icons, rob
   expect(llms.startsWith('# Best time to run\n')).toBe(true);
   expect(llms).toContain('https://besttimetorun.com/openapi.yaml');
 });
+
+test('the API dialog has the MCP connector link and points to llms.txt', () => {
+  const api = dialogText('api-dialog');
+  expect(api.text).toContain('AI assistants (MCP)');
+  expect(api.raw).toContain('id="mcp-url"');
+  expect(api.raw).toContain('id="copy-mcp"');
+  expect(api.raw).toContain('href="/llms.txt"');
+  expect(api.text).toContain('no sign-in');
+  expect(api.raw).not.toContain('id="mcp-prompt"'); // the prompt has its own card
+});
+
+test('a card of its own under the main one holds the first prompt, a New badge and More info', () => {
+  const main = html.match(/<main\b[\s\S]*<\/main>/)[0];
+  const cards = [...main.matchAll(/<section\b([^>]*)>([\s\S]*?)<\/section>/g)];
+  expect(cards).toHaveLength(2);
+  const [, attributes, body] = cards[1];
+  expect(attributes).toMatch(/\bmt-5\b/); // 20 px under the main card
+  expect(attributes).toMatch(/\brounded-2xl\b/);
+  expect(body).toMatch(/>\s*New\s*</);
+  for (const id of ['mcp-prompt', 'copy-prompt', 'open-mcp-info', 'mcp-note']) expect(body).toContain(`id="${id}"`);
+});
+
+test('the description mentions AI assistants', () => {
+  expect(html).toMatch(/<meta\s+name="description"\s+content="[^"]*AI assistants[^"]*"/);
+});

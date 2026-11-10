@@ -1,0 +1,273 @@
+// The MCP server at /mcp, against the real app with a fake weather cache (no upstream calls).
+const request = require('supertest');
+const { createApp } = require('../app');
+const { parseForecast } = require('../lib/forecast');
+const { makeForecastJson } = require('./helpers/forecast');
+
+const LEGACY_VERSION = '2025-06-18';
+const MODERN_VERSION = '2026-07-28';
+const NOW = Date.UTC(2026, 10, 2, 7, 0); // 08:00 in Amsterdam, Monday 2 November 2026
+const START = Date.UTC(2026, 10, 1, 23); // local midnight
+const SUN = [
+  { sunriseMs: Date.UTC(2026, 10, 2, 6, 38), sunsetMs: Date.UTC(2026, 10, 2, 16, 9) },
+  { sunriseMs: Date.UTC(2026, 10, 3, 6, 40), sunsetMs: Date.UTC(2026, 10, 3, 16, 7) }
+];
+const AMSTERDAM = { latitude: 52.3702, longitude: 4.8952 };
+
+// Hour i from local midnight on 2 November: windy all day (20 km/h from the south-west), except 13:00-15:00 local
+// (12:00-14:00 UTC), which is calm and mild; rain all of 3 November.
+function values(i) {
+  if (i >= 24) return { precipitation_probability: 90, precipitation: 2, wind_speed_10m: 20, wind_direction_10m: 225 };
+  if (i === 13 || i === 14) return { wind_speed_10m: 14, wind_direction_10m: 90, apparent_temperature: 11 };
+  return { wind_speed_10m: 20, wind_direction_10m: 225, apparent_temperature: 9 };
+}
+
+function weatherWith(getForecast) {
+  return { getForecast, stats: () => ({}), capacity: () => ({}) };
+}
+
+const forecast = parseForecast(makeForecastJson({ startMs: START, hours: 72, sun: SUN, values }));
+
+describe('POST /mcp', () => {
+  let weather;
+  let app;
+
+  beforeEach(() => {
+    weather = weatherWith(jest.fn().mockResolvedValue({ forecast, stale: false }));
+    app = createApp({ weather, now: () => NOW, rateLimit: 1000 });
+  });
+
+  function textParser(res, callback) {
+    res.setEncoding('utf8');
+    let body = '';
+    res.on('data', chunk => {
+      body += chunk;
+    });
+    res.on('end', () => callback(null, body));
+  }
+
+  // 2025-era clients get a short event stream, 2026-era clients plain JSON.
+  function parseReply(response) {
+    if (!response.headers['content-type']?.includes('text/event-stream')) return JSON.parse(response.body);
+    const data = response.body.split('\n').find(line => line.startsWith('data: {'));
+    return JSON.parse(data.slice('data: '.length));
+  }
+
+  const post = (body, version = LEGACY_VERSION, target = app) =>
+    request(target)
+      .post('/mcp')
+      .set('Accept', 'application/json, text/event-stream')
+      .set('MCP-Protocol-Version', version)
+      .send(body)
+      .buffer(true)
+      .parse(textParser);
+
+  const rpc = (method, params = {}, target = app) => post({ jsonrpc: '2.0', id: 1, method, params }, undefined, target);
+
+  async function callTool(name, args, target = app) {
+    const response = await rpc('tools/call', { name, arguments: args }, target).expect(200);
+    return parseReply(response).result;
+  }
+
+  async function toolData(name, args) {
+    const result = await callTool(name, args);
+    expect(result.isError).toBeFalsy();
+    return JSON.parse(result.content[0].text);
+  }
+
+  describe('protocol', () => {
+    test('a client can initialize without a session, and is told to ask for the town', async () => {
+      const response = await rpc('initialize', {
+        protocolVersion: LEGACY_VERSION,
+        capabilities: {},
+        clientInfo: { name: 'test', version: '1' }
+      }).expect(200);
+
+      const { result } = parseReply(response);
+      expect(response.headers['mcp-session-id']).toBeUndefined();
+      expect(result.serverInfo.name).toBe('best-time-to-run');
+      expect(result.instructions).toMatch(/ask for it/);
+      expect(result.instructions).toContain('Open-Meteo');
+    });
+
+    test('lists the two read-only tools, each needing a place', async () => {
+      const { result } = parseReply(await rpc('tools/list').expect(200));
+      expect(result.tools.map(tool => tool.name).sort()).toEqual(['find_best_run_time', 'get_run_conditions']);
+      for (const tool of result.tools) {
+        expect(tool.annotations).toMatchObject({ readOnlyHint: true });
+        expect(tool.inputSchema.required).toEqual(expect.arrayContaining(['latitude', 'longitude']));
+      }
+    });
+
+    test('a current client gets plain JSON', async () => {
+      const response = await post(
+        {
+          jsonrpc: '2.0',
+          id: 1,
+          method: 'tools/list',
+          params: {
+            _meta: {
+              'io.modelcontextprotocol/protocolVersion': MODERN_VERSION,
+              'io.modelcontextprotocol/clientInfo': { name: 'test', version: '1' },
+              'io.modelcontextprotocol/clientCapabilities': {}
+            }
+          }
+        },
+        MODERN_VERSION
+      )
+        .set('MCP-Method', 'tools/list')
+        .expect(200);
+
+      expect(response.headers['content-type']).toContain('application/json');
+      expect(parseReply(response).result.tools).toHaveLength(2);
+    });
+
+    test('GET is not supported', async () => {
+      await request(app).get('/mcp').set('MCP-Protocol-Version', LEGACY_VERSION).expect(405);
+    });
+
+    test('rejects an oversized request', async () => {
+      await rpc('tools/list', { padding: 'x'.repeat(70 * 1024) }).expect(413);
+    });
+
+    test('refuses a batch, which would get past the rate limit', async () => {
+      const call = id => ({
+        jsonrpc: '2.0',
+        id,
+        method: 'tools/call',
+        params: { name: 'find_best_run_time', arguments: AMSTERDAM }
+      });
+      const response = await post([call(1), call(2)]);
+      expect(response.status).toBe(400);
+      expect(weather.getForecast).not.toHaveBeenCalled();
+    });
+
+    test('rejects malformed JSON', async () => {
+      await request(app).post('/mcp').set('Content-Type', 'application/json').send('{not json').expect(400);
+    });
+
+    test('shares the API rate limiter', async () => {
+      const limited = createApp({ weather, now: () => NOW, rateLimit: 1 });
+      await request(limited).get('/api/capacity').expect(200);
+      const response = await rpc('tools/list', {}, limited);
+      expect(response.status).toBe(429);
+    });
+  });
+
+  describe('find_best_run_time', () => {
+    test('finds the calm hour in local time, with the way to start', async () => {
+      const data = await toolData('find_best_run_time', { ...AMSTERDAM, minutes: 60 });
+      expect(data).toMatchObject({
+        available: true,
+        day: 'today',
+        minutes: 60,
+        location: { latitude: 52.37, longitude: 4.9, timezone: 'Europe/Amsterdam' },
+        date: '2026-11-02',
+        sunrise: '07:38',
+        sunset: '17:09',
+        hours: '06-22',
+        attribution: 'Weather data by Open-Meteo.com'
+      });
+      expect(data.window).toMatchObject({
+        start: '2026-11-02T13:00+01:00',
+        end: '2026-11-02T14:00+01:00',
+        dry: true,
+        windKmh: 14,
+        windFrom: 'east',
+        feelsLikeC: 11,
+        inDaylight: true
+      });
+      expect(data.window.startDirection).toBe(
+        'Wind from the east: start east, into it, so it is behind you on the way back.'
+      );
+    });
+
+    test('rounds the length up to 15 minutes, and sends the settings as the API takes them', async () => {
+      const data = await toolData('find_best_run_time', {
+        ...AMSTERDAM,
+        minutes: 50,
+        hours: '07-09, 12-15',
+        darkOk: true,
+        maxRainChance: 30,
+        mindMost: 'wind'
+      });
+      expect(data.minutes).toBe(60);
+      expect(data.hours).toBe('07-09,12-15');
+      expect(weather.getForecast).toHaveBeenCalledWith(52.37, 4.9); // rounded to 2 decimals, as for the API
+    });
+
+    test('says why nothing fits, with the least bad hour, on a wet day', async () => {
+      const data = await toolData('find_best_run_time', { ...AMSTERDAM, day: 'tomorrow' });
+      expect(data.available).toBe(false);
+      expect(data.reason).toBe(
+        'No 60-minute stretch tomorrow within 06-22 stays within 40 % chance of rain, in daylight.'
+      );
+      expect(data.tryNext).toMatch(/higher maxRainChance/);
+      expect(data.leastBadHour).toMatchObject({ dry: false, rainChanceMax: 90 });
+    });
+
+    test('a bad hours value is a tool error with the reason', async () => {
+      const result = await callTool('find_best_run_time', { ...AMSTERDAM, hours: '9 to 5' });
+      expect(result.isError).toBe(true);
+      expect(JSON.parse(result.content[0].text).error).toMatch(/^Invalid avail/);
+      expect(weather.getForecast).not.toHaveBeenCalled(); // validated before it takes a place in the day's cap
+    });
+
+    test('a latitude out of range is refused before the tool runs', async () => {
+      const result = await callTool('find_best_run_time', { latitude: 95, longitude: 4.9 });
+      expect(result.isError).toBe(true);
+      expect(weather.getForecast).not.toHaveBeenCalled();
+    });
+
+    test("the day's cap reaches the user as it is", async () => {
+      const full = Object.assign(new Error('The service is at capacity for new locations today.'), {
+        statusCode: 503,
+        expose: true
+      });
+      const capped = createApp({ weather: weatherWith(jest.fn().mockRejectedValue(full)), now: () => NOW });
+      const result = await callTool('find_best_run_time', AMSTERDAM, capped);
+      expect(result.isError).toBe(true);
+      expect(JSON.parse(result.content[0].text).error).toBe('The service is at capacity for new locations today.');
+    });
+
+    test('an unexpected failure is a tool error without internal details', async () => {
+      const broken = createApp({
+        weather: weatherWith(jest.fn().mockRejectedValue(new Error('ECONNRESET at /srv/secret/path'))),
+        now: () => NOW
+      });
+      const result = await callTool('find_best_run_time', AMSTERDAM, broken);
+      expect(result.isError).toBe(true);
+      expect(result.content[0].text).toBe(JSON.stringify({ error: 'Internal server error' }));
+    });
+  });
+
+  describe('get_run_conditions', () => {
+    test("gives the day's slots within the hours, in local time", async () => {
+      const data = await toolData('get_run_conditions', { ...AMSTERDAM, hours: '13-14' });
+      expect(data.slots.map(slot => slot.time)).toEqual(['13:00', '13:15', '13:30', '13:45']);
+      expect(data.slots[0]).toMatchObject({
+        status: 'ok',
+        feelsLikeC: 11,
+        windKmh: 14,
+        windFrom: 'east',
+        rainChance: 0,
+        rainMm: 0
+      });
+      expect(data.statuses).toContain('rain: over maxRainChance');
+    });
+
+    test('marks slots already past and the dark', async () => {
+      const data = await toolData('get_run_conditions', { ...AMSTERDAM, hours: '07-08,17-18' });
+      expect(data.slots.map(slot => slot.status)).toEqual([
+        'past',
+        'past',
+        'past',
+        'past',
+        'dark',
+        'dark',
+        'dark',
+        'dark'
+      ]);
+    });
+  });
+});
