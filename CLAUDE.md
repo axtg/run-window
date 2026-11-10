@@ -132,8 +132,10 @@ test approach. Read its `CLAUDE.md` first. Reuse rather than reinvent:
     An Android `intent:` URL was tried first (2026-11-07) and doesn't work: Chrome marks web intents browsable and
     the calendar's new-event screen doesn't accept them.
 - The page's tint: `<body data-sky="…">`, set by `Plan.skyTheme` from the shown window (wet, then dark, windy, cold,
-  warm, else mild) or, without one, the device's hour (morning before 12, else evening). Each theme is a
-  `data-[sky=…]:bg-[linear-gradient(…)]` variant on `<body>`; `tests/web/plan.test.js` checks every name has one. The
+  warm, else mild) or, without one, the device's hour (morning before 12, else evening). CSS can't animate one
+  gradient into another, so two layers behind the page (`#sky-a`, `#sky-b`, `-z-10` in a `relative` body) carry the
+  `data-[sky=…]:bg-[linear-gradient(…)]` variants and cross-fade in 700 ms (`data-shown`; none with reduced motion);
+  `tests/web/plan.test.js` checks every name has a variant. The
   card stays white. The header sits on milky glass (`bg-white/55 backdrop-blur-md`, `z-20` so its menus stay above
   the card).
 - Under the header, `#quota-bar` (an SVG; `Plan.quotaBar`) shows today's new places left from `/api/capacity`: a
@@ -149,6 +151,8 @@ test approach. Read its `CLAUDE.md` first. Reuse rather than reinvent:
   shows, it takes the prompt's place and padding (`[#prompt[hidden]+#answer[hidden]+&]:py-6`).
 - The hint (`Tap a slot.`) names the arrow keys only where the screen can hover (`(hover: none)` drops them).
 - The why line is empty (and hidden) when nothing stands out and no rain or dark follows; no "similar all day".
+  "Warmer" and "less windy" need a clear lead on the other dry slots' average; they say "than the rest of the day"
+  only when no other dry slot is warmer (or calmer), else "than most of the day".
 - The header's 3×3 dot icon (`#open-network`, "More by Xander") opens `#network-menu`, a dropdown with the maintainer's
   other sites and Buy me a coffee (new tab, `noopener noreferrer`). A press outside, Escape (focus back on the icon) or
   tabbing out closes it. It is the only place on the page that names the maintainer; `tests/landing.test.js` checks.
@@ -174,8 +178,9 @@ test approach. Read its `CLAUDE.md` first. Reuse rather than reinvent:
 - `/api/capacity` (`routes/capacity.js`, `weatherCache.capacity`): `perDay`, `remainingShare`, `full`, `asOf`,
   `resetsAt`. A live count would show whether a location was requested today (ask for it, watch the count; the reason
   `/health/cache` is host-only), so the share is taken once an hour and rounded down to 5 % steps (at least 0.05 until
-  full). `full` is live, as the 503 already tells. Meant for the page's bar and for the TRMNL plugin to say why it
-  shows no window.
+  full). `full` is live, as the 503 already tells. The page's bar reads it, and so does the TRMNL plugin: its window
+  retry asks `/api/capacity` alongside (never after, so no extra time), and a 503 with `full` shows "Full for today"
+  instead of "Weather unavailable".
 - A new public path goes in both `LOGGABLE_PATHS` (`middleware/logging.js`) and the nginx `$run_window_path` map;
   `tests/deployConfig.test.js` checks they match.
 - Release order: the manifest's `share_target` entry needs the nginx change live on the host, because without it a

@@ -23,6 +23,8 @@ const STRINGS = {
     tredictDataFrom: 'Tredict data from {time}',
     noTrainingData: 'No training data yet',
     weatherUnavailable: 'Weather unavailable',
+    serviceFull: 'Full for today',
+    serviceFullLine: 'New locations again after midnight UTC',
     checkHours: 'Check your hours setting',
     setLocation: 'Set your location in the plugin settings',
     noSession: 'no session planned',
@@ -66,6 +68,8 @@ const STRINGS = {
     tredictDataFrom: 'Tredict-gegevens van {time}',
     noTrainingData: 'Nog geen trainingsgegevens',
     weatherUnavailable: 'Weer niet beschikbaar',
+    serviceFull: 'Vol voor vandaag',
+    serviceFullLine: 'Nieuwe locaties weer na middernacht UTC',
     checkHours: 'Controleer je uren-instelling',
     setLocation: 'Stel je locatie in bij de plugin-instellingen',
     noSession: 'geen training gepland',
@@ -283,6 +287,8 @@ const DEFAULT_RAIN = '40';
 const DEFAULT_SPORT = 'running';
 const DEFAULT_LANGUAGE = 'device';
 const WINDOW_URL = 'https://besttimetorun.com/api/window';
+// Takes no parameters: asked alongside a window retry, so a 503 can say the service is full for today
+const CAPACITY_URL = 'https://besttimetorun.com/api/capacity';
 const NUMBER_TEXT = /^-?\d+(\.\d+)?$/;
 
 function textOr(value, fallback) {
@@ -997,14 +1003,17 @@ function windowLines(choice, day, body, lang, text) {
   return lines;
 }
 
-function windowPanel({ body, status, session, lang, hasLocation }) {
+function windowPanel({ body, status, full = false, session, lang, hasLocation }) {
   const language = STRINGS[lang] ? lang : 'en';
   const text = STRINGS[language];
   const message = (kind, heading) => ({ kind, heading, lines: [] });
 
   if (!hasLocation) return message('noLocation', text.setLocation);
   if (!body || typeof body !== 'object' || !Array.isArray(body.days)) {
-    return status === 400 ? message('badSettings', text.checkHours) : message('error', text.weatherUnavailable);
+    if (status === 400) return message('badSettings', text.checkHours);
+    // A 503 is either the day's cap for new locations or the weather upstream; /api/capacity tells which
+    if (status === 503 && full) return { kind: 'full', heading: text.serviceFull, lines: [text.serviceFullLine] };
+    return message('error', text.weatherUnavailable);
   }
   const day = body.days.find(entry => entry && typeof entry === 'object' && entry.date === session.date);
   if (!day) return message('error', text.weatherUnavailable);
@@ -1352,13 +1361,16 @@ async function assembleBoard(input, { fetch: fetchFn, now, timeoutMs, clock, pre
   const retry = !polled && settings.hasLocation && !pausedRetryAt;
   // Runs alongside the Tredict calls; the detail calls wait for it only when the week's zone depends on it
   const weatherCall = retry ? fetchWindow(fetchFn, windowUrl(settings), timeoutMs) : Promise.resolve(null);
+  // Alongside the retry, never after it, so it adds no time: only read when the retry answers 503
+  const capacityCall = retry ? fetchWindow(fetchFn, CAPACITY_URL, timeoutMs) : Promise.resolve(null);
   // Calendar, form and intensity: the user's zone, else the zone of the window body used
   const zone = weatherCall.then(weather => userZone || zoneOf(polled ? body : weather && weather.body) || 'UTC');
-  const [results, weather] = await Promise.all([
+  const [results, weather, capacity] = await Promise.all([
     sequence
       ? fetchTredict(sequence, urls, { zone, now, sport: settings.sport, previous })
       : { plan: SKIPPED, activities: SKIPPED, efforts: SKIPPED },
-    weatherCall
+    weatherCall,
+    capacityCall
   ]);
   const rate = sequence ? sequence.rate() : null;
   const tredictRetryAt = rate ? tredictPauseUntil(now, rate.retryAfterS) : tredictPause;
@@ -1388,6 +1400,7 @@ async function assembleBoard(input, { fetch: fetchFn, now, timeoutMs, clock, pre
   const run = windowPanel({
     body: windowBody,
     status: weather ? weather.status : null,
+    full: Boolean(capacity && isObject(capacity.body) && capacity.body.full === true),
     session,
     lang,
     hasLocation: settings.hasLocation

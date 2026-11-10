@@ -4,6 +4,8 @@ const DEFAULT_RAIN = '40';
 const DEFAULT_SPORT = 'running';
 const DEFAULT_LANGUAGE = 'device';
 const WINDOW_URL = 'https://besttimetorun.com/api/window';
+// Takes no parameters: asked alongside a window retry, so a 503 can say the service is full for today
+const CAPACITY_URL = 'https://besttimetorun.com/api/capacity';
 const NUMBER_TEXT = /^-?\d+(\.\d+)?$/;
 
 function textOr(value, fallback) {
@@ -56,4 +58,4 @@ function windowUrl(settings) {
   return `${WINDOW_URL}?lat=${lat}&lon=${lon}&avail=${avail}&dark=${dark}&rain=${rain}`;
 }
 
-module.exports = { readSettings, windowUrl };
+module.exports = { readSettings, windowUrl, CAPACITY_URL };

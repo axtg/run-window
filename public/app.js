@@ -69,7 +69,7 @@
     'wind-arrow wind-text tomorrow-hint try-tomorrow tomorrow-text stale-note status ' +
     'result timeline chart-legend tap-line why-sentence copy-link open-method open-api open-privacy ' +
     'method-dialog api-dialog privacy-dialog close-method close-api close-privacy open-about about-menu ' +
-    'open-network network-menu copy-label copy-icon copy-check copy-note quota-bar quota-fill quota-saturate'
+    'open-network network-menu copy-label copy-icon copy-check copy-note quota-bar quota-fill quota-saturate sky-a sky-b'
   ).split(' ');
   const camel = id => id.replace(/-(\w)/g, (_, letter) => letter.toUpperCase());
   const el = Object.fromEntries(IDS.map(id => [camel(id), document.getElementById(id)]));
@@ -87,6 +87,7 @@
   const settings = loadSettings(storage);
   const state = {
     settings,
+    skyFront: null, // which sky layer shows the tint: 'a', 'b' or none yet
     rows: splitHours(settings.hours), // the hour rows as shown, saved through joinHours on release
     rowViews: [],
     summary: null, // the opened route's summary, memory only
@@ -674,8 +675,16 @@
   }
 
   // The page's tint (index.html has a `data-sky` variant per theme). Without an answer, the device's hour picks it.
+  // body's data-sky names it; of the two layers, the one in front holds it and the other fades out behind.
   function setSky(result, day) {
-    document.body.setAttribute('data-sky', Plan.skyTheme(result, day, new Date().getHours()));
+    const theme = Plan.skyTheme(result, day, new Date().getHours());
+    if (document.body.getAttribute('data-sky') === theme) return;
+    document.body.setAttribute('data-sky', theme);
+    const [front, back] = state.skyFront === 'a' ? [el.skyB, el.skyA] : [el.skyA, el.skyB];
+    state.skyFront = front === el.skyA ? 'a' : 'b';
+    front.setAttribute('data-sky', theme);
+    front.toggleAttribute('data-shown', true);
+    back.toggleAttribute('data-shown', false);
   }
 
   // The rainbow under the header. It asks /api/capacity, which takes no parameters and says nothing about this visitor;

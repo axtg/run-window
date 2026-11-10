@@ -338,7 +338,7 @@ describe('buildBoard: Tredict sequence', () => {
     it('keeps the weather retry while paused', async () => {
       const tredictRetryAt = at(NOW + 10 * MINUTE);
       const { output, calls } = await board({ body: {}, previous: { ...first, tredictRetryAt } });
-      expect(calls.map(call => call.name)).toEqual(['window']);
+      expect(calls.map(call => call.name)).toEqual(['window', 'capacity']); // no Tredict call
       expect(output.run.kind).toBe('window');
     });
 
@@ -450,6 +450,33 @@ describe('buildBoard: weather retry', () => {
   it('reports an error when the retry answers 503', async () => {
     const { output } = await board({ body: {} }, { window: 503 });
     expect(output.run).toEqual({ kind: 'error', heading: 'Weather unavailable', lines: [] });
+  });
+
+  it('says full for today when the retry answers 503 and /api/capacity says full', async () => {
+    const full = { perDay: 300, remainingShare: 0, full: true, asOf: 'a', resetsAt: 'b' };
+    const { output, calls } = await board({ body: {} }, { window: 503, capacity: full });
+    expect(output.run).toEqual({
+      kind: 'full',
+      heading: 'Full for today',
+      lines: ['New locations again after midnight UTC']
+    });
+    const asked = calls.find(call => call.name === 'capacity');
+    expect(asked.url).toBe('https://besttimetorun.com/api/capacity');
+    expect(JSON.stringify(asked.options)).not.toContain(TOKEN);
+    expect(output.attribution).not.toContain('Open-Meteo');
+  });
+
+  it('asks /api/capacity only with a retry, and alongside it rather than after', async () => {
+    expect((await board()).calls.some(call => call.name === 'capacity')).toBe(false); // polled body: no retry
+    const { calls } = await board({ body: {} }, { window: 503 });
+    const window = calls.find(call => call.name === 'window');
+    const capacity = calls.find(call => call.name === 'capacity');
+    expect(capacity.start).toBeLessThan(window.end);
+  });
+
+  it('keeps "Weather unavailable" on a 503 when capacity is not full or does not answer', async () => {
+    expect((await board({ body: {} }, { window: 503, capacity: 503 })).output.run.kind).toBe('error');
+    expect((await board({ body: {} }, { window: 503 })).output.run.kind).toBe('error');
   });
 
   it('uses the retry body when it succeeds', async () => {
