@@ -186,6 +186,11 @@ test approach. Read its `CLAUDE.md` first. Reuse rather than reinvent:
   full). `full` is live, as the 503 already tells. The page's bar reads it, and so does the TRMNL plugin: its window
   retry asks `/api/capacity` alongside (never after, so no extra time), and a 503 with `full` shows "Full for today"
   instead of "Weather unavailable".
+- Search and sharing: a canonical link (the one absolute `<link>`, as it loads nothing; `tests/landing.test.js`
+  allows exactly it), Open Graph and `twitter:card` tags with `og.png` (1200 × 630, drawn by
+  `scripts/build-og-image.js`, which needs Playwright and is run by hand), `favicon.ico` and `apple-touch-icon.png`
+  (from `scripts/build-icons.js`), `robots.txt` (keeps `/api/` and `/health` out), `sitemap.xml` and `llms.txt`
+  (what the service and API do, for LLMs). No JSON-LD: it would be an inline script.
 - A new public path goes in both `LOGGABLE_PATHS` (`middleware/logging.js`) and the nginx `$run_window_path` map;
   `tests/deployConfig.test.js` checks they match.
 - Release order: the manifest's `share_target` entry needs the nginx change live on the host, because without it a

@@ -3,14 +3,31 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Best time to run</title>
+    <title>Best time to run today · the weather window for your run</title>
     <meta
       name="description"
-      content="The best weather window for a run today and tomorrow, for a location and the hours you can run."
+      content="The best weather window for a run today and tomorrow, for a location and the hours you can run: driest, calmest, most comfortable, and which way to start into the wind."
     />
+    <link rel="canonical" href="https://besttimetorun.com/" />
+    <!-- How a shared link looks: og.png is drawn by scripts/build-og-image.js -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="besttimetorun.com" />
+    <meta property="og:url" content="https://besttimetorun.com/" />
+    <meta property="og:title" content="Best time to run today" />
+    <meta
+      property="og:description"
+      content="Your hours, your route or location: the driest, calmest window, and which way to start into the wind."
+    />
+    <meta property="og:image" content="https://besttimetorun.com/og.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="besttimetorun.com: the best time to run today, 12:00–13:00, dry, 9 °C" />
+    <meta name="twitter:card" content="summary_large_image" />
     <link rel="stylesheet" href="/tailwind.css" />
     <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="icon" href="/favicon.ico" sizes="32x32" />
     <link rel="icon" href="/icon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <meta name="theme-color" content="#111827" />
     <!-- Privacy-friendly analytics by Plausible; its init is in /analytics.js, as the CSP allows no inline script -->
     <script async src="https://plausible.io/js/pa-Y3VqyvdYCOYYLOZ8-gRL1.js"></script>
@@ -243,7 +260,7 @@
       <rect id="quota-fill" width="100%" height="3" />
     </svg>
 
-    <main class="mx-auto max-w-xl px-3 pb-10 pt-3 sm:px-4">
+    <main class="mx-auto max-w-xl px-3 pb-10 pt-3 sm:px-4 sm:pt-8">
       <section
         class="overflow-hidden rounded-2xl bg-white shadow-[0_1px_2px_rgba(0,0,0,0.05),0_8px_24px_rgba(17,24,39,0.06)] ring-1 ring-black/5"
         aria-label="Best time to run"

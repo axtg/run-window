@@ -1,4 +1,5 @@
-// Writes the app icons in public/: icon.svg, icon-192.png and icon-512.png, all from the shapes below. A dark rounded
+// Writes the app icons in public/: icon.svg, icon-192.png, icon-512.png, apple-touch-icon.png (180, square: iOS rounds
+// it itself) and favicon.ico (16 and 32, PNG inside), all from the shapes below. A dark rounded
 // square with a short strip of green bars, like the page's day strip. No image dependency: the PNGs are drawn here and
 // encoded with Node's zlib. The output is committed. Run with: node scripts/build-icons.js
 const fs = require('fs');
@@ -35,6 +36,9 @@ const SHAPES = [
   }))
 ];
 
+// The same bars on a square ground, for icons the platform rounds itself.
+const SQUARE = [{ ...SHAPES[0], radius: 0 }, ...SHAPES.slice(1)];
+
 function svg() {
   const rects = SHAPES.map(
     ({ x, y, width, height, radius, fill }) =>
@@ -53,9 +57,9 @@ function inside({ x, y, width, height, radius }, px, py) {
 const rgb = hex => [1, 3, 5].map(start => parseInt(hex.slice(start, start + 2), 16));
 
 // RGBA pixels, each the average of SAMPLES² points coloured by the frontmost shape that holds them.
-function draw(size) {
+function draw(size, shapes = SHAPES) {
   const pixels = Buffer.alloc(size * size * 4);
-  const colours = SHAPES.map(shape => rgb(shape.fill));
+  const colours = shapes.map(shape => rgb(shape.fill));
   const scale = GRID / size;
   for (let row = 0; row < size; row += 1) {
     for (let col = 0; col < size; col += 1) {
@@ -64,8 +68,8 @@ function draw(size) {
         for (let sx = 0; sx < SAMPLES; sx += 1) {
           const px = (col + (sx + 0.5) / SAMPLES) * scale;
           const py = (row + (sy + 0.5) / SAMPLES) * scale;
-          for (let index = SHAPES.length - 1; index >= 0; index -= 1) {
-            if (!inside(SHAPES[index], px, py)) continue;
+          for (let index = shapes.length - 1; index >= 0; index -= 1) {
+            if (!inside(shapes[index], px, py)) continue;
             colours[index].forEach((value, channel) => (sum[channel] += value));
             sum[3] += 255;
             break;
@@ -105,13 +109,13 @@ function chunk(type, data) {
   return Buffer.concat([length, body, crc]);
 }
 
-function png(size) {
+function png(size, shapes = SHAPES) {
   const header = Buffer.alloc(13);
   header.writeUInt32BE(size, 0);
   header.writeUInt32BE(size, 4);
   header[8] = 8; // bits per channel
   header[9] = 6; // RGBA
-  const pixels = draw(size);
+  const pixels = draw(size, shapes);
   const rows = Buffer.alloc(size * (size * 4 + 1)); // each row starts with filter type 0
   for (let row = 0; row < size; row += 1) {
     pixels.copy(rows, row * (size * 4 + 1) + 1, row * size * 4, (row + 1) * size * 4);
@@ -124,6 +128,30 @@ function png(size) {
   ]);
 }
 
+// An ICO holding PNG images (read by every current browser): a 6-byte header, a 16-byte entry per image, then the PNGs.
+function ico(sizes) {
+  const images = sizes.map(size => png(size));
+  const header = Buffer.alloc(6);
+  header.writeUInt16LE(1, 2); // type: icon
+  header.writeUInt16LE(images.length, 4);
+  let offset = 6 + 16 * images.length;
+  const entries = images.map((image, index) => {
+    const entry = Buffer.alloc(16);
+    entry[0] = sizes[index] % 256; // 0 means 256
+    entry[1] = sizes[index] % 256;
+    entry.writeUInt16LE(1, 4); // colour planes
+    entry.writeUInt16LE(32, 6); // bits per pixel
+    entry.writeUInt32LE(image.length, 8);
+    entry.writeUInt32LE(offset, 12);
+    offset += image.length;
+    return entry;
+  });
+  return Buffer.concat([header, ...entries, ...images]);
+}
+
 fs.writeFileSync(path.join(OUT_DIR, 'icon.svg'), svg());
 PNG_SIZES.forEach(size => fs.writeFileSync(path.join(OUT_DIR, `icon-${size}.png`), png(size)));
-console.log(`Wrote icon.svg and ${PNG_SIZES.map(size => `icon-${size}.png`).join(', ')} in public/`);
+fs.writeFileSync(path.join(OUT_DIR, 'apple-touch-icon.png'), png(180, SQUARE));
+fs.writeFileSync(path.join(OUT_DIR, 'favicon.ico'), ico([16, 32]));
+const written = [...PNG_SIZES.map(size => `icon-${size}.png`), 'apple-touch-icon.png', 'favicon.ico'];
+console.log(`Wrote icon.svg and ${written.join(', ')} in public/`);

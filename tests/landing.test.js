@@ -77,7 +77,12 @@ test('the page loads nothing external but Plausible, and has no inline style', (
     match => match[1]
   );
   expect(external).toEqual([PLAUSIBLE_SCRIPT]);
-  expect(html).not.toMatch(/<(link|img|iframe|object|embed|source|video|audio)\b[^>]*(https?:)?\/\/[^>]*>/i);
+  // The canonical link names the page's own address and loads nothing; it is the one absolute link allowed.
+  const canonical = '<link rel="canonical" href="https://besttimetorun.com/" />';
+  expect(html).toContain(canonical);
+  expect(html.replace(canonical, '')).not.toMatch(
+    /<(link|img|iframe|object|embed|source|video|audio)\b[^>]*(https?:)?\/\/[^>]*>/i
+  );
   expect(html).not.toMatch(/<style|style=/i);
   expect(html).not.toMatch(/@import|url\(/i);
 });
@@ -357,4 +362,23 @@ test('no names or places tied to the maintainer outside the network menu', () =>
   expect(menu).toHaveLength(2);
   const rest = menu.reduce((page, part) => page.replace(part, ''), html);
   expect(rest).not.toMatch(/xander|xadi|groesbeek|buymeacoffee/i);
+});
+
+test('search and sharing: title, description, canonical, social card, icons, robots, sitemap and llms.txt', () => {
+  expect(html).toMatch(/<title>Best time to run today[^<]*<\/title>/);
+  expect(html).toMatch(/<meta name="twitter:card" content="summary_large_image" \/>/);
+  for (const property of ['og:title', 'og:description', 'og:url', 'og:image', 'og:image:alt'])
+    expect(html).toMatch(new RegExp(`<meta\\s+property="${property}"`));
+  expect(html).toContain('<link rel="apple-touch-icon" href="/apple-touch-icon.png" />');
+  expect(html).toContain('<link rel="icon" href="/favicon.ico" sizes="32x32" />');
+  const pub = name => fs.readFileSync(path.join(__dirname, '..', 'public', name));
+  expect(pub('og.png').readUInt32BE(16)).toBe(1200); // PNG width, from the IHDR chunk
+  expect(pub('og.png').readUInt32BE(20)).toBe(630);
+  expect(pub('apple-touch-icon.png').readUInt32BE(16)).toBe(180);
+  expect(pub('favicon.ico').readUInt16LE(4)).toBe(2); // 16 and 32
+  expect(pub('robots.txt').toString()).toContain('Sitemap: https://besttimetorun.com/sitemap.xml');
+  expect(pub('sitemap.xml').toString()).toContain('<loc>https://besttimetorun.com/</loc>');
+  const llms = pub('llms.txt').toString();
+  expect(llms.startsWith('# Best time to run\n')).toBe(true);
+  expect(llms).toContain('https://besttimetorun.com/openapi.yaml');
 });
