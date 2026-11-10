@@ -106,7 +106,8 @@ test approach. Read its `CLAUDE.md` first. Reuse rather than reinvent:
     in a spacer as wide, so the sliders line up.
   - Dark: the dark times and an OK switch (`#dark-ok`, `role="switch"`).
   - Mind most: Balanced · Wind · Rain · Temp (`#prefer-*`, `aria-pressed`, like Today / Tomorrow), with a line under
-    it saying what the choice trades (`Plan.preferHint`). Sends `prefer`; the chosen term counts 3× in the score. It is
+    it saying what the choice trades (`Plan.preferHint`). Sends `prefer`; the chosen term counts 3× in the score, and with Wind, wind counts from 8 km/h instead of 12
+    (`SCORING.wind.preferComfortableSpeed`), so a calm, colder hour can beat a 12 km/h one. It is
     relative on purpose: no level or threshold, because the day's forecast decides what is possible. The score's
     comfort bands (wind under 12 km/h, feels-like 6–16 °C) give many windows a score of 0, so on a tie the chosen
     term's raw value decides (`TIE_BREAKS` in `lib/windows.js`: wind speed, chance of rain, distance from 11 °C), then

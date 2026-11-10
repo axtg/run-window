@@ -110,7 +110,8 @@ paths:
           required: false
           description: >-
             The discomfort to mind most when no time is good on every count: that term of the score counts three times.
-            `balanced` weighs wind, rain and temperature as usual. It never excludes a time (the `rain` limit does).
+            With `wind`, wind also counts from 8 km/h instead of 12. `balanced` weighs wind, rain and temperature as
+            usual. It never excludes a time (the `rain` limit does).
             Slot scores follow it. Between windows with the same score it also breaks the tie: lowest mean wind
             speed (`wind`), chance of rain (`rain`) or distance of the feels-like temperature from the middle of the
             comfort band (`temp`); then, as with `balanced`, the earliest.
