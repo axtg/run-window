@@ -554,7 +554,11 @@
             <p id="place-note" class="mt-2 text-xs empty:hidden" aria-live="polite"></p>
             <ul id="place-results" class="[&[hidden]]:hidden mx-auto mt-2 max-w-xs space-y-1 text-left" hidden></ul>
           </div>
-          <div id="answer" class="[&[hidden]]:hidden grid grid-cols-1 sm:grid-cols-[auto_1fr] sm:gap-x-6" hidden>
+          <div
+            id="answer"
+            class="[&[hidden]]:hidden grid grid-cols-1 sm:grid-cols-[minmax(0,1fr)_auto] sm:gap-x-6"
+            hidden
+          >
             <div class="sm:col-start-1 sm:row-start-1">
               <p id="answer-label" class="text-xs text-secondary"></p>
               <div class="flex items-center gap-3">
@@ -626,7 +630,7 @@
             </div>
             <dl
               id="key-numbers"
-              class="[&[hidden]]:hidden mt-2 flex flex-wrap gap-x-5 gap-y-1 sm:col-start-2 sm:row-span-3 sm:row-start-1 sm:mt-0 sm:grid sm:grid-cols-[repeat(2,auto)] sm:gap-y-2 sm:self-start sm:justify-self-end sm:text-right"
+              class="[&[hidden]]:hidden mt-3 grid grid-cols-2 gap-px overflow-hidden rounded-xl bg-gray-200 ring-1 ring-gray-200 sm:col-start-2 sm:row-span-3 sm:row-start-1 sm:mt-0 sm:w-72 sm:self-start sm:justify-self-end"
             ></dl>
             <p
               id="wind-line"

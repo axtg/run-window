@@ -369,7 +369,7 @@
     return `on ${weekday(date, 'long')}`;
   }
   // The day after tomorrow is as far as the page looks: past that a forecast shifts too much to plan an hour on.
-  const OUTLOOK_NOTE = 'Two days out, the forecast can still shift: check again on the day.';
+  const OUTLOOK_NOTE = 'The forecast can still shift: check again on the day.';
   const outlookNote = index => (index >= 2 ? OUTLOOK_NOTE : null);
 
   // The longest run of back-to-back slots whose status is one of `statuses`, in minutes.
