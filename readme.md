@@ -5,7 +5,7 @@ planned.
 
 - `besttimetorun.com/api/window`: free, anonymous JSON endpoint. Location and availability in, best window per session
   length out. Weather data by [Open-Meteo.com](https://open-meteo.com/).
-- `besttimetorun.com`: a web page. Open a GPX or KML route (or use your location) and it shows the best window for
+- `besttimetorun.com`: a web page. Open a GPX or KML route (or use your location, or find a town) and it shows the best window for
   that run on a day strip, with distance, climb and which way to head first. The route file is read in the browser and
   never sent anywhere; only the start point, rounded to 2 decimals, goes to the API. On Android it can be installed
   and shows up in the share sheet for route files.

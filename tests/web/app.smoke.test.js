@@ -392,6 +392,72 @@ describe('app.js privacy smoke test', () => {
     expect(record.fetches).toHaveLength(1);
   });
 
+  describe('a town by name', () => {
+    const UTRECHT = {
+      name: 'Utrecht',
+      region: 'Utrecht',
+      country: 'Netherlands',
+      countryCode: 'NL',
+      lat: 52.09,
+      lon: 5.12
+    };
+    const OTHER = {
+      name: 'Utrecht',
+      region: 'KwaZulu-Natal',
+      country: 'South Africa',
+      countryCode: 'ZA',
+      lat: -27.66,
+      lon: 30.32
+    };
+    const withPlaces = found =>
+      createApp({ weather, places: { search: jest.fn().mockResolvedValue(found) }, now: () => NOW, rateLimit: 1000 });
+    const submit = elements => elements.get('place-form').listeners.submit({ preventDefault() {} });
+
+    it('one match is used at once: named in the source line, its coordinates sent', async () => {
+      const { elements, record } = loadPage({ app: withPlaces([UTRECHT]) });
+      elements.get('place-input').value = '  Utrecht ';
+      await submit(elements);
+      await answered(elements);
+      expect(rejections).toEqual([]);
+      const sent = new URL(record.fetches.at(-1));
+      expect(sent.pathname).toBe('/api/window');
+      expect([sent.searchParams.get('lat'), sent.searchParams.get('lon')]).toEqual(['52.09', '5.12']);
+      expect(new URL(record.fetches[0]).searchParams.get('q')).toBe('Utrecht');
+      expect(elements.get('source-map').textContent).toBe('Utrecht');
+      expect(elements.get('source-map').title).toBe('Utrecht, Netherlands');
+      expect(elements.get('prompt').hidden).toBe(true);
+    });
+
+    it('more matches are listed to pick from; none says so', async () => {
+      const { elements } = loadPage({ app: withPlaces([UTRECHT, OTHER]) });
+      elements.get('place-input').value = 'Utrecht';
+      await submit(elements);
+      expect(elements.get('place-note').textContent).toBe('Which one?');
+      const buttons = elements.get('place-results').children.map(item => item.children[0]);
+      expect(buttons.map(button => button.textContent)).toEqual([
+        'Utrecht, Netherlands',
+        'Utrecht, KwaZulu-Natal, South Africa'
+      ]);
+      buttons[1].listeners.click();
+      await answered(elements);
+      expect(elements.get('source-map').title).toBe('Utrecht, KwaZulu-Natal, South Africa');
+
+      const empty = loadPage({ app: withPlaces([]) });
+      empty.elements.get('place-input').value = 'Nowhereville';
+      await submit(empty.elements);
+      expect(empty.elements.get('place-note').textContent).toBe('No town found by that name.');
+      expect(empty.record.fetches.filter(url => url.includes('/api/window'))).toEqual([]);
+    });
+
+    it('asks for at least 2 letters before sending anything', async () => {
+      const { elements, record } = loadPage({ app: withPlaces([UTRECHT]) });
+      elements.get('place-input').value = 'U';
+      await submit(elements);
+      expect(elements.get('place-note').textContent).toBe('Type at least 2 letters.');
+      expect(record.fetches).toEqual([]);
+    });
+  });
+
   describe('a recheck link from a calendar event', () => {
     const search = '?run=45&pace=5:30&hours=07-09%2C17-21&dark=ok&prefer=wind&rain=30&date=2026-11-03';
 

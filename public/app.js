@@ -53,7 +53,11 @@
     copyFailed: "Couldn't copy",
     pace: 'Pace is m:ss per km, from 3:00 to 15:00.',
     shareFailed: "The shared route didn't arrive. Open it again.",
-    linkLoaded: 'Your run is set. Use your location or a route to check it again.'
+    linkLoaded: 'Your run is set. Use your location or a route to check it again.',
+    placeShort: 'Type at least 2 letters.',
+    placeSearching: 'Searching…',
+    placeNone: 'No town found by that name.',
+    placePick: 'Which one?'
   };
   // Where sw.js leaves a shared route file for the page to read once.
   const SHARE_CACHE = 'shared-route';
@@ -62,6 +66,7 @@
   // Every element app.js uses, by id; el.sourceSet is #source-set.
   const IDS = (
     'source source-map source-rough source-set source-pick clear-source day-today day-tomorrow day-after ' +
+    'place-form place-input place-note place-results ' +
     'route-input use-location duration-group run-distance run-minutes pace-group pace-input ' +
     'duration-down duration-value duration-up hours-rows add-hours dark-times dark-ok prefer-balanced ' +
     'prefer-wind prefer-rain prefer-temp prefer-hint rain-input rain-fill rain-value prompt answer answer-label ' +
@@ -95,6 +100,7 @@
     location: null, // { lat, lon }, already rounded to 2 decimals
     dayIndex: 0,
     linkDate: null, // a recheck link's date, picked once its day is known
+    placeRequest: 0,
     body: null, // the last /api/window response
     selected: null,
     calendar: null, // the shown answer as a calendar event, or null
@@ -398,6 +404,9 @@
     el.sourceMap.hidden = !near;
     if (near) el.sourceMap.setAttribute('href', Plan.mapUrl(state.location.lat, state.location.lon));
     else el.sourceMap.removeAttribute('href');
+    // A town found by name goes by its name (the full label on hover), the device's location by "Near you".
+    el.sourceMap.textContent = near && state.location.name ? state.location.name : 'Near you';
+    el.sourceMap.title = near && state.location.label ? state.location.label : '';
     const rough = near ? Plan.roughNote(state.location.accuracyM) : '';
     el.sourceRough.hidden = !rough;
     el.sourceRough.textContent = rough;
@@ -443,6 +452,72 @@
       () => setStatus(MESSAGES.locationOff),
       { maximumAge: 10 * 60 * 1000, timeout: 15000 }
     );
+  }
+
+  // ---- A town by name: /api/places looks it up (Open-Meteo's geocoding); one match is used at once, more are listed.
+
+  function choosePlace(place) {
+    track('Source', 'place');
+    state.summary = null;
+    state.location = { lat: place.lat, lon: place.lon, name: place.name, label: place.label };
+    el.placeInput.value = '';
+    el.placeNote.textContent = '';
+    el.placeResults.replaceChildren();
+    el.placeResults.hidden = true;
+    render();
+    return refresh();
+  }
+
+  async function onPlaceSearch(event) {
+    event.preventDefault();
+    const text = el.placeInput.value.trim();
+    el.placeResults.hidden = true;
+    if (text.length < 2) {
+      el.placeNote.textContent = MESSAGES.placeShort;
+      return undefined;
+    }
+    const ask = ++state.placeRequest;
+    el.placeNote.textContent = MESSAGES.placeSearching;
+    let places = null;
+    let message;
+    try {
+      const response = await fetch(new URL(`/api/places?q=${encodeURIComponent(text)}`, location.origin).toString());
+      const json = await response.json().catch(() => null);
+      if (response.ok && json && Array.isArray(json.places)) places = json.places;
+      else {
+        const retryAfter = Number(response.headers.get('Retry-After')) || null;
+        message = Plan.errorMessage({ status: response.status, message: json && json.message, retryAfter });
+      }
+    } catch {
+      message = Plan.errorMessage({ status: 0 });
+    }
+    if (ask !== state.placeRequest) return undefined; // a newer search has started
+    if (!places) {
+      el.placeNote.textContent = message;
+      return undefined;
+    }
+    if (places.length === 0) {
+      el.placeNote.textContent = MESSAGES.placeNone;
+      return undefined;
+    }
+    if (places.length === 1) return choosePlace(places[0]);
+    el.placeNote.textContent = MESSAGES.placePick;
+    el.placeResults.replaceChildren(
+      ...places.map(place => {
+        const item = html('li');
+        const button = html(
+          'button',
+          'w-full truncate rounded-lg px-3 py-1.5 text-left text-sm text-primary ring-1 ring-black/10 hover:bg-gray-50',
+          place.label
+        );
+        button.type = 'button';
+        button.addEventListener('click', () => choosePlace(place));
+        item.appendChild(button);
+        return item;
+      })
+    );
+    el.placeResults.hidden = false;
+    return undefined;
   }
 
   // ✕ forgets the route or location and drops any answer still on its way.
@@ -995,6 +1070,7 @@
   el.dayToday.addEventListener('click', () => setDay(0));
   el.dayTomorrow.addEventListener('click', () => setDay(1));
   el.dayAfter.addEventListener('click', () => setDay(2));
+  el.placeForm.addEventListener('submit', onPlaceSearch);
   el.tryTomorrow.addEventListener('click', () => {
     setDay(1);
     el.dayTomorrow.focus(); // the button hides with the switch

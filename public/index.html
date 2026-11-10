@@ -272,7 +272,7 @@
                 <button
                   id="day-today"
                   type="button"
-                  class="rounded-full px-2.5 py-1 aria-pressed:bg-white aria-pressed:font-semibold aria-pressed:shadow-sm"
+                  class="rounded-full px-2 py-1 aria-pressed:bg-white aria-pressed:font-semibold aria-pressed:shadow-sm"
                   aria-pressed="true"
                 >
                   Today
@@ -280,7 +280,7 @@
                 <button
                   id="day-tomorrow"
                   type="button"
-                  class="rounded-full px-2.5 py-1 aria-pressed:bg-white aria-pressed:font-semibold aria-pressed:shadow-sm"
+                  class="rounded-full px-2 py-1 aria-pressed:bg-white aria-pressed:font-semibold aria-pressed:shadow-sm"
                   aria-pressed="false"
                 >
                   Tomorrow
@@ -288,7 +288,7 @@
                 <button
                   id="day-after"
                   type="button"
-                  class="rounded-full px-2.5 py-1 aria-pressed:bg-white aria-pressed:font-semibold aria-pressed:shadow-sm"
+                  class="rounded-full px-2 py-1 aria-pressed:bg-white aria-pressed:font-semibold aria-pressed:shadow-sm"
                   aria-pressed="false"
                 >
                   Thu
@@ -530,7 +530,30 @@
         </div>
 
         <div class="border-t border-gray-100 px-4 pb-2 pt-4">
-          <p id="prompt" class="py-6 text-center text-sm text-secondary">Open a route file or use your location.</p>
+          <div id="prompt" class="[&[hidden]]:hidden py-6 text-center text-sm text-secondary">
+            <p>Open a route file, use your location, or find a town.</p>
+            <form id="place-form" class="mx-auto mt-3 flex max-w-xs items-center gap-2" role="search">
+              <input
+                id="place-input"
+                type="search"
+                class="min-w-0 flex-1 rounded-full border border-gray-300 bg-white px-3 py-1.5 text-sm text-primary placeholder:text-gray-400"
+                placeholder="Town or city"
+                aria-label="Town or city"
+                autocomplete="off"
+                enterkeyhint="search"
+                maxlength="80"
+              />
+              <button
+                id="place-search"
+                type="submit"
+                class="rounded-full bg-primary px-3 py-1.5 text-xs font-medium text-white hover:bg-gray-700"
+              >
+                Find
+              </button>
+            </form>
+            <p id="place-note" class="mt-2 text-xs empty:hidden" aria-live="polite"></p>
+            <ul id="place-results" class="[&[hidden]]:hidden mx-auto mt-2 max-w-xs space-y-1 text-left" hidden></ul>
+          </div>
           <div id="answer" class="[&[hidden]]:hidden grid grid-cols-1 sm:grid-cols-[auto_1fr] sm:gap-x-6" hidden>
             <div class="sm:col-start-1 sm:row-start-1">
               <p id="answer-label" class="text-xs text-secondary"></p>
@@ -910,6 +933,10 @@
         <ul class="list-disc space-y-1 pl-5">
           <li>The route file is read in your browser and never sent anywhere; the page only sends its start point.</li>
           <li>The location is rounded to 2 decimals before it leaves your device.</li>
+          <li>
+            A town you search for goes to this service and on to Open-Meteo's place search; it is not logged or stored,
+            only kept in the server's memory for a week so a common town is looked up once.
+          </li>
           <li>
             "Near you" links to OpenStreetMap with that rounded location, so you can check it; nothing goes there unless
             you open the link.
