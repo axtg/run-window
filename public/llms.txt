@@ -1,8 +1,9 @@
 # Best time to run
 
-> besttimetorun.com finds the best weather window for a run today, tomorrow and the day after: give it a location and the hours you
-> can run, and it returns the driest, calmest, most comfortable stretch for each run length from 15 minutes to 3 hours,
-> with the wind direction to start into. Free, anonymous, no account or key. Weather from Open-Meteo (CC BY 4.0).
+> besttimetorun.com finds the best weather window for a run today, tomorrow and the day after: give it a location and
+> the hours you can run, and it returns the driest, calmest, most comfortable stretch for each run length from 15
+> minutes to 3 hours, with the wind direction to start into. Free, anonymous, no account or key. Weather from Open-Meteo
+> (CC BY 4.0).
 
 The page at https://besttimetorun.com/ does this for a GPX/KML route (read in the browser, never uploaded) or the
 device's location. Everything it shows comes from the public JSON API below.
@@ -10,21 +11,22 @@ device's location. Everything it shows comes from the public JSON API below.
 ## API
 
 - [OpenAPI contract](https://besttimetorun.com/openapi.yaml): the full description of both endpoints.
-- `GET https://besttimetorun.com/api/window?lat=52.37&lon=4.89&avail=07-09,12-14,17-21`: the best window per run
-  length for today, tomorrow and the day after, as UTC ISO times. `lat` and `lon` are rounded to 2 decimals (about 1 km). Optional:
-  `dark` (`avoid` or `ok`), `rain` (highest chance of rain allowed, %), `prefer` (`balanced`, `wind`, `rain` or
-  `temp`), `slots=1` (every 15-minute slot with its weather and score).
+- `GET https://besttimetorun.com/api/window?lat=52.37&lon=4.89&avail=07-09,12-14,17-21`: the best window per run length
+  for today, tomorrow and the day after, as UTC ISO times. `lat` and `lon` are rounded to 2 decimals (about 1 km).
+  Optional: `dark` (`avoid` or `ok`), `rain` (highest chance of rain allowed, %), `prefer` (`balanced`, `wind`, `rain`
+  or `temp`), `slots=1` (every 15-minute slot with its weather and score).
 - `GET https://besttimetorun.com/api/capacity`: how much of today's cap of new locations is left.
 
 ## MCP
 
 - `https://besttimetorun.com/mcp`: a stateless MCP server (Streamable HTTP, no sign-in) for AI assistants. Tools:
-  `find_best_run_time` (latitude, longitude, minutes, day `today`, `tomorrow` or a date up to two days ahead, and optional `hours`, `darkOk`,
-  `maxRainChance`, `mindMost`) returns the best stretch with its local times, conditions and which way to start (with `darkOk`, a best time in the dark comes with the best daylight one);
-  `get_run_conditions` returns the day's 15-minute slots. Ask the user for their town if you don't know it.
-  Hosts that show MCP Apps draw `find_best_run_time`'s answer with the day's timeline (`ui://besttimetorun/day.html`).
-- A first prompt: "Using Best time to run, when is the best time today for a 45-minute run near Utrecht? I can run
-  07–09 or 17–21. I mind the wind most."
+  `find_best_run_time` (latitude, longitude, minutes, day `today`, `tomorrow` or a date up to two days ahead, and
+  optional `hours`, `darkOk`, `maxRainChance`, `mindMost`) returns the best stretch with its local times, conditions and
+  which way to start (with `darkOk`, a best time in the dark comes with the best daylight one); `get_run_conditions`
+  returns the day's 15-minute slots. Ask the user for their town if you don't know it. Hosts that show MCP Apps draw
+  `find_best_run_time`'s answer with the day's timeline (`ui://besttimetorun/day.html`).
+- A first prompt: "Using Best time to run, when is the best time today for a 45-minute run near Utrecht? I can run 07–09
+  or 17–21. I mind the wind most."
 
 ## Limits
 
