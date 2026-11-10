@@ -38,7 +38,12 @@ function securityHeaders() {
   return (req, res, next) => {
     res.setHeader(POLICY_HEADER, policy);
     res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
-    res.setHeader('Strict-Transport-Security', 'max-age=604800'); // One week, while this is new
+    // A year, subdomains too (www only redirects). Not `preload`: that is hard to undo and the maintainer's call.
+    res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    // The page asks for the location and nothing else
+    res.setHeader('Permissions-Policy', 'geolocation=(self), camera=(), microphone=(), payment=(), usb=()');
+    res.setHeader('Cross-Origin-Opener-Policy', 'same-origin');
     next();
   };
 }

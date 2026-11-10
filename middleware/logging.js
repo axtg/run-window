@@ -62,7 +62,8 @@ const LOGGABLE_PATHS = new Set([
   '/apple-touch-icon.png',
   '/robots.txt',
   '/sitemap.xml',
-  '/llms.txt'
+  '/llms.txt',
+  '/.well-known/security.txt'
 ]);
 // Express routes case-insensitively and accepts one trailing slash, so `/API/Window/` is served as `/api/window`.
 // Compare that canonical form; what is logged still only ever comes from the list above.

@@ -13,6 +13,7 @@ const { createWindowRouter } = require('./routes/window');
 const { createCapacityRouter } = require('./routes/capacity');
 
 const OPENAPI_FILE = path.join(__dirname, 'docs', 'openapi.yaml');
+const SECURITY_TXT = path.join(__dirname, 'public', '.well-known', 'security.txt');
 const LOOPBACK = new Set(['127.0.0.1', '::1', '::ffff:127.0.0.1']);
 
 // `rateLimit` is the allowed requests per second per client; it defaults to RATE_LIMIT_RPS.
@@ -47,6 +48,15 @@ function createApp({ weather, now = Date.now, rateLimit } = {}) {
   app.get('/health/cache', (req, res, next) => {
     if (!LOOPBACK.has(req.ip)) return next();
     return res.json({ status: 'success', cache: forecasts.stats(), timestamp: new Date().toISOString() });
+  });
+
+  // RFC 9116. express.static skips dot folders such as .well-known, so this one file has its own route.
+  app.get('/.well-known/security.txt', (req, res, next) => {
+    res.type('text/plain');
+    res.sendFile(SECURITY_TXT, error => {
+      if (!error || res.headersSent) return undefined;
+      return next(new Error('Could not send security.txt')); // never forward fs errors: they carry paths
+    });
   });
 
   app.get('/openapi.yaml', (req, res, next) => {

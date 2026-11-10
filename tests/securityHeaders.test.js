@@ -32,7 +32,10 @@ describe('security headers', () => {
 
     expect(headers['content-security-policy']).toContain("default-src 'self'");
     expect(headers['referrer-policy']).toBe('strict-origin-when-cross-origin');
-    expect(headers['strict-transport-security']).toBe('max-age=604800');
+    expect(headers['strict-transport-security']).toBe('max-age=31536000; includeSubDomains');
+    expect(headers['x-content-type-options']).toBe('nosniff');
+    expect(headers['permissions-policy']).toBe('geolocation=(self), camera=(), microphone=(), payment=(), usb=()');
+    expect(headers['cross-origin-opener-policy']).toBe('same-origin');
     expect(headers['x-powered-by']).toBeUndefined();
   });
 
