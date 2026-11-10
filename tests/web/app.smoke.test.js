@@ -582,8 +582,9 @@ describe('app.js privacy smoke test', () => {
 
   it('asks /api/capacity without parameters and draws the bar from it', async () => {
     const { elements, record } = loadPage({ navigator: { geolocation } });
-    // The request goes through supertest, which takes many event-loop turns.
-    for (let i = 0; i < 500 && isHidden(elements.get('quota-bar')); i++) await flush();
+    // Bounded in real time, like answered(): the fake fetch's HTTP call can take many rounds on a busy runner.
+    const deadline = performance.now() + ANSWER_TIMEOUT_MS;
+    while (isHidden(elements.get('quota-bar')) && performance.now() < deadline) await flush();
     expect(record.capacity).toEqual([`${ORIGIN}/api/capacity`]);
     expect(isHidden(elements.get('quota-bar'))).toBe(false);
     expect(elements.get('quota-fill').attributes.width).toBe('85%');
