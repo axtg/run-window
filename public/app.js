@@ -16,8 +16,6 @@
   const TIMELINE_HEIGHT = 138;
   const MIN_WIDTH = 200;
   const DAY_MIN = 1440;
-  const PACE_STEP = 5;
-  const PACE_RANGE = [180, 900];
   const DURATION_STEP = 15;
   const DURATION_RANGE = [15, 300];
   const COPY_LABEL = 'Copy API link';
@@ -61,15 +59,16 @@
 
   // Every element app.js uses, by id; el.sourceSet is #source-set.
   const IDS = (
-    'source source-map source-rough source-set source-pick clear-source day-today day-tomorrow zone-note ' +
-    'route-input use-location duration-group run-distance run-minutes pace-group pace-down pace-input ' +
-    'pace-up duration-down duration-value duration-up hours-rows add-hours dark-times dark-ok prefer-balanced ' +
+    'source source-map source-rough source-set source-pick clear-source day-today day-tomorrow ' +
+    'route-input use-location duration-group run-distance run-minutes pace-group pace-input ' +
+    'duration-down duration-value duration-up hours-rows add-hours dark-times dark-ok prefer-balanced ' +
     'prefer-wind prefer-rain prefer-temp prefer-hint rain-input rain-fill rain-value prompt answer answer-label ' +
     'answer-time add-calendar calendar-menu calendar-google calendar-outlook key-numbers wind-line wind-compass ' +
     'wind-arrow wind-text tomorrow-hint try-tomorrow tomorrow-text stale-note status ' +
     'result timeline chart-legend tap-line why-sentence copy-link open-method open-api open-privacy ' +
     'method-dialog api-dialog privacy-dialog close-method close-api close-privacy open-about about-menu ' +
-    'open-network network-menu copy-label copy-icon copy-check copy-note quota-bar quota-fill quota-saturate sky-a sky-b'
+    'open-network network-menu copy-label copy-icon copy-check copy-note quota-bar quota-fill quota-saturate ' +
+    'sky-a sky-b'
   ).split(' ');
   const camel = id => id.replace(/-(\w)/g, (_, letter) => letter.toUpperCase());
   const el = Object.fromEntries(IDS.map(id => [camel(id), document.getElementById(id)]));
@@ -128,6 +127,12 @@
     return Math.max(1, Plan.runMinutes(state.summary.distanceKm, state.settings.paceSec));
   }
 
+  // Without a route: the distance to plan for at the average pace, shown as the answer's Plan number
+  function planText() {
+    if (state.summary) return null;
+    return Plan.planDistance(state.settings.durationMin, state.settings.paceSec);
+  }
+
   function query() {
     const { hours, allowDark, prefer, rain } = state.settings;
     return { lat: state.location.lat, lon: state.location.lon, hours, allowDark, prefer, rain };
@@ -158,9 +163,8 @@
   function renderRunRow() {
     const withRoute = Boolean(state.summary);
     const { paceSec, durationMin } = state.settings;
-    // Without a route the run is set in minutes, so pace would only feed an estimate: it shows with a route only.
+    // The pace always shows: without a route it gives the answer's Plan distance, with one the minutes.
     el.durationGroup.hidden = withRoute;
-    el.paceGroup.hidden = !withRoute;
     el.runDistance.hidden = !withRoute;
     el.runMinutes.hidden = !withRoute;
     el.paceInput.value = Plan.formatPace(paceSec);
@@ -169,12 +173,7 @@
     el.runMinutes.textContent = withRoute ? `= ${runMinutes()} min` : '';
   }
 
-  function stepPace(delta) {
-    track('Setting', 'pace');
-    save({ paceSec: clamp(state.settings.paceSec + delta, PACE_RANGE) });
-    render(); // pace is not in the request: the response already has every run length
-  }
-
+  // The average pace, typed. A bad value goes back to the saved one.
   function onPaceTyped() {
     const pace = Plan.parsePace(el.paceInput.value.trim());
     if (pace === null) {
@@ -185,7 +184,7 @@
     if (el.status.textContent === MESSAGES.pace) setStatus('');
     track('Setting', 'pace');
     save({ paceSec: pace });
-    render();
+    render(); // pace is not in the request: the response already has every run length
   }
 
   function stepDuration(delta) {
@@ -657,8 +656,9 @@
       ? Plan.noWindowText(minutes, dayLabel)
       : Plan.answerTime(result, { minutes, timeZone });
     el.answerTime.className = none ? 'text-xl font-semibold' : 'whitespace-nowrap text-3xl font-bold tracking-tight';
-    renderKeyNumbers(Plan.keyNumbers(result, state.summary, minutes));
-    state.calendar = Plan.calendarEvent(result, state.summary, { minutes, timeZone });
+    const plan = planText();
+    renderKeyNumbers(Plan.keyNumbers(result, state.summary, minutes, plan));
+    state.calendar = Plan.calendarEvent(result, state.summary, { minutes, timeZone, plan });
     renderCalendar();
     const arrow = result.window ? Plan.windArrowDeg(result.window) : null;
     // In little wind there is no direction to start into, and the Wind pill already says so: no line, no compass.
@@ -720,14 +720,9 @@
       setSky(null, null);
       el.answer.hidden = true;
       el.result.hidden = true;
-      el.zoneNote.hidden = true;
       return;
     }
     const timeZone = state.body.location.timezone;
-    const deviceZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-    const zone = Plan.zoneNote(timeZone, deviceZone, Date.now());
-    el.zoneNote.hidden = !zone;
-    el.zoneNote.textContent = zone || '';
 
     const dayLabel = state.dayIndex === 0 ? 'today' : 'tomorrow';
     const { result, minutes, text } = renderAnswer(day, timeZone, dayLabel);
@@ -898,8 +893,6 @@
     });
   }
 
-  el.paceDown.addEventListener('click', () => stepPace(-PACE_STEP));
-  el.paceUp.addEventListener('click', () => stepPace(PACE_STEP));
   el.paceInput.addEventListener('change', onPaceTyped);
   el.durationDown.addEventListener('click', () => stepDuration(-DURATION_STEP));
   el.durationUp.addEventListener('click', () => stepDuration(DURATION_STEP));

@@ -97,8 +97,12 @@ test approach. Read its `CLAUDE.md` first. Reuse rather than reinvent:
   load, and again after a 503); the only other is Plausible's. Nothing
   from the file goes into storage, the URL or analytics.
 - The page is one card with slim settings rows:
-  - Run: without a route, only the duration stepper (pace would only feed an estimate, so it is hidden but kept in
-    storage). With a route: the route's distance and the pace − / + stepper, with `= 66 min` under it.
+  - Run, on one line down to 360 px: the duration stepper (without a route) or the route's distance, then the average
+    pace as one typed field, `at [6:25] /km` (no steppers, no range: a range was tried on 2026-11-10 and was too many
+    fields). Without a route the pace gives the answer's last number, `Plan 7.0 km` (`Plan.planDistance`, also in the
+    calendar description); with a route it gives `= 66 min` at the end of the line.
+  - No time-zone note: times are the location's own, unlabelled (a "Europe/Amsterdam time" note next to Today /
+    Tomorrow was removed on 2026-11-10).
   - The route name sits next to the ✕ on one line (cut short with `…`, full name in `title`), without its distance.
   - With a location, "Near you" (`#source-map`) links to OpenStreetMap at the rounded coordinates (new tab,
     `noreferrer`; a link only, nothing loads from there unless tapped). When the browser's accuracy is worse than
@@ -116,7 +120,8 @@ test approach. Read its `CLAUDE.md` first. Reuse rather than reinvent:
     four options wrap under the label below about 360 px.
   - Rain: a slider.
 - Under the settings is a big answer with key numbers: Sky, Feels and Wind (Feels and Wind with a context word such as
-  `ideal` or `light`, in a light pill next to the label, so the numbers take one line), then Climb or Run.
+  `ideal` or `light`, in a light pill next to the label, so the numbers take one line), then Climb (with a route) or
+  Plan (the distance at the pace; the minutes are already in "Best time · 45 min").
   - From `sm:` up, the numbers sit to the right of the time in a 2 × 2 grid (four across doesn't fit the card). On a
     phone they sit under it.
   - The wind line is in words (`Wind from the east · start east, into it`), with a compass whose arrow shows where the

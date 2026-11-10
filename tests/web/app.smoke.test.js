@@ -301,10 +301,11 @@ describe('app.js privacy smoke test', () => {
     expect(record.fetches).toHaveLength(1);
 
     // Pace is not part of the request (the response holds every run length), so it redraws without asking again.
-    const paceBefore = elements.get('pace-input').value;
-    elements.get('pace-up').listeners.click();
+    const pace = elements.get('pace-input');
+    pace.value = '6:05';
+    pace.listeners.change();
     await flush();
-    expect(elements.get('pace-input').value).not.toBe(paceBefore);
+    expect(pace.value).toBe('6:05');
     expect(record.fetches).toHaveLength(1);
 
     elements.get('add-hours').listeners.click();
@@ -359,20 +360,34 @@ describe('app.js privacy smoke test', () => {
     expect(JSON.parse(store.get(sandbox.RunSettings.STORAGE_KEY)).hours).toBe('10-20');
   });
 
-  it('shows only the duration in the Run row without a route; duration edits redraw without asking', async () => {
-    const { elements, record } = loadPage({ navigator: { geolocation }, stored: JSON.stringify({ paceSec: 390 }) });
+  it('without a route: duration and pace; the answer plans the distance; edits redraw without asking', async () => {
+    const stored = JSON.stringify({ paceSec: 385, durationMin: 45 });
+    const { elements, record } = loadPage({ navigator: { geolocation }, stored });
     elements.get('use-location').listeners.click();
-    await flush();
+    await answered(elements);
     expect(rejections).toEqual([]);
     expect(record.fetches).toHaveLength(1);
     expect(elements.get('duration-group').hidden).toBe(false);
-    expect(elements.get('pace-group').hidden).toBe(true); // set in minutes, pace adds nothing
+    expect(elements.get('pace-group').hidden).toBe(false);
     expect(elements.get('run-distance').hidden).toBe(true);
     expect(elements.get('run-minutes').hidden).toBe(true);
-    expect(elements.get('pace-input').value).toBe('6:30'); // kept for when a route is opened
+    expect(elements.get('pace-input').value).toBe('6:25');
+    const plan = () => {
+      const item = elements.get('key-numbers').children.find(node => node.children[0].textContent === 'Plan');
+      return item.children[1].children.map(part => part.textContent).join('');
+    };
+    expect(plan()).toBe('7.0 km'); // 45 min at 6:25
 
     elements.get('duration-up').listeners.click();
-    expect(elements.get('duration-value').textContent).toBe('75 min');
+    expect(elements.get('duration-value').textContent).toBe('60 min');
+    expect(plan()).toBe('9.4 km');
+    const pace = elements.get('pace-input');
+    pace.value = '6:50';
+    pace.listeners.change();
+    expect(plan()).toBe('8.8 km');
+    pace.value = 'soon'; // a bad value goes back to the saved one
+    pace.listeners.change();
+    expect(pace.value).toBe('6:50');
     await flush();
     expect(record.fetches).toHaveLength(1);
   });
@@ -390,8 +405,10 @@ describe('app.js privacy smoke test', () => {
     expect(elements.get('run-distance').textContent).toBe(`${summary.distanceKm.toFixed(1)} km`);
     const minutes = Math.max(1, sandbox.RunPlan.runMinutes(summary.distanceKm, 390));
     expect(elements.get('run-minutes').textContent).toBe(`= ${minutes} min`);
-    elements.get('pace-up').listeners.click();
-    const slower = Math.max(1, sandbox.RunPlan.runMinutes(summary.distanceKm, 395));
+    const pace = elements.get('pace-input');
+    pace.value = '7:30';
+    pace.listeners.change();
+    const slower = Math.max(1, sandbox.RunPlan.runMinutes(summary.distanceKm, 450));
     expect(elements.get('run-minutes').textContent).toBe(`= ${slower} min`);
   });
 
@@ -550,8 +567,13 @@ describe('app.js privacy smoke test', () => {
     expect(wind.children[2].textContent).toBe('light'); // a small word under the value
     const item = label => elements.get('key-numbers').children.find(node => node.children[0].textContent === label);
     expect(item('Feels').children[2].textContent).toBe('ideal'); // 10 °C
-    expect(item('Sky').children).toHaveLength(2); // no word under Sky or Run
-    expect(item('Run').children).toHaveLength(2);
+    expect(item('Sky').children).toHaveLength(2); // no word with Sky or Plan
+    expect(item('Plan').children).toHaveLength(2);
+    expect(
+      item('Plan')
+        .children[1].children.map(part => part.textContent)
+        .join('')
+    ).toBe('10.0 km'); // 60 min at 6:00
   });
 
   it('names the arrow keys under the timeline only where the screen is not touch-only', async () => {
@@ -738,8 +760,11 @@ describe('app.js privacy smoke test', () => {
     const { sandbox, elements } = loadPage();
     await sandbox.RunApp.openRouteText(GPX, FILE_NAME);
     await flush();
-    elements.get('pace-up').listeners.click();
-    elements.get('pace-up').listeners.click();
+    const pace = elements.get('pace-input');
+    pace.value = '5:55';
+    pace.listeners.change();
+    pace.value = '6:20';
+    pace.listeners.change();
     elements.get('dark-ok').listeners.click();
     elements.get('prefer-wind').listeners.click();
     elements.get('rain-input').value = '55';

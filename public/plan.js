@@ -36,6 +36,11 @@
     return Math.round((distanceKm * paceSec) / 60);
   }
 
+  // '7.0 km': the distance of a run of `minutes` at `paceSec` (seconds per km), to plan a route by.
+  function planDistance(minutes, paceSec) {
+    return `${((minutes * 60) / paceSec).toFixed(1)} km`;
+  }
+
   // "Near you" opens OpenStreetMap at the rounded location the page sends to the API.
   function mapUrl(lat, lon) {
     return `https://www.openstreetmap.org/?mlat=${lat}&mlon=${lon}#map=12/${lat}/${lon}`;
@@ -162,12 +167,14 @@
     };
   }
 
-  function keyNumbers(result, summary, minutes) {
+  // Without a route the last number is the distance to plan for at the pace (`plan`, from planDistance); the run's
+  // minutes are already in the answer's label.
+  function keyNumbers(result, summary, minutes, plan = null) {
     if (result.kind === 'none') return [];
     const w = result.window;
-    const last = summary
-      ? { label: 'Climb', value: summary.climbM === null ? '–' : `+${summary.climbM} m` }
-      : { label: 'Run', value: `${minutes} min` };
+    let last = { label: 'Run', value: `${minutes} min` };
+    if (summary) last = { label: 'Climb', value: summary.climbM === null ? '–' : `+${summary.climbM} m` };
+    else if (plan) last = { label: 'Plan', value: plan };
     return [
       { label: 'Sky', value: skyValue(w) },
       { label: 'Feels', value: tempOf(w), note: feelsWord(w.apparentTempAvg) },
@@ -177,7 +184,7 @@
   }
 
   // A key number split so the page can set its units smaller: '16 km/h E' → 16, ' km/h' (unit), ' E'.
-  const UNIT = /(\s?(?:km\/h|°C|min|m|%)(?=\s|$))/;
+  const UNIT = /(\s?(?:km\/h|km|°C|min|m|%)(?=\s|$))/;
   function valueParts(value) {
     return value
       .split(UNIT)
@@ -215,7 +222,7 @@
   }
 
   // 'Sunday afternoon 10.4 km run', or '… 60 min run' without a route. Day and hour are the location's.
-  function calendarEvent(result, summary, { minutes, timeZone }) {
+  function calendarEvent(result, summary, { minutes, timeZone, plan = null }) {
     if (result.kind === 'none') return null;
     const { startMs, endMs } = answerSpan(result, minutes);
     const parts = new Intl.DateTimeFormat('en-US', {
@@ -232,7 +239,9 @@
     const conditions = `${skyValue(w)} · Feels ${tempOf(w)}, ${feelsWord(w.apparentTempAvg)} · ${wind}`;
     return {
       title: `${weekday} ${partOfDay(hour)} ${what} run`,
-      description: `${conditions}\n${windLine(summary, w)}\nForecast from besttimetorun.com`,
+      description: [plan ? `Plan ${plan}` : null, conditions, windLine(summary, w), 'Forecast from besttimetorun.com']
+        .filter(Boolean)
+        .join('\n'),
       startMs,
       endMs
     };
@@ -361,26 +370,6 @@
     return summary.climbM === null ? distance : `${distance} · +${summary.climbM} m`;
   }
 
-  function offsetMinutes(timeZone, nowMs) {
-    const parts = new Intl.DateTimeFormat('en-US', {
-      timeZone,
-      hourCycle: 'h23',
-      year: 'numeric',
-      month: 'numeric',
-      day: 'numeric',
-      hour: 'numeric',
-      minute: 'numeric',
-      second: 'numeric'
-    }).formatToParts(new Date(nowMs));
-    const get = type => Number(parts.find(part => part.type === type).value);
-    const asUtc = Date.UTC(get('year'), get('month') - 1, get('day'), get('hour'), get('minute'), get('second'));
-    return Math.round((asUtc - Math.floor(nowMs / 1000) * 1000) / 60000);
-  }
-
-  function zoneNote(locationTz, deviceTz, nowMs) {
-    return offsetMinutes(locationTz, nowMs) === offsetMinutes(deviceTz, nowMs) ? null : `${locationTz} time`;
-  }
-
   function apiUrl(origin, { lat, lon, hours, allowDark, prefer, rain }, { slots = false } = {}) {
     const dark = allowDark ? 'ok' : 'avoid';
     const where = `lat=${lat.toFixed(2)}&lon=${lon.toFixed(2)}`;
@@ -416,6 +405,7 @@
     parsePace,
     formatPace,
     runMinutes,
+    planDistance,
     durationKey,
     pickResult,
     formatClock,
@@ -438,7 +428,6 @@
     noWindowText,
     tomorrowHint,
     routeLine,
-    zoneNote,
     apiUrl,
     errorMessage,
     staleNote,
