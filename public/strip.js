@@ -147,11 +147,19 @@
     if (outside.length === 0 || inside.length === 0) {
       first = 'The only dry stretch of the day.';
     } else {
-      const warmer = mean(inside.map(s => s.apparentTemp)) - mean(outside.map(s => s.apparentTemp)) >= WARMER_C;
-      const calmer = mean(outside.map(s => s.windSpeed)) - mean(inside.map(s => s.windSpeed)) >= CALMER_KMH;
-      if (warmer && calmer) first = 'Warmer and less windy than the rest of the day.';
-      else if (warmer) first = 'Warmer than the rest of the day.';
-      else if (calmer) first = 'Less windy than the rest of the day.';
+      // Clearly better on average says it at all; better than every other dry slot says "the rest of the day", else
+      // "most of the day", so a warmer hour later on never makes the sentence untrue.
+      const temp = mean(inside.map(s => s.apparentTemp));
+      const wind = mean(inside.map(s => s.windSpeed));
+      const warmer = temp - mean(outside.map(s => s.apparentTemp)) >= WARMER_C;
+      const calmer = mean(outside.map(s => s.windSpeed)) - wind >= CALMER_KMH;
+      const warmest = temp >= Math.max(...outside.map(s => s.apparentTemp));
+      const calmest = wind <= Math.min(...outside.map(s => s.windSpeed));
+      const rest = (!warmer || warmest) && (!calmer || calmest);
+      const than = rest ? 'than the rest of the day.' : 'than most of the day.';
+      if (warmer && calmer) first = `Warmer and less windy ${than}`;
+      else if (warmer) first = `Warmer ${than}`;
+      else if (calmer) first = `Less windy ${than}`;
       else first = ''; // nothing stands out: no sentence rather than "similar all day"
     }
 

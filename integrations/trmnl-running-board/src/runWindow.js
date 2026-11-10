@@ -122,14 +122,17 @@ function windowLines(choice, day, body, lang, text) {
   return lines;
 }
 
-function windowPanel({ body, status, session, lang, hasLocation }) {
+function windowPanel({ body, status, full = false, session, lang, hasLocation }) {
   const language = STRINGS[lang] ? lang : 'en';
   const text = STRINGS[language];
   const message = (kind, heading) => ({ kind, heading, lines: [] });
 
   if (!hasLocation) return message('noLocation', text.setLocation);
   if (!body || typeof body !== 'object' || !Array.isArray(body.days)) {
-    return status === 400 ? message('badSettings', text.checkHours) : message('error', text.weatherUnavailable);
+    if (status === 400) return message('badSettings', text.checkHours);
+    // A 503 is either the day's cap for new locations or the weather upstream; /api/capacity tells which
+    if (status === 503 && full) return { kind: 'full', heading: text.serviceFull, lines: [text.serviceFullLine] };
+    return message('error', text.weatherUnavailable);
   }
   const day = body.days.find(entry => entry && typeof entry === 'object' && entry.date === session.date);
   if (!day) return message('error', text.weatherUnavailable);

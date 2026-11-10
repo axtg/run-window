@@ -35,7 +35,9 @@ TRMNL's stylesheet and script from trmnl.com).
 | Language               | Device language     | Falls back to English when the device language is not supported.               |
 | Theme                  | Light               | Dark shows the board in white on black. TRMNL's own dark mode also inverts it. |
 
-The plugin polls `besttimetorun.com` every 30 minutes.
+The plugin polls `besttimetorun.com` every 30 minutes. When that poll fails, the script asks for the window once
+more and, alongside, `/api/capacity` (no parameters). If the service took its 300 locations for the day, the screen says
+"Full for today" instead of "Weather unavailable".
 
 ## The token
 

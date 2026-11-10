@@ -256,6 +256,23 @@ describe('whySentence', () => {
     expect(whySentence(day(8, 8.5, 10, 13), range, opts)).toBe('Less windy than the rest of the day.');
   });
 
+  it('says "most of the day" when another dry slot beats the window', () => {
+    // Warmer than the rest on average, but the last slot (index 7) is warmer still
+    const warmerLater = day(10, 8, 10, 11, [null, null, null, null, null, null, null, { apparentTemp: 12 }]);
+    expect(whySentence(warmerLater, range, opts)).toBe('Warmer than most of the day.');
+    // Rest 16, 16, 16, 4: 13 on average, 3 above the window's 10, but the 4 is calmer
+    const calmerLater = day(8, 8.5, 10, 16, [null, null, null, null, null, null, null, { windSpeed: 4 }]);
+    expect(whySentence(calmerLater, range, opts)).toBe('Less windy than most of the day.');
+    // One "most" makes the joined sentence "most" too
+    const both = day(10, 8, 10, 20, [null, null, null, null, null, null, null, { apparentTemp: 12 }]);
+    expect(whySentence(both, range, opts)).toBe('Warmer and less windy than most of the day.');
+  });
+
+  it('only compares with dry slots: a warmer rainy slot leaves "the rest of the day"', () => {
+    const slots = day(10, 8, 10, 11, [null, null, null, null, null, null, null, { apparentTemp: 12, status: 'rain' }]);
+    expect(whySentence(slots, range, opts)).toBe('Warmer than the rest of the day. Rain from 14:45.');
+  });
+
   it('says nothing when nothing stands out, but still names rain after the range', () => {
     expect(whySentence(day(8, 8.5, 10, 11), range, opts)).toBe('');
     const slots = day(8, 8.5, 10, 11, [null, null, null, null, null, { status: 'rain' }]);

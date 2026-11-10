@@ -593,10 +593,18 @@ describe('app.js privacy smoke test', () => {
 
   it('tints the page by the answer, and by the hour before one', async () => {
     const { elements, sandbox } = loadPage({ navigator: { geolocation } });
-    expect(['morning', 'evening']).toContain(sandbox.document.body.attributes['data-sky']);
+    const body = sandbox.document.body;
+    expect(['morning', 'evening']).toContain(body.attributes['data-sky']);
+    expect(elements.get('sky-a').attributes).toMatchObject({
+      'data-sky': body.attributes['data-sky'],
+      'data-shown': ''
+    });
     elements.get('use-location').listeners.click();
     await answered(elements);
-    expect(sandbox.document.body.attributes['data-sky']).toBe('mild'); // dry, 10 °C, calm
+    expect(body.attributes['data-sky']).toBe('mild'); // dry, 10 °C, calm
+    // The new tint fades in on the other layer while the old one fades out
+    expect(elements.get('sky-b').attributes).toMatchObject({ 'data-sky': 'mild', 'data-shown': '' });
+    expect('data-shown' in elements.get('sky-a').attributes).toBe(false);
   });
 
   it('shows no wind line in little wind', async () => {

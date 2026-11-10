@@ -32,7 +32,8 @@ function fakeFetch(overrides = {}) {
     activities: activitiesWeek,
     efforts: effortsWeek,
     detail: detailHr,
-    window: windowOk
+    window: windowOk,
+    capacity: { perDay: 300, remainingShare: 0.5, full: false, asOf: 'a', resetsAt: 'b' }
   };
   const route = url => {
     if (url.includes('plannedTrainingList')) return 'plan';
@@ -40,6 +41,7 @@ function fakeFetch(overrides = {}) {
     if (url.includes('/api/oauth/v2/activity/')) return 'detail';
     if (url.includes('/efforts')) return 'efforts';
     if (url.startsWith('https://besttimetorun.com/api/window')) return 'window';
+    if (url === 'https://besttimetorun.com/api/capacity') return 'capacity';
     return 'unknown';
   };
   const detailId = url => decodeURIComponent(url.split('/activity/')[1].split('?')[0]);

@@ -1,6 +1,6 @@
 const { STRINGS, resolveLanguage, fill } = require('./strings');
 const { localDate, localTime, dayOfWeek } = require('./time');
-const { readSettings, windowUrl } = require('./settings');
+const { readSettings, windowUrl, CAPACITY_URL } = require('./settings');
 const { tredictRange, tredictUrls, tredictSequence, detailUrl } = require('./tredict');
 const {
   INTENSITY_PER_RUN,
@@ -349,13 +349,16 @@ async function assembleBoard(input, { fetch: fetchFn, now, timeoutMs, clock, pre
   const retry = !polled && settings.hasLocation && !pausedRetryAt;
   // Runs alongside the Tredict calls; the detail calls wait for it only when the week's zone depends on it
   const weatherCall = retry ? fetchWindow(fetchFn, windowUrl(settings), timeoutMs) : Promise.resolve(null);
+  // Alongside the retry, never after it, so it adds no time: only read when the retry answers 503
+  const capacityCall = retry ? fetchWindow(fetchFn, CAPACITY_URL, timeoutMs) : Promise.resolve(null);
   // Calendar, form and intensity: the user's zone, else the zone of the window body used
   const zone = weatherCall.then(weather => userZone || zoneOf(polled ? body : weather && weather.body) || 'UTC');
-  const [results, weather] = await Promise.all([
+  const [results, weather, capacity] = await Promise.all([
     sequence
       ? fetchTredict(sequence, urls, { zone, now, sport: settings.sport, previous })
       : { plan: SKIPPED, activities: SKIPPED, efforts: SKIPPED },
-    weatherCall
+    weatherCall,
+    capacityCall
   ]);
   const rate = sequence ? sequence.rate() : null;
   const tredictRetryAt = rate ? tredictPauseUntil(now, rate.retryAfterS) : tredictPause;
@@ -385,6 +388,7 @@ async function assembleBoard(input, { fetch: fetchFn, now, timeoutMs, clock, pre
   const run = windowPanel({
     body: windowBody,
     status: weather ? weather.status : null,
+    full: Boolean(capacity && isObject(capacity.body) && capacity.body.full === true),
     session,
     lang,
     hasLocation: settings.hasLocation

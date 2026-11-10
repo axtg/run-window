@@ -21,10 +21,19 @@
     <script src="/settings.js" defer></script>
     <script src="/app.js" defer></script>
   </head>
-  <!-- The tint behind the card follows the shown window (Plan.skyTheme sets data-sky); the card stays white. -->
-  <body
-    class="min-h-screen bg-gray-100 bg-no-repeat text-primary antialiased data-[sky=mild]:bg-[linear-gradient(180deg,#cfe8ff_0%,#e3f6ec_51%,#f3f4f6_100%)] data-[sky=cold]:bg-[linear-gradient(180deg,#d3eafb_0%,#edf6fc_54%,#f8fafc_100%)] data-[sky=warm]:bg-[linear-gradient(180deg,#ffdfc2_0%,#fff2d4_54%,#f9fafb_100%)] data-[sky=wet]:bg-[linear-gradient(180deg,#c0cad7_0%,#dce2ea_54%,#eef1f4_100%)] data-[sky=windy]:bg-[linear-gradient(165deg,#d6dbe2_0%,#eef0f3_47%,#e1e5eb_74%,#f5f6f8_100%)] data-[sky=dark]:bg-[linear-gradient(180deg,#c6cbf5_0%,#e3dbf6_40%,#f3f4f6_94%)] data-[sky=morning]:bg-[linear-gradient(180deg,#ffd6cb_0%,#fdead6_47%,#f3f4f6_100%)] data-[sky=evening]:bg-[linear-gradient(180deg,#d0d5ef_0%,#e5e2f1_47%,#f3f4f6_100%)]"
-  >
+  <!-- body's data-sky names the tint (Plan.skyTheme). Two layers behind the page draw it and cross-fade, as CSS can't
+       animate one gradient into another; the card stays white. -->
+  <body class="relative min-h-screen bg-gray-100 text-primary antialiased">
+    <div
+      id="sky-a"
+      class="pointer-events-none absolute inset-0 -z-10 bg-no-repeat opacity-0 transition-opacity duration-700 motion-reduce:transition-none [&[data-shown]]:opacity-100 data-[sky=mild]:bg-[linear-gradient(180deg,#cfe8ff_0%,#e3f6ec_51%,#f3f4f6_100%)] data-[sky=cold]:bg-[linear-gradient(180deg,#d3eafb_0%,#edf6fc_54%,#f8fafc_100%)] data-[sky=warm]:bg-[linear-gradient(180deg,#ffdfc2_0%,#fff2d4_54%,#f9fafb_100%)] data-[sky=wet]:bg-[linear-gradient(180deg,#c0cad7_0%,#dce2ea_54%,#eef1f4_100%)] data-[sky=windy]:bg-[linear-gradient(165deg,#d6dbe2_0%,#eef0f3_47%,#e1e5eb_74%,#f5f6f8_100%)] data-[sky=dark]:bg-[linear-gradient(180deg,#c6cbf5_0%,#e3dbf6_40%,#f3f4f6_94%)] data-[sky=morning]:bg-[linear-gradient(180deg,#ffd6cb_0%,#fdead6_47%,#f3f4f6_100%)] data-[sky=evening]:bg-[linear-gradient(180deg,#d0d5ef_0%,#e5e2f1_47%,#f3f4f6_100%)]"
+      aria-hidden="true"
+    ></div>
+    <div
+      id="sky-b"
+      class="pointer-events-none absolute inset-0 -z-10 bg-no-repeat opacity-0 transition-opacity duration-700 motion-reduce:transition-none [&[data-shown]]:opacity-100 data-[sky=mild]:bg-[linear-gradient(180deg,#cfe8ff_0%,#e3f6ec_51%,#f3f4f6_100%)] data-[sky=cold]:bg-[linear-gradient(180deg,#d3eafb_0%,#edf6fc_54%,#f8fafc_100%)] data-[sky=warm]:bg-[linear-gradient(180deg,#ffdfc2_0%,#fff2d4_54%,#f9fafb_100%)] data-[sky=wet]:bg-[linear-gradient(180deg,#c0cad7_0%,#dce2ea_54%,#eef1f4_100%)] data-[sky=windy]:bg-[linear-gradient(165deg,#d6dbe2_0%,#eef0f3_47%,#e1e5eb_74%,#f5f6f8_100%)] data-[sky=dark]:bg-[linear-gradient(180deg,#c6cbf5_0%,#e3dbf6_40%,#f3f4f6_94%)] data-[sky=morning]:bg-[linear-gradient(180deg,#ffd6cb_0%,#fdead6_47%,#f3f4f6_100%)] data-[sky=evening]:bg-[linear-gradient(180deg,#d0d5ef_0%,#e5e2f1_47%,#f3f4f6_100%)]"
+      aria-hidden="true"
+    ></div>
     <svg class="absolute h-0 w-0" aria-hidden="true" focusable="false">
       <defs>
         <pattern id="night-hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
