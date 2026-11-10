@@ -180,7 +180,8 @@ test approach. Read its `CLAUDE.md` first. Reuse rather than reinvent:
   and answers nothing else.
 - nginx has a `/share-target` location for when the worker isn't there: `client_max_body_size 0` (nginx checks the size
   before `return`, so the default would answer 413), `return 303 /?share=failed`, never proxied, so the body never
-  reaches Node. Express has no body parser and must not get one. It is the only location without `proxy_pass`.
+  reaches Node. Express has no global body parser and must not get one: only `/mcp` parses JSON, itself, up to
+  64 KB. It is the only location without `proxy_pass`.
 - `/api/capacity` (`routes/capacity.js`, `weatherCache.capacity`): `perDay`, `remainingShare`, `full`, `asOf`,
   `resetsAt`. A live count would show whether a location was requested today (ask for it, watch the count; the reason
   `/health/cache` is host-only), so the share is taken once an hour and rounded down to 5 % steps (at least 0.05 until
@@ -198,6 +199,16 @@ test approach. Read its `CLAUDE.md` first. Reuse rather than reinvent:
   (`middleware/securityHeaders.js`): CSP, HSTS for a year with subdomains (no `preload`: hard to undo, the
   maintainer's call), `nosniff`, a Permissions-Policy that allows geolocation for the page only, COOP `same-origin`.
   nginx sends every `http://` request to `https://besttimetorun.com` and has `server_tokens off` in every block.
+- MCP (`routes/mcp.js`, since 2026-11-10): a stateless, sign-in-free MCP server at `/mcp`, on the v2
+  `@modelcontextprotocol/server` and `/node` packages, the eu-dayahead pattern. It shares the API's rate limiter
+  instance, refuses JSON-RPC batches and listen streams (both would get round that limit), and parses JSON for this
+  route only. Two read-only tools: `find_best_run_time` (one window: local start and end, conditions, which way to
+  start; `{ available: false, reason, tryNext, leastBadHour }` when nothing fits) and `get_run_conditions` (the day's
+  15-minute slots). Both build their answer with `lib/windowResponse.js`, the same code as `/api/window`, so
+  validation, the 2-decimal rounding and the day's cap are identical. Only this app's 4xx messages and its own 503s
+  (capacity, weather unavailable) reach the client; anything else is "Internal server error" and goes to `logError`.
+  The API dialog has the connector link and a first prompt (`Plan.firstPrompt`) built from the settings, with
+  `[your town]` in place of the location; both copy with the button confirming itself, like Copy API link.
 - A new public path goes in both `LOGGABLE_PATHS` (`middleware/logging.js`) and the nginx `$run_window_path` map;
   `tests/deployConfig.test.js` checks they match.
 - Release order: the manifest's `share_target` entry needs the nginx change live on the host, because without it a

@@ -133,6 +133,25 @@
     return sky === 'dry' ? 'Dry' : `Rain${sky.slice('rain'.length)}`;
   }
 
+  // A first prompt for an AI assistant with the MCP connector, from the page's settings. The place stays a placeholder:
+  // the page never puts the location anywhere but its own request.
+  const PROMPT_MIND = { wind: 'the wind', rain: 'rain', temp: 'the temperature' };
+  const DEFAULT_RAIN_LIMIT = 40;
+  function firstPrompt({ minutes, hours, prefer, allowDark, rain, day = 'today' }) {
+    const when = String(hours)
+      .split(',')
+      .map(range => range.replace('-', '–'))
+      .join(' or ');
+    const parts = [
+      `Using Best time to run, when is the best time ${day} for a ${minutes}-minute run near [your town]?`,
+      `I can run ${when}.`
+    ];
+    if (PROMPT_MIND[prefer]) parts.push(`I mind ${PROMPT_MIND[prefer]} most.`);
+    if (allowDark) parts.push('Running in the dark is fine.');
+    if (rain !== DEFAULT_RAIN_LIMIT) parts.push(`Keep the chance of rain at or under ${rain} %.`);
+    return parts.join(' ');
+  }
+
   // The page's tint, from the shown window: wet, then dark, windy, cold, warm, else mild. Without a window, the time of
   // day on the device picks morning or evening. Names match the `data-sky` variants on <body> in index.html.
   const SKY_THEMES = ['mild', 'cold', 'warm', 'wet', 'windy', 'dark', 'morning', 'evening'];
@@ -432,6 +451,7 @@
     errorMessage,
     staleNote,
     SKY_THEMES,
+    firstPrompt,
     skyTheme,
     quotaBar
   };

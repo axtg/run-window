@@ -382,3 +382,13 @@ test('search and sharing: title, description, canonical, social card, icons, rob
   expect(llms.startsWith('# Best time to run\n')).toBe(true);
   expect(llms).toContain('https://besttimetorun.com/openapi.yaml');
 });
+
+test('the API dialog has the MCP connector link and a first prompt to copy', () => {
+  const api = dialogText('api-dialog');
+  expect(api.text).toContain('AI assistants (MCP)');
+  expect(api.raw).toContain('id="mcp-url"');
+  expect(api.raw).toContain('id="copy-mcp"');
+  expect(api.raw).toContain('id="mcp-prompt"');
+  expect(api.raw).toContain('id="copy-prompt"');
+  expect(api.text).toContain('no sign-in');
+});

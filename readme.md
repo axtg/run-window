@@ -9,6 +9,11 @@ planned.
   that run on a day strip, with distance, climb and which way to head first. The route file is read in the browser and
   never sent anywhere; only the start point, rounded to 2 decimals, goes to the API. On Android it can be installed
   and shows up in the share sheet for route files.
+- `besttimetorun.com/mcp`: an [MCP](https://modelcontextprotocol.io) server for AI assistants, stateless and without
+  sign-in. In Claude, add it as a custom connector with "No sign in", then ask something like "when is the best time
+  today for a 45-minute run near Utrecht? I can run 7–9 or 17–21". Tools: `find_best_run_time` (the best stretch of a
+  given length today or tomorrow, its conditions and which way to start) and `get_run_conditions` (the day's
+  15-minute slots). They answer exactly as `/api/window` does.
 - `integrations/trmnl-running-board`: TRMNL plugin combining this week's Tredict training, a form graph and today's
   run window on one screen.
 

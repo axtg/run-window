@@ -702,6 +702,22 @@ describe('app.js privacy smoke test', () => {
     }
   });
 
+  it('builds a first MCP prompt from the settings, and copies it and the link, confirming on the button', async () => {
+    const copied = [];
+    const clipboard = { writeText: async text => copied.push(text) };
+    const stored = JSON.stringify({ durationMin: 45, hours: '07-09', prefer: 'rain' });
+    const { elements } = loadPage({ navigator: { clipboard }, stored });
+    const prompt = elements.get('mcp-prompt').textContent;
+    expect(prompt).toContain('a 45-minute run near [your town]? I can run 07–09. I mind rain most.');
+    expect(elements.get('mcp-url').textContent).toBe(`${ORIGIN}/mcp`);
+
+    await elements.get('copy-prompt').listeners.click();
+    await elements.get('copy-mcp').listeners.click();
+    expect(copied).toEqual([prompt, `${ORIGIN}/mcp`]);
+    expect(elements.get('copy-prompt').textContent).toBe('Copied');
+    expect(elements.get('mcp-note').textContent).toBe('Copied');
+  });
+
   it("says Couldn't copy on the button when the clipboard refuses", async () => {
     const clipboard = { writeText: async () => Promise.reject(new Error('denied')) };
     const { sandbox, elements } = loadPage({ navigator: { clipboard } });

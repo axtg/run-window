@@ -68,7 +68,7 @@
     'result timeline chart-legend tap-line why-sentence copy-link open-method open-api open-privacy ' +
     'method-dialog api-dialog privacy-dialog close-method close-api close-privacy open-about about-menu ' +
     'open-network network-menu copy-label copy-icon copy-check copy-note quota-bar quota-fill quota-saturate ' +
-    'sky-a sky-b'
+    'sky-a sky-b mcp-url copy-mcp mcp-prompt copy-prompt mcp-note'
   ).split(' ');
   const camel = id => id.replace(/-(\w)/g, (_, letter) => letter.toUpperCase());
   const el = Object.fromEntries(IDS.map(id => [camel(id), document.getElementById(id)]));
@@ -709,6 +709,7 @@
   }
 
   function render() {
+    renderMcpPrompt();
     renderSource();
     renderRunRow();
     renderDark();
@@ -788,6 +789,28 @@
     el.copyIcon.toggleAttribute('hidden', Boolean(ok));
     el.copyNote.textContent = text;
     if (text) copyTimer = setTimeout(() => showCopyResult('', false), COPY_FEEDBACK_MS);
+  }
+
+  // The MCP section of the API dialog: its link, and a first prompt built from the settings (never the location).
+  function renderMcpPrompt() {
+    const { hours, prefer, allowDark, rain } = state.settings;
+    el.mcpPrompt.textContent = Plan.firstPrompt({ minutes: runMinutes(), hours, prefer, allowDark, rain });
+  }
+
+  // Confirms on the button itself for 2 s, and in a hidden polite note for screen readers, like Copy API link.
+  async function copyFrom(button, label, text) {
+    let result = MESSAGES.copied;
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch {
+      result = MESSAGES.copyFailed;
+    }
+    button.textContent = result;
+    el.mcpNote.textContent = result;
+    setTimeout(() => {
+      button.textContent = label;
+      el.mcpNote.textContent = '';
+    }, COPY_FEEDBACK_MS);
   }
 
   async function onCopyLink() {
@@ -924,6 +947,9 @@
   el.timeline.addEventListener('click', onTimelineClick);
   el.timeline.addEventListener('keydown', onTimelineKey);
   el.copyLink.addEventListener('click', onCopyLink);
+  el.mcpUrl.textContent = `${location.origin}/mcp`;
+  el.copyMcp.addEventListener('click', () => copyFrom(el.copyMcp, 'Copy link', el.mcpUrl.textContent));
+  el.copyPrompt.addEventListener('click', () => copyFrom(el.copyPrompt, 'Copy prompt', el.mcpPrompt.textContent));
   wireDialog(el.openMethod, el.methodDialog, el.closeMethod, 'method');
   wireDialog(el.openApi, el.apiDialog, el.closeApi, 'api');
   wireDialog(el.openPrivacy, el.privacyDialog, el.closePrivacy, 'privacy');

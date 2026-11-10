@@ -11,6 +11,7 @@ const { createWeatherCache } = require('./lib/weatherCache');
 const { fetchForecast } = require('./lib/openMeteo');
 const { createWindowRouter } = require('./routes/window');
 const { createCapacityRouter } = require('./routes/capacity');
+const { createMcpRouter } = require('./routes/mcp');
 
 const OPENAPI_FILE = path.join(__dirname, 'docs', 'openapi.yaml');
 const SECURITY_TXT = path.join(__dirname, 'public', '.well-known', 'security.txt');
@@ -67,12 +68,16 @@ function createApp({ weather, now = Date.now, rateLimit } = {}) {
     });
   });
 
+  // One limiter for the API and MCP, so a client can't double its allowance by switching between them.
+  const rateLimiter = createRateLimiter({ limit });
   app.use(
     '/api',
-    createRateLimiter({ limit }),
+    rateLimiter,
     createWindowRouter({ weather: forecasts, now }),
     createCapacityRouter({ weather: forecasts })
   );
+  // MCP for AI assistants (routes/mcp.js): stateless, no sign-in, the same answers as /api/window.
+  app.all('/mcp', rateLimiter, createMcpRouter({ weather: forecasts, now }));
 
   app.use((req, res) => {
     res.status(404).json({ status: 'error', message: 'Endpoint not found.' });

@@ -701,3 +701,23 @@ describe('quotaBar', () => {
     expect(quotaBar({ remainingShare: 0.5 })).toBeNull();
   });
 });
+
+describe('firstPrompt', () => {
+  const { firstPrompt } = RunPlan;
+  const base = { minutes: 45, hours: '10-16', prefer: 'balanced', allowDark: false, rain: 40 };
+
+  it('asks for the run with a town placeholder, never a location', () => {
+    expect(firstPrompt(base)).toBe(
+      'Using Best time to run, when is the best time today for a 45-minute run near [your town]? I can run 10–16.'
+    );
+  });
+
+  it('adds only the settings that differ from the defaults', () => {
+    expect(firstPrompt({ ...base, hours: '07-09,17:30-21', prefer: 'wind', allowDark: true, rain: 20 })).toBe(
+      'Using Best time to run, when is the best time today for a 45-minute run near [your town]? ' +
+        'I can run 07–09 or 17:30–21. I mind the wind most. Running in the dark is fine. ' +
+        'Keep the chance of rain at or under 20 %.'
+    );
+    expect(firstPrompt({ ...base, prefer: 'temp' })).toContain('I mind the temperature most.');
+  });
+});

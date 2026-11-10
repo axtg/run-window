@@ -812,6 +812,34 @@
           </p>
         </div>
         <div class="space-y-2">
+          <h3 class="font-semibold">AI assistants (MCP)</h3>
+          <p>
+            Ask Claude or another assistant when to run, and it answers from this service. Add the link below as a
+            custom connector with no sign-in; in Claude it then works in the mobile app too. The assistant passes a
+            town's location, rounded to about 1 km, and nothing else.
+          </p>
+          <div class="flex flex-wrap items-center gap-2">
+            <code id="mcp-url" class="rounded-lg bg-gray-100 px-3 py-2 text-xs">https://besttimetorun.com/mcp</code>
+            <button
+              id="copy-mcp"
+              type="button"
+              class="rounded-full border border-gray-300 bg-white px-3 py-1 text-xs font-medium hover:border-gray-400"
+            >
+              Copy link
+            </button>
+          </div>
+          <p>A first prompt, from your settings here:</p>
+          <p id="mcp-prompt" class="rounded-lg bg-gray-100 p-3 text-xs"></p>
+          <button
+            id="copy-prompt"
+            type="button"
+            class="rounded-full border border-gray-300 bg-white px-3 py-1 text-xs font-medium hover:border-gray-400"
+          >
+            Copy prompt
+          </button>
+          <p id="mcp-note" class="sr-only" aria-live="polite"></p>
+        </div>
+        <div class="space-y-2">
           <h3 class="font-semibold">Capacity</h3>
           <p>
             The service accepts at most 300 locations per UTC day, to stay within the weather provider's free limits. A
