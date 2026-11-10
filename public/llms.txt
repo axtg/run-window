@@ -1,0 +1,27 @@
+# Best time to run
+
+> besttimetorun.com finds the best weather window for a run today and tomorrow: give it a location and the hours you
+> can run, and it returns the driest, calmest, most comfortable stretch for each run length from 15 minutes to 3 hours,
+> with the wind direction to start into. Free, anonymous, no account or key. Weather from Open-Meteo (CC BY 4.0).
+
+The page at https://besttimetorun.com/ does this for a GPX/KML route (read in the browser, never uploaded) or the
+device's location. Everything it shows comes from the public JSON API below.
+
+## API
+
+- [OpenAPI contract](https://besttimetorun.com/openapi.yaml): the full description of both endpoints.
+- `GET https://besttimetorun.com/api/window?lat=52.37&lon=4.89&avail=07-09,12-14,17-21`: the best window per run
+  length for today and tomorrow, as UTC ISO times. `lat` and `lon` are rounded to 2 decimals (about 1 km). Optional:
+  `dark` (`avoid` or `ok`), `rain` (highest chance of rain allowed, %), `prefer` (`balanced`, `wind`, `rain` or
+  `temp`), `slots=1` (every 15-minute slot with its weather and score).
+- `GET https://besttimetorun.com/api/capacity`: how much of today's cap of new locations is left.
+
+## Limits
+
+- At most 300 distinct locations per UTC day; a location already asked for keeps working all day.
+- A per-client rate limit per second (HTTP 429 with Retry-After).
+- Please call it for real runs, not to collect forecasts in bulk: it shares Open-Meteo's free quota.
+
+## Optional
+
+- [Source code](https://github.com/axtg/run-window): the API, this page and a TRMNL e-paper plugin.
