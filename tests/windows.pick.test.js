@@ -23,17 +23,27 @@ test('scoreSlot follows the spec', () => {
 test('prefer makes its own term count three times and leaves the others alone', () => {
   const values = v({ windSpeed: 18, gust: 31, apparentTemp: 7.5, precipProb: 15 }); // wind 6.5, rain 0.75
   expect(scoreSlot(values, 'balanced')).toBeCloseTo(7.25);
-  expect(scoreSlot(values, 'wind')).toBeCloseTo(19.5 + 0.75);
+  expect(scoreSlot(values, 'wind')).toBeCloseTo((18 - 8 + 0.5) * 3 + 0.75); // wind counts from 8 km/h
   expect(scoreSlot(values, 'rain')).toBeCloseTo(6.5 + 2.25);
   expect(scoreSlot(values, 'temp')).toBeCloseTo(7.25); // no temperature penalty to multiply
   expect(scoreSlot(v({ apparentTemp: 2 }), 'temp')).toBe(12);
   expect(scoreSlot(v({ apparentTemp: 2 }), 'wind')).toBe(4);
 });
 
+test('with prefer=wind, wind counts from 8 km/h: a calm cold hour beats a 12 km/h one at 6 degrees', () => {
+  expect(scoreSlot(v({ windSpeed: 8 }), 'wind')).toBe(0);
+  expect(scoreSlot(v({ windSpeed: 12 }), 'wind')).toBe(12);
+  expect(scoreSlot(v({ windSpeed: 12 }), 'balanced')).toBe(0);
+  const midday = v({ windSpeed: 12, apparentTemp: 6 });
+  const morning = v({ windSpeed: 3, apparentTemp: 2 });
+  expect(scoreSlot(morning, 'wind')).toBeLessThan(scoreSlot(midday, 'wind'));
+  expect(scoreSlot(midday, 'balanced')).toBeLessThan(scoreSlot(morning, 'balanced'));
+});
+
 test('fallback scoring', () => {
   expect(fallbackScoreSlot(v({ precipProb: 70, precip: 1 }))).toBe(55);
   expect(fallbackScoreSlot(v({ precipProb: 70, precip: 1 }), 'rain')).toBe(165);
-  expect(fallbackScoreSlot(v({ windSpeed: 14, precipProb: 70, precip: 1 }), 'wind')).toBe(61);
+  expect(fallbackScoreSlot(v({ windSpeed: 14, precipProb: 70, precip: 1 }), 'wind')).toBe(73); // (14 - 8) × 3 + 55
 });
 
 test('DURATIONS lists 15 to 180 minutes', () => {
