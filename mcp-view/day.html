@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Best time to run</title>
+    <style>
+      /* day.css */
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <p id="note" class="label">Checking the weather…</p>
+      <div id="answer" hidden>
+        <p id="label" class="label"></p>
+        <p id="time" class="time"></p>
+        <dl id="numbers" class="numbers"></dl>
+        <p id="wind" class="wind" hidden>
+          <svg viewBox="0 0 28 28" aria-hidden="true" focusable="false">
+            <circle cx="14" cy="14" r="13" class="compass" />
+            <text x="14" y="8" text-anchor="middle" class="g-tick" font-size="6">N</text>
+            <g id="wind-arrow" transform="rotate(0 14 14)">
+              <path d="M14 9.5 L17.5 18.5 L14 16.5 L10.5 18.5 Z" class="arrow" />
+            </g>
+          </svg>
+          <span id="wind-text"></span>
+        </p>
+        <svg id="timeline" class="timeline" role="img" tabindex="0" preserveAspectRatio="none"></svg>
+        <div id="below" class="below">
+          <p id="legend" class="legend">
+            <span><span class="c-feels">—</span> feels</span>
+            <span><span class="c-wind">- -</span> wind</span>
+            <span><span class="c-rain">▮</span> rain</span>
+            <span><span class="c-dark">▮</span> dark</span>
+          </p>
+          <p id="tap-line" aria-live="polite"></p>
+        </div>
+        <p id="why" class="why"></p>
+      </div>
+      <p class="footer">
+        Weather data by Open-Meteo.com (CC BY 4.0) ·
+        <a id="site" href="https://besttimetorun.com/" target="_blank" rel="noopener noreferrer">besttimetorun.com</a>
+      </p>
+    </div>
+    <script>
+      /* day.js */
+    </script>
+  </body>
+</html>

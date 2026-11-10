@@ -27,7 +27,7 @@ module.exports = [
     }
   },
   {
-    files: ['public/**/*.js'],
+    files: ['public/**/*.js', 'mcp-view/**/*.js'],
     languageOptions: {
       sourceType: 'script',
       globals: { ...globals.browser, module: 'readonly', require: 'readonly' }
