@@ -241,7 +241,7 @@
   }
 
   // 'Sunday afternoon 10.4 km run', or '… 60 min run' without a route. Day and hour are the location's.
-  function calendarEvent(result, summary, { minutes, timeZone, plan = null }) {
+  function calendarEvent(result, summary, { minutes, timeZone, plan = null, checkUrl = null }) {
     if (result.kind === 'none') return null;
     const { startMs, endMs } = answerSpan(result, minutes);
     const parts = new Intl.DateTimeFormat('en-US', {
@@ -258,7 +258,12 @@
     const conditions = `${skyValue(w)} · Feels ${tempOf(w)}, ${feelsWord(w.apparentTempAvg)} · ${wind}`;
     return {
       title: `${weekday} ${partOfDay(hour)} ${what} run`,
-      description: [plan ? `Plan ${plan}` : null, conditions, windLine(summary, w), 'Forecast from besttimetorun.com']
+      description: [
+        plan ? `Plan ${plan}` : null,
+        conditions,
+        windLine(summary, w),
+        checkUrl ? `Check again on the day: ${checkUrl}` : 'Forecast from besttimetorun.com'
+      ]
         .filter(Boolean)
         .join('\n'),
       startMs,

@@ -4,7 +4,8 @@
   const { parseRoute, summarizeRoute } = globalThis.RouteFile;
   const Plan = globalThis.RunPlan;
   const Strip = globalThis.DayStrip;
-  const { loadSettings, saveSettings, splitHours, joinHours, moveHandle, addRow, removeRow } = globalThis.RunSettings;
+  const { loadSettings, saveSettings, splitHours, joinHours, moveHandle, addRow, removeRow, linkQuery, fromLink } =
+    globalThis.RunSettings;
   // Names only, once per page view (analytics.js). Without it (not loaded) nothing is tracked and all else works.
   const track = (globalThis.Analytics && globalThis.Analytics.track) || (() => false);
 
@@ -51,7 +52,8 @@
     copied: 'Copied',
     copyFailed: "Couldn't copy",
     pace: 'Pace is m:ss per km, from 3:00 to 15:00.',
-    shareFailed: "The shared route didn't arrive. Open it again."
+    shareFailed: "The shared route didn't arrive. Open it again.",
+    linkLoaded: 'Your run is set. Use your location or a route to check it again.'
   };
   // Where sw.js leaves a shared route file for the page to read once.
   const SHARE_CACHE = 'shared-route';
@@ -92,6 +94,7 @@
     summary: null, // the opened route's summary, memory only
     location: null, // { lat, lon }, already rounded to 2 decimals
     dayIndex: 0,
+    linkDate: null, // a recheck link's date, picked once its day is known
     body: null, // the last /api/window response
     selected: null,
     calendar: null, // the shown answer as a calendar event, or null
@@ -352,13 +355,17 @@
       : '';
   }
 
-  function setDay(index) {
-    track('Setting', 'day');
+  function pickDay(index) {
     state.dayIndex = index;
     state.selected = null;
     el.dayToday.setAttribute('aria-pressed', String(index === 0));
     el.dayTomorrow.setAttribute('aria-pressed', String(index === 1));
     el.dayAfter.setAttribute('aria-pressed', String(index === 2));
+  }
+
+  function setDay(index) {
+    track('Setting', 'day');
+    pickDay(index);
     render();
   }
 
@@ -491,6 +498,28 @@
     return openRouteText(shared.text, shared.fileName, 'share');
   }
 
+  // ---- A recheck link from a calendar event: /?run=60&pace=6:00&hours=…&date=…. It sets the run, then leaves the
+  // address bar. With location already allowed it checks right away; otherwise the page asks as always.
+  async function receiveLink() {
+    const link = fromLink(location.search);
+    if (!link) return undefined;
+    history.replaceState(null, '', '/');
+    save(link.settings);
+    state.rows = splitHours(state.settings.hours);
+    state.linkDate = link.date;
+    render();
+    let allowed;
+    try {
+      const permission = navigator.permissions && (await navigator.permissions.query({ name: 'geolocation' }));
+      allowed = Boolean(permission) && permission.state === 'granted';
+    } catch {
+      allowed = false; // no Permissions API: ask as always
+    }
+    if (allowed && !state.location) return onUseLocation();
+    if (!state.location) setStatus(MESSAGES.linkLoaded);
+    return undefined;
+  }
+
   function registerWorker() {
     try {
       if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => {});
@@ -523,6 +552,11 @@
     if (request !== state.request) return undefined; // a newer request has started
     state.body = body;
     state.selected = null;
+    if (body && state.linkDate) {
+      const index = body.days.findIndex(day => day.date === state.linkDate);
+      if (index !== -1) pickDay(index);
+      state.linkDate = null;
+    }
     setStatus(message);
     return render();
   }
@@ -675,7 +709,9 @@
     el.answerTime.className = none ? 'text-xl font-semibold' : 'whitespace-nowrap text-3xl font-bold tracking-tight';
     const plan = planText();
     renderKeyNumbers(Plan.keyNumbers(result, state.summary, minutes, plan));
-    state.calendar = Plan.calendarEvent(result, state.summary, { minutes, timeZone, plan });
+    // A link back with the settings and the day, so the run can be checked again on the day; never the location.
+    const checkUrl = `${location.origin}/?${linkQuery(state.settings, { minutes, date: day.date })}`;
+    state.calendar = Plan.calendarEvent(result, state.summary, { minutes, timeZone, plan, checkUrl });
     renderCalendar();
     const arrow = result.window ? Plan.windArrowDeg(result.window) : null;
     // In little wind there is no direction to start into, and the Wind pill already says so: no line, no compass.
@@ -998,6 +1034,7 @@
   loadCapacity();
   registerWorker();
   receiveShare();
+  receiveLink();
 
   globalThis.RunApp = { openRouteText };
 })();

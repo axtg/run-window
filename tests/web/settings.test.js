@@ -339,3 +339,30 @@ describe('hour rows', () => {
     }
   });
 });
+
+describe('the recheck link', () => {
+  const { linkQuery, fromLink, DEFAULTS } = require('../../public/settings');
+
+  test('carries the settings and the date, and reads back the same', () => {
+    const settings = { ...DEFAULTS, paceSec: 385, hours: '07-09,17:30-21', allowDark: true, prefer: 'temp', rain: 25 };
+    const query = linkQuery(settings, { minutes: 66, date: '2026-11-12' });
+    expect(query).toBe('run=66&pace=6%3A25&hours=07-09%2C17%3A30-21&dark=ok&prefer=temp&rain=25&date=2026-11-12');
+    expect(fromLink(`?${query}`)).toEqual({
+      settings: { durationMin: 66, paceSec: 385, hours: '07-09,17:30-21', allowDark: true, prefer: 'temp', rain: 25 },
+      date: '2026-11-12'
+    });
+  });
+
+  test('keeps the run length within the stepper', () => {
+    expect(linkQuery(DEFAULTS, { minutes: 400, date: '2026-11-12' })).toMatch(/^run=300&/);
+  });
+
+  test('drops what is not valid, and is no link without run', () => {
+    expect(fromLink('?run=45&pace=fast&hours=9-5&dark=maybe&prefer=sun&rain=200&date=Thursday')).toEqual({
+      settings: { durationMin: 45 },
+      date: null
+    });
+    expect(fromLink('?share=1')).toBeNull();
+    expect(fromLink('')).toBeNull();
+  });
+});

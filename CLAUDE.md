@@ -129,12 +129,21 @@ test approach. Read its `CLAUDE.md` first. Reuse rather than reinvent:
     wind blows to, as on a weather map, so you start running against the arrow. In little wind (under 10 km/h) the
     line and compass are hidden: the Wind pill already says `light` or `calm`. The calendar description keeps
     `Little wind`.
+  - The day switch is Today · Wed · Thu (`#day-today`, `#day-tomorrow`, `#day-after`; weekdays from the location's
+    dates, `Plan.dayButton`). The API covers three days; further out a forecast shifts too much to plan an hour on,
+    so the day after carries `#outlook-note` (`Plan.outlookNote`).
+  - When nothing fits, the line says why (`Plan.noWindowCause`, shared with the MCP): hours gone by, too little time
+    left or in daylight, and only then no dry window.
   - When today has no window and tomorrow has one, a `Try tomorrow →` button shows what tomorrow holds.
   - A calendar-plus button (`#add-calendar`) after the time adds the run to a calendar (`Plan.calendarEvent`): title
     like `Sunday afternoon 10.4 km run` (or `60 min`), the conditions and wind line as description. Never the location
     or the route's name. It opens `#calendar-menu` (a dropdown like the others): Google Calendar and Outlook.com links
     (`Plan.googleCalendarUrl`, `Plan.outlookCalendarUrl`, new tab, `noopener noreferrer`, refreshed on each render)
     and Calendar file (.ics), which downloads `run.ics` built in the page (`Plan.icsText`, folded at 75 octets).
+    The description ends with a recheck link (`Check again on the day: https://besttimetorun.com/?run=…`,
+    `Settings.linkQuery`): run minutes, pace, hours, dark, prefer, rain and the run's date, never the location or the
+    route. Opened, `receiveLink` saves those settings, clears the address bar, picks that date's day once the answer
+    is in, and uses the location at once only when the browser already allows it; otherwise it says the run is set.
     An Android `intent:` URL was tried first (2026-11-07) and doesn't work: Chrome marks web intents browsable and
     the calendar's new-event screen doesn't accept them.
 - The page's tint: `<body data-sky="…">`, set by `Plan.skyTheme` from the shown window (wet, then dark, windy, cold,

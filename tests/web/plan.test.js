@@ -622,6 +622,8 @@ describe('add to calendar', () => {
         'Wind from the south · start south, into it\n' +
         'Forecast from besttimetorun.com'
     );
+    const linked = calendarEvent(result, null, { minutes: 60, timeZone: AMS, checkUrl: 'https://x.test/?run=60' });
+    expect(linked.description.split('\n').at(-1)).toBe('Check again on the day: https://x.test/?run=60');
     expect(calendarEvent(result, null, { minutes: 60, timeZone: 'Asia/Tokyo' }).title).toBe(
       'Sunday evening 60 min run'
     );

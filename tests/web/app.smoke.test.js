@@ -154,7 +154,7 @@ class QuietDOMParser extends DOMParser {
   }
 }
 
-function loadPage({ navigator = {}, stored = null, app = api, matchMedia } = {}) {
+function loadPage({ navigator = {}, stored = null, app = api, matchMedia, search = '' } = {}) {
   const elements = new Map();
   const created = [];
   const record = { fetches: [], capacity: [], storage: [], history: [] };
@@ -166,7 +166,7 @@ function loadPage({ navigator = {}, stored = null, app = api, matchMedia } = {})
     Blob,
     TextEncoder,
     DOMParser: QuietDOMParser,
-    location: { origin: ORIGIN, search: '' },
+    location: { origin: ORIGIN, search },
     navigator,
     document: {
       body: fakeElement('body'),
@@ -390,6 +390,54 @@ describe('app.js privacy smoke test', () => {
     expect(pace.value).toBe('6:50');
     await flush();
     expect(record.fetches).toHaveLength(1);
+  });
+
+  describe('a recheck link from a calendar event', () => {
+    const search = '?run=45&pace=5:30&hours=07-09%2C17-21&dark=ok&prefer=wind&rain=30&date=2026-11-03';
+
+    it('sets the run and its day, leaves the address bar, and checks at once when location is allowed', async () => {
+      const permissions = { query: async () => ({ state: 'granted' }) };
+      const { sandbox, elements, record, store } = loadPage({ navigator: { geolocation, permissions }, search });
+      await answered(elements);
+      expect(rejections).toEqual([]);
+      expect(record.history).toEqual(['/']);
+      const sent = new URL(record.fetches[0]).searchParams;
+      expect(['avail', 'dark', 'prefer', 'rain'].map(key => sent.get(key))).toEqual([
+        '07-09,17-21',
+        'ok',
+        'wind',
+        '30'
+      ]);
+      const saved = JSON.parse(store.get(sandbox.RunSettings.STORAGE_KEY));
+      expect(saved).toMatchObject({ durationMin: 45, paceSec: 330, allowDark: true, prefer: 'wind', rain: 30 });
+      expect(elements.get('day-tomorrow').attributes['aria-pressed']).toBe('true');
+
+      // The calendar event links back the same way, and never with the location
+      const details = new URL(elements.get('calendar-google').href).searchParams.get('details');
+      const link = new URL(details.match(/Check again on the day: (\S+)/)[1]);
+      expect(link.origin).toBe(ORIGIN);
+      expect(Object.fromEntries(link.searchParams)).toEqual({
+        run: '45',
+        pace: '5:30',
+        hours: '07-09,17-21',
+        dark: 'ok',
+        prefer: 'wind',
+        rain: '30',
+        date: '2026-11-03'
+      });
+      expect(details).not.toMatch(/52\.3|4\.8|4\.9/);
+    });
+
+    it('without location allowed, sets the run and asks, with nothing sent', async () => {
+      const { elements, record } = loadPage({ navigator: { geolocation }, search });
+      for (let i = 0; i < 20; i++) await flush();
+      expect(record.fetches).toEqual([]);
+      expect(record.history).toEqual(['/']);
+      expect(elements.get('status').textContent).toBe(
+        'Your run is set. Use your location or a route to check it again.'
+      );
+      expect(elements.get('duration-value').textContent).toBe('45 min');
+    });
   });
 
   it('shows the route distance and the run minutes in the same Run row with a route', async () => {
