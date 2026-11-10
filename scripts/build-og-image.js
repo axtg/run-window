@@ -8,6 +8,12 @@ const { chromium } = require('playwright');
 const OUT = path.join(__dirname, '..', 'public', 'og.png');
 const ICON = fs.readFileSync(path.join(__dirname, '..', 'public', 'icon.svg'), 'utf8');
 
+// The day strip's greens, one cell per slot
+const STRIP = ['#dcfce7', '#bbf7d0', '#86efac', '#4ade80', '#16a34a', '#166534', '#166534', '#15803d', '#22c55e']
+  .concat(['#86efac', '#bbf7d0', '#e5e7eb'])
+  .map(colour => `<div style="background:${colour}"></div>`)
+  .join('');
+
 // The page's "dry and mild" tint, a white card with a sample answer, and the strip's greens.
 const HTML = `<!doctype html><html><head><meta charset="utf-8"><style>
   body { margin: 0; width: 1200px; height: 630px; font-family: Inter, 'Segoe UI', system-ui, sans-serif; color: #111827;
@@ -37,22 +43,7 @@ const HTML = `<!doctype html><html><head><meta charset="utf-8"><style>
     <div class="time">12:00–13:00</div>
     <div class="nums"><div><small>Sky</small>Dry</div><div><small>Feels</small>9 °C</div>
       <div><small>Wind</small>7 km/h</div></div>
-    <div class="strip">${[
-      '#dcfce7',
-      '#bbf7d0',
-      '#86efac',
-      '#4ade80',
-      '#16a34a',
-      '#166534',
-      '#166534',
-      '#15803d',
-      '#22c55e',
-      '#86efac',
-      '#bbf7d0',
-      '#e5e7eb'
-    ]
-      .map(c => `<div style="background:${c}"></div>`)
-      .join('')}</div>
+    <div class="strip">${STRIP}</div>
   </div>
 </div></body></html>`;
 
