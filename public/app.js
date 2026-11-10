@@ -59,8 +59,8 @@
 
   // Every element app.js uses, by id; el.sourceSet is #source-set.
   const IDS = (
-    'source source-map source-rough source-set source-pick clear-source day-today day-tomorrow zone-note ' +
-    'route-input use-location duration-group run-distance run-minutes pace-group pace-input pace-slow-input ' +
+    'source source-map source-rough source-set source-pick clear-source day-today day-tomorrow ' +
+    'route-input use-location duration-group run-distance run-minutes pace-group pace-input ' +
     'duration-down duration-value duration-up hours-rows add-hours dark-times dark-ok prefer-balanced ' +
     'prefer-wind prefer-rain prefer-temp prefer-hint rain-input rain-fill rain-value prompt answer answer-label ' +
     'answer-time add-calendar calendar-menu calendar-google calendar-outlook key-numbers wind-line wind-compass ' +
@@ -124,14 +124,13 @@
 
   function runMinutes() {
     if (!state.summary) return state.settings.durationMin;
-    // The window must hold the run at the slower end of the pace range
-    return Math.max(1, Plan.runMinutes(state.summary.distanceKm, state.settings.paceSlowSec));
+    return Math.max(1, Plan.runMinutes(state.summary.distanceKm, state.settings.paceSec));
   }
 
-  // Without a route: the distance to plan for at the pace range, shown as the answer's Plan number
+  // Without a route: the distance to plan for at the average pace, shown as the answer's Plan number
   function planText() {
     if (state.summary) return null;
-    return Plan.planDistance(state.settings.durationMin, state.settings.paceSec, state.settings.paceSlowSec);
+    return Plan.planDistance(state.settings.durationMin, state.settings.paceSec);
   }
 
   function query() {
@@ -163,30 +162,28 @@
   // run's minutes with one. The pace is in both.
   function renderRunRow() {
     const withRoute = Boolean(state.summary);
-    const { paceSec, paceSlowSec, durationMin } = state.settings;
-    // The pace range always shows: without a route it gives the answer's Plan distance, with one the minutes.
+    const { paceSec, durationMin } = state.settings;
+    // The pace always shows: without a route it gives the answer's Plan distance, with one the minutes.
     el.durationGroup.hidden = withRoute;
     el.runDistance.hidden = !withRoute;
     el.runMinutes.hidden = !withRoute;
     el.paceInput.value = Plan.formatPace(paceSec);
-    el.paceSlowInput.value = Plan.formatPace(paceSlowSec);
     el.durationValue.textContent = `${durationMin} min`;
     el.runDistance.textContent = withRoute ? `${state.summary.distanceKm.toFixed(1)} km` : '';
-    el.runMinutes.textContent = withRoute ? Plan.routeMinutesText(state.summary.distanceKm, paceSec, paceSlowSec) : '';
+    el.runMinutes.textContent = withRoute ? `= ${runMinutes()} min` : '';
   }
 
-  // Either end of the pace range, typed. A bad value goes back to the saved one; reversed ends are put in order.
-  function onPaceTyped(input, key) {
-    const pace = Plan.parsePace(input.value.trim());
+  // The average pace, typed. A bad value goes back to the saved one.
+  function onPaceTyped() {
+    const pace = Plan.parsePace(el.paceInput.value.trim());
     if (pace === null) {
       setStatus(MESSAGES.pace);
-      input.value = Plan.formatPace(state.settings[key]);
+      el.paceInput.value = Plan.formatPace(state.settings.paceSec);
       return;
     }
     if (el.status.textContent === MESSAGES.pace) setStatus('');
     track('Setting', 'pace');
-    const ends = { paceSec: state.settings.paceSec, paceSlowSec: state.settings.paceSlowSec, [key]: pace };
-    save({ paceSec: Math.min(ends.paceSec, ends.paceSlowSec), paceSlowSec: Math.max(ends.paceSec, ends.paceSlowSec) });
+    save({ paceSec: pace });
     render(); // pace is not in the request: the response already has every run length
   }
 
@@ -723,14 +720,9 @@
       setSky(null, null);
       el.answer.hidden = true;
       el.result.hidden = true;
-      el.zoneNote.hidden = true;
       return;
     }
     const timeZone = state.body.location.timezone;
-    const deviceZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-    const zone = Plan.zoneNote(timeZone, deviceZone, Date.now());
-    el.zoneNote.hidden = !zone;
-    el.zoneNote.textContent = zone || '';
 
     const dayLabel = state.dayIndex === 0 ? 'today' : 'tomorrow';
     const { result, minutes, text } = renderAnswer(day, timeZone, dayLabel);
@@ -901,8 +893,7 @@
     });
   }
 
-  el.paceInput.addEventListener('change', () => onPaceTyped(el.paceInput, 'paceSec'));
-  el.paceSlowInput.addEventListener('change', () => onPaceTyped(el.paceSlowInput, 'paceSlowSec'));
+  el.paceInput.addEventListener('change', onPaceTyped);
   el.durationDown.addEventListener('click', () => stepDuration(-DURATION_STEP));
   el.durationUp.addEventListener('click', () => stepDuration(DURATION_STEP));
   el.addHours.addEventListener('click', onAddRow);

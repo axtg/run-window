@@ -36,18 +36,9 @@
     return Math.round((distanceKm * paceSec) / 60);
   }
 
-  // '6.9–7.2 km' for a run of `minutes` between the two paces (s/km), or one value when they round the same.
-  function planDistance(minutes, fastSec, slowSec) {
-    const near = ((minutes * 60) / Math.max(fastSec, slowSec)).toFixed(1);
-    const far = ((minutes * 60) / Math.min(fastSec, slowSec)).toFixed(1);
-    return near === far ? `${far} km` : `${near}–${far} km`;
-  }
-
-  // '= 65–68 min' for a route at the two paces, or one value when they round the same.
-  function routeMinutesText(distanceKm, fastSec, slowSec) {
-    const quick = Math.max(1, runMinutes(distanceKm, Math.min(fastSec, slowSec)));
-    const slow = Math.max(1, runMinutes(distanceKm, Math.max(fastSec, slowSec)));
-    return quick === slow ? `= ${slow} min` : `= ${quick}–${slow} min`;
+  // '7.0 km': the distance of a run of `minutes` at `paceSec` (seconds per km), to plan a route by.
+  function planDistance(minutes, paceSec) {
+    return `${((minutes * 60) / paceSec).toFixed(1)} km`;
   }
 
   // "Near you" opens OpenStreetMap at the rounded location the page sends to the API.
@@ -176,8 +167,8 @@
     };
   }
 
-  // Without a route the last number is the distance to plan for at the pace range (`plan`, from planDistance); the
-  // run's minutes are already in the answer's label.
+  // Without a route the last number is the distance to plan for at the pace (`plan`, from planDistance); the run's
+  // minutes are already in the answer's label.
   function keyNumbers(result, summary, minutes, plan = null) {
     if (result.kind === 'none') return [];
     const w = result.window;
@@ -379,26 +370,6 @@
     return summary.climbM === null ? distance : `${distance} · +${summary.climbM} m`;
   }
 
-  function offsetMinutes(timeZone, nowMs) {
-    const parts = new Intl.DateTimeFormat('en-US', {
-      timeZone,
-      hourCycle: 'h23',
-      year: 'numeric',
-      month: 'numeric',
-      day: 'numeric',
-      hour: 'numeric',
-      minute: 'numeric',
-      second: 'numeric'
-    }).formatToParts(new Date(nowMs));
-    const get = type => Number(parts.find(part => part.type === type).value);
-    const asUtc = Date.UTC(get('year'), get('month') - 1, get('day'), get('hour'), get('minute'), get('second'));
-    return Math.round((asUtc - Math.floor(nowMs / 1000) * 1000) / 60000);
-  }
-
-  function zoneNote(locationTz, deviceTz, nowMs) {
-    return offsetMinutes(locationTz, nowMs) === offsetMinutes(deviceTz, nowMs) ? null : `${locationTz} time`;
-  }
-
   function apiUrl(origin, { lat, lon, hours, allowDark, prefer, rain }, { slots = false } = {}) {
     const dark = allowDark ? 'ok' : 'avoid';
     const where = `lat=${lat.toFixed(2)}&lon=${lon.toFixed(2)}`;
@@ -435,7 +406,6 @@
     formatPace,
     runMinutes,
     planDistance,
-    routeMinutesText,
     durationKey,
     pickResult,
     formatClock,
@@ -458,7 +428,6 @@
     noWindowText,
     tomorrowHint,
     routeLine,
-    zoneNote,
     apiUrl,
     errorMessage,
     staleNote,

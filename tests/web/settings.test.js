@@ -37,7 +37,6 @@ describe('constants', () => {
     expect(STORAGE_KEY).toBe('run-window-settings');
     expect(DEFAULTS).toEqual({
       paceSec: 360,
-      paceSlowSec: 360,
       durationMin: 60,
       allowDark: false,
       prefer: 'balanced',
@@ -120,7 +119,6 @@ describe('loadSettings', () => {
   test('loads a fully valid stored object', () => {
     const stored = {
       paceSec: 300,
-      paceSlowSec: 320,
       durationMin: 90,
       allowDark: true,
       prefer: 'wind',
@@ -163,19 +161,10 @@ describe('loadSettings', () => {
   });
 
   test('accepts the range edges', () => {
-    const stored = {
-      paceSec: 180,
-      paceSlowSec: 180,
-      durationMin: 300,
-      allowDark: false,
-      prefer: 'balanced',
-      rain: 0,
-      hours: '00-23'
-    };
+    const stored = { paceSec: 180, durationMin: 300, allowDark: false, prefer: 'balanced', rain: 0, hours: '00-23' };
     expect(loadSettings(fakeStorage(JSON.stringify(stored)))).toEqual(stored);
     const upper = {
       paceSec: 900,
-      paceSlowSec: 900,
       durationMin: 15,
       allowDark: true,
       prefer: 'wind',
@@ -207,19 +196,11 @@ describe('saveSettings', () => {
     expect(storage.setItem).toHaveBeenCalledWith(STORAGE_KEY, expect.any(String));
   });
 
-  test('writes exactly the seven settings keys and nothing else', () => {
+  test('writes exactly the six settings keys and nothing else', () => {
     const storage = fakeStorage();
     saveSettings(storage, { ...DEFAULTS, route: 'secret.gpx', lat: 52.37, lon: 4.89 });
     const saved = JSON.parse(storage.data.get(STORAGE_KEY));
-    expect(Object.keys(saved).sort()).toEqual([
-      'allowDark',
-      'durationMin',
-      'hours',
-      'paceSec',
-      'paceSlowSec',
-      'prefer',
-      'rain'
-    ]);
+    expect(Object.keys(saved).sort()).toEqual(['allowDark', 'durationMin', 'hours', 'paceSec', 'prefer', 'rain']);
     expect(saved).toEqual(DEFAULTS);
   });
 
@@ -227,7 +208,6 @@ describe('saveSettings', () => {
     const storage = fakeStorage();
     const settings = {
       paceSec: 330,
-      paceSlowSec: 345,
       durationMin: 45,
       allowDark: true,
       prefer: 'wind',
@@ -357,18 +337,5 @@ describe('hour rows', () => {
         expect(validHours(joinHours(rows))).toBe(true);
       }
     }
-  });
-});
-
-describe('the pace range', () => {
-  const load = stored => loadSettings(fakeStorage(JSON.stringify(stored)));
-
-  test('a stored single pace (before the range) becomes both ends', () => {
-    expect(load({ paceSec: 390 })).toMatchObject({ paceSec: 390, paceSlowSec: 390 });
-    expect(load({ paceSec: 390, paceSlowSec: 'slow' })).toMatchObject({ paceSec: 390, paceSlowSec: 390 });
-  });
-
-  test('reversed ends are put in order', () => {
-    expect(load({ paceSec: 410, paceSlowSec: 375 })).toMatchObject({ paceSec: 375, paceSlowSec: 410 });
   });
 });

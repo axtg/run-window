@@ -11,7 +11,6 @@ const {
   goLine,
   windLine,
   routeLine,
-  zoneNote,
   apiUrl,
   errorMessage,
   staleNote,
@@ -304,24 +303,6 @@ describe('routeLine', () => {
 
   test('null without a route', () => {
     expect(routeLine(null)).toBeNull();
-  });
-});
-
-describe('zoneNote', () => {
-  const now = Date.UTC(2026, 10, 4, 12, 0, 0);
-
-  test('names the location zone when offsets differ', () => {
-    expect(zoneNote('Asia/Tokyo', 'Europe/Amsterdam', now)).toBe('Asia/Tokyo time');
-  });
-
-  test('null when offsets match, even for different zones', () => {
-    expect(zoneNote('Europe/Brussels', 'Europe/Amsterdam', now)).toBeNull();
-  });
-
-  test('compares offsets at the given moment', () => {
-    const summer = Date.UTC(2026, 6, 4, 12, 0, 0);
-    expect(zoneNote('Europe/London', 'Europe/Amsterdam', summer)).toBe('Europe/London time');
-    expect(zoneNote('America/New_York', 'America/Toronto', now)).toBeNull();
   });
 });
 
