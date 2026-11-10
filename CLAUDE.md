@@ -207,8 +207,10 @@ test approach. Read its `CLAUDE.md` first. Reuse rather than reinvent:
   15-minute slots). Both build their answer with `lib/windowResponse.js`, the same code as `/api/window`, so
   validation, the 2-decimal rounding and the day's cap are identical. Only this app's 4xx messages and its own 503s
   (capacity, weather unavailable) reach the client; anything else is "Internal server error" and goes to `logError`.
-  The API dialog has the connector link and a first prompt (`Plan.firstPrompt`) built from the settings, with
-  `[your town]` in place of the location; both copy with the button confirming itself, like Copy API link.
+  The API dialog has the connector link (and links `llms.txt`). The first prompt (`Plan.firstPrompt`, from the settings,
+  with `[your town]` in place of the location) has a card of its own under the main one (`mt-5`, same width), with a
+  New badge, Copy prompt and More info, which opens the API dialog at its MCP section (counted as `Dialog: api`).
+  Both copy buttons confirm on themselves, each with its own polite note, like Copy API link.
 - A new public path goes in both `LOGGABLE_PATHS` (`middleware/logging.js`) and the nginx `$run_window_path` map;
   `tests/deployConfig.test.js` checks they match.
 - Release order: the manifest's `share_target` entry needs the nginx change live on the host, because without it a

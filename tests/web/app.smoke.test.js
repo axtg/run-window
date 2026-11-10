@@ -718,6 +718,15 @@ describe('app.js privacy smoke test', () => {
     expect(elements.get('mcp-note').textContent).toBe('Copied');
   });
 
+  it('More info under the prompt opens the API dialog, counted as the API dialog', async () => {
+    const { elements, sandbox } = loadPage();
+    elements.get('open-mcp-info').listeners.click();
+    expect(elements.get('api-dialog').open).toBe(true);
+    expect((sandbox.plausible.q || []).map(([name, options]) => [name, options.props])).toEqual([
+      ['Dialog', { dialog: 'api' }]
+    ]);
+  });
+
   it("says Couldn't copy on the button when the clipboard refuses", async () => {
     const clipboard = { writeText: async () => Promise.reject(new Error('denied')) };
     const { sandbox, elements } = loadPage({ navigator: { clipboard } });

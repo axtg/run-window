@@ -68,7 +68,7 @@
     'result timeline chart-legend tap-line why-sentence copy-link open-method open-api open-privacy ' +
     'method-dialog api-dialog privacy-dialog close-method close-api close-privacy open-about about-menu ' +
     'open-network network-menu copy-label copy-icon copy-check copy-note quota-bar quota-fill quota-saturate ' +
-    'sky-a sky-b mcp-url copy-mcp mcp-prompt copy-prompt mcp-note'
+    'sky-a sky-b mcp-url copy-mcp mcp-link-note mcp-prompt copy-prompt mcp-note open-mcp-info mcp-section'
   ).split(' ');
   const camel = id => id.replace(/-(\w)/g, (_, letter) => letter.toUpperCase());
   const el = Object.fromEntries(IDS.map(id => [camel(id), document.getElementById(id)]));
@@ -798,7 +798,7 @@
   }
 
   // Confirms on the button itself for 2 s, and in a hidden polite note for screen readers, like Copy API link.
-  async function copyFrom(button, label, text) {
+  async function copyFrom(button, label, text, note) {
     let result = MESSAGES.copied;
     try {
       await navigator.clipboard.writeText(text);
@@ -806,10 +806,10 @@
       result = MESSAGES.copyFailed;
     }
     button.textContent = result;
-    el.mcpNote.textContent = result;
+    note.textContent = result;
     setTimeout(() => {
       button.textContent = label;
-      el.mcpNote.textContent = '';
+      note.textContent = '';
     }, COPY_FEEDBACK_MS);
   }
 
@@ -948,8 +948,16 @@
   el.timeline.addEventListener('keydown', onTimelineKey);
   el.copyLink.addEventListener('click', onCopyLink);
   el.mcpUrl.textContent = `${location.origin}/mcp`;
-  el.copyMcp.addEventListener('click', () => copyFrom(el.copyMcp, 'Copy link', el.mcpUrl.textContent));
-  el.copyPrompt.addEventListener('click', () => copyFrom(el.copyPrompt, 'Copy prompt', el.mcpPrompt.textContent));
+  el.copyMcp.addEventListener('click', () => copyFrom(el.copyMcp, 'Copy link', el.mcpUrl.textContent, el.mcpLinkNote));
+  el.copyPrompt.addEventListener('click', () =>
+    copyFrom(el.copyPrompt, 'Copy prompt', el.mcpPrompt.textContent, el.mcpNote)
+  );
+  // More info: the API dialog, scrolled to its MCP section. Counted as opening the API dialog.
+  el.openMcpInfo.addEventListener('click', () => {
+    track('Dialog', 'api');
+    el.apiDialog.showModal();
+    if (typeof el.mcpSection.scrollIntoView === 'function') el.mcpSection.scrollIntoView({ block: 'start' });
+  });
   wireDialog(el.openMethod, el.methodDialog, el.closeMethod, 'method');
   wireDialog(el.openApi, el.apiDialog, el.closeApi, 'api');
   wireDialog(el.openPrivacy, el.privacyDialog, el.closePrivacy, 'privacy');

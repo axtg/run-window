@@ -6,7 +6,7 @@
     <title>Best time to run today · the weather window for your run</title>
     <meta
       name="description"
-      content="The best weather window for a run today and tomorrow, for a location and the hours you can run: driest, calmest, most comfortable, and which way to start into the wind."
+      content="The best weather window for a run today and tomorrow: driest, calmest, most comfortable, and which way to start into the wind. On the web, or in Claude and other AI assistants."
     />
     <link rel="canonical" href="https://besttimetorun.com/" />
     <!-- How a shared link looks: og.png is drawn by scripts/build-og-image.js -->
@@ -693,6 +693,41 @@
           <span id="copy-note" class="sr-only" aria-live="polite"></span>
         </footer>
       </section>
+
+      <!-- A first prompt for an AI assistant with the MCP connector (Plan.firstPrompt): the settings, never the place. -->
+      <section
+        class="mt-5 rounded-2xl bg-white px-4 py-4 text-sm shadow-[0_1px_2px_rgba(0,0,0,0.05),0_8px_24px_rgba(17,24,39,0.06)] ring-1 ring-black/5"
+        aria-labelledby="ai-title"
+      >
+        <div class="flex items-center gap-2">
+          <h2 id="ai-title" class="font-semibold">Ask your AI assistant</h2>
+          <span
+            class="rounded-full bg-emerald-100 px-2 py-px text-[11px] font-semibold uppercase tracking-wide text-emerald-800"
+            >New</span
+          >
+        </div>
+        <p class="mt-1 text-xs text-secondary">
+          Connect Claude or another assistant to this service, then start with this prompt from your settings:
+        </p>
+        <p id="mcp-prompt" class="mt-2 rounded-lg bg-gray-100 p-3 text-xs"></p>
+        <div class="mt-3 flex flex-wrap items-center gap-3">
+          <button
+            id="copy-prompt"
+            type="button"
+            class="rounded-full bg-primary px-3 py-1 text-xs font-medium text-white hover:bg-gray-700"
+          >
+            Copy prompt
+          </button>
+          <button
+            id="open-mcp-info"
+            type="button"
+            class="text-xs text-secondary underline decoration-gray-300 underline-offset-2 hover:text-gray-900"
+          >
+            More info
+          </button>
+          <span id="mcp-note" class="sr-only" aria-live="polite"></span>
+        </div>
+      </section>
     </main>
 
     <dialog
@@ -812,7 +847,7 @@
           </p>
         </div>
         <div class="space-y-2">
-          <h3 class="font-semibold">AI assistants (MCP)</h3>
+          <h3 id="mcp-section" class="font-semibold">AI assistants (MCP)</h3>
           <p>
             Ask Claude or another assistant when to run, and it answers from this service. Add the link below as a
             custom connector with no sign-in; in Claude it then works in the mobile app too. The assistant passes a
@@ -828,16 +863,11 @@
               Copy link
             </button>
           </div>
-          <p>A first prompt, from your settings here:</p>
-          <p id="mcp-prompt" class="rounded-lg bg-gray-100 p-3 text-xs"></p>
-          <button
-            id="copy-prompt"
-            type="button"
-            class="rounded-full border border-gray-300 bg-white px-3 py-1 text-xs font-medium hover:border-gray-400"
-          >
-            Copy prompt
-          </button>
-          <p id="mcp-note" class="sr-only" aria-live="polite"></p>
+          <p id="mcp-link-note" class="sr-only" aria-live="polite"></p>
+          <p>
+            A first prompt to start with, from your settings, is on the page under the main card. For language models
+            the service is summed up in <a class="underline" href="/llms.txt">llms.txt</a>.
+          </p>
         </div>
         <div class="space-y-2">
           <h3 class="font-semibold">Capacity</h3>
