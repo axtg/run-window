@@ -299,7 +299,8 @@ test('the answer puts the key numbers beside the time from sm up, and the wind l
   const numbers = html.match(/<dl\b[^>]*id="key-numbers"[^>]*>/)[0];
   // Two equal 1fr columns: in this shrink-to-fit list each takes the widest cell's width. Never minmax(0,1fr): four of
   // those collapsed and overlapped (2026-11-07).
-  expect(numbers).toMatch(/["\s]grid-cols-2["\s]/);
+  expect(numbers).toMatch(/["\s]sm:grid-cols-2["\s]/);
+  expect(numbers).toMatch(/["\s]flex flex-wrap["\s]/); // a plain row on a phone
   expect(numbers).not.toMatch(/minmax\(0/);
   expect(numbers).toMatch(/sm:col-start-2/);
   expect(numbers).toMatch(/sm:justify-self-end/); // beside the time with its own gaps, not spread over the row

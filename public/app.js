@@ -732,9 +732,13 @@
     el.keyNumbers.replaceChildren();
     numbers.forEach(({ label, value, note }) => {
       // The word sits next to the label (a pill in the label's row), so the numbers take one line less.
-      // One cell of a 2 × 2 block: the dl's grey shows through the 1 px gaps as lines, and its rounded corners
-      // round only the block's outer corners.
-      const item = html('div', 'grid grid-cols-[auto_1fr] items-center gap-x-1 bg-white px-2.5 py-1.5');
+      // A phone shows the four in a plain row. From sm: up each is a cell of a 2 × 2 block: the dl's grey shows through
+      // the 1 px gaps as lines, and its rounded corners round only the block's outer corners.
+      const item = html(
+        'div',
+        'grid grid-cols-[auto_auto] items-center justify-start gap-x-1 ' +
+          'sm:grid-cols-[auto_1fr] sm:bg-white sm:px-2.5 sm:py-1.5'
+      );
       item.appendChild(html('dt', 'text-[11px] text-secondary', label));
       const dd = html('dd', 'col-span-2 text-base font-semibold whitespace-nowrap');
       Plan.valueParts(value).forEach(part =>
