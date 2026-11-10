@@ -21,8 +21,8 @@ The API comes first: the plugin depends on it.
 
 ## Status
 
-The site and API are live at `https://besttimetorun.com`, the site's name since 2026-11-06; `run.xadi.eu`
-(deployed 2026-11-03) answers every path with a 301 to it. Internal names (repo, Docker service, "run window" for the
+The site and API are live at `https://besttimetorun.com`, the site's name since 2026-11-06. `run.xadi.eu`, its first
+address (2026-11-03), no longer serves or redirects to it. Internal names (repo, Docker service, "run window" for the
 API's result) stay. The dated specs and plans under `docs/superpowers/` are records of their day and keep the old
 name. The TRMNL plugin is built and tested; install steps are
 in `integrations/trmnl-running-board/README.md`. The install check on the device (plan Task 12) is pending. Tredict
@@ -73,7 +73,8 @@ test approach. Read its `CLAUDE.md` first. Reuse rather than reinvent:
 - `npm run docker:build`: builds the image. `docker-compose.yml` uses host networking bound to 127.0.0.1:3003, so
   nginx reaches it over loopback (`trust proxy` is `loopback`). `docker/nginx-besttimetorun.com.conf` is the nginx
   site: it logs a fixed list of paths only, strips `Authorization` and `Cookie`, and allows `/health/cache` from the
-  host only. www and run.xadi.eu only redirect to `https://besttimetorun.com$request_uri`.
+  host only. www only redirects to `https://besttimetorun.com$request_uri`. Port 80 listens on IPv4 and IPv6; certbot
+  adds only the IPv4 `listen 443 ssl`, so `listen [::]:443 ssl;` is added by hand after it (see the config's comments).
 
 ## Web interface
 

@@ -73,15 +73,20 @@ describe('nginx config', () => {
     ['/share-targetx', '/x/share-target', '/share-target/x'].forEach(url => expect(url).not.toMatch(regex));
   });
 
-  test('serves besttimetorun.com and leaves TLS to certbot', () => {
+  test('serves besttimetorun.com and leaves TLS to certbot, with the IPv6 listen it does not add', () => {
     expect(names(server)).toEqual(['besttimetorun.com']);
-    expect(server).not.toMatch(/ssl_certificate|listen\s+443/);
+    expect(server).not.toMatch(/ssl_certificate|listen\s+(\S+:)?443/);
     expect(conf).toMatch(/certbot --nginx --no-redirect -d besttimetorun\.com/);
+    expect(conf).toMatch(/#\s+listen \[::\]:443 ssl;/); // the line to add by hand after certbot
   });
 
-  test('www and the old run.xadi.eu send every path, the API too, to besttimetorun.com', () => {
+  test('no other hostname: run.xadi.eu no longer serves or redirects to this site', () => {
+    expect(conf).not.toMatch(/run\.xadi\.eu/);
+  });
+
+  test('www sends every path, the API too, to besttimetorun.com', () => {
     const tls = redirects.filter(body => body !== plain);
-    expect(tls.map(names).flat().sort()).toEqual(['run.xadi.eu', 'www.besttimetorun.com']);
+    expect(tls.map(names).flat()).toEqual(['www.besttimetorun.com']);
     tls.forEach(body => {
       expect(body).toMatch(/listen 127\.0\.0\.1:\d+;/);
       expect(body).toMatch(new RegExp(`return 301 ${SITE}\\$request_uri;`));
@@ -90,9 +95,11 @@ describe('nginx config', () => {
   });
 
   test('port 80 is a block of its own that only redirects, so certbot has nothing to create', () => {
-    expect(servers).toHaveLength(4);
+    expect(servers).toHaveLength(3);
     expect(plain).toBeDefined();
-    expect(names(plain).sort()).toEqual(['besttimetorun.com', 'run.xadi.eu', 'www.besttimetorun.com']);
+    expect(names(plain).sort()).toEqual(['besttimetorun.com', 'www.besttimetorun.com']);
+    expect(plain).toMatch(/listen 80;/);
+    expect(plain).toMatch(/listen \[::\]:80;/); // IPv6 too
     expect(plain).toMatch(new RegExp(`return 301 ${SITE}\\$request_uri;`));
     expect(plain).not.toMatch(/proxy_pass|location/);
     // Two blocks with one name on port 80 make nginx ignore the second, and the app would be served over plain http.

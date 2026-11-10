@@ -1,7 +1,7 @@
 # run-window
 
 [besttimetorun.com](https://besttimetorun.com): the best time to run today, from the weather, sized to the session you
-planned. (`run.xadi.eu`, its first address, redirects there.)
+planned.
 
 - `besttimetorun.com/api/window`: free, anonymous JSON endpoint. Location and availability in, best window per session
   length out. Weather data by [Open-Meteo.com](https://open-meteo.com/).
