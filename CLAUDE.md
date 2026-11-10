@@ -138,7 +138,8 @@ test approach. Read its `CLAUDE.md` first. Reuse rather than reinvent:
     `Little wind`.
   - The day switch is Today · Wed · Thu (`#day-today`, `#day-tomorrow`, `#day-after`; weekdays from the location's
     dates, `Plan.dayButton`). The API covers three days; further out a forecast shifts too much to plan an hour on,
-    so the day after carries `#outlook-note` (`Plan.outlookNote`).
+    so the day after carries `#outlook-note` (`Plan.outlookNote`, one line: `💡 The forecast can still shift.`; the
+    MCP's `forecastNote` adds `check again on the day`).
   - When nothing fits, the line says why (`Plan.noWindowCause`, shared with the MCP): hours gone by, too little time
     left or in daylight, and only then no dry window.
   - When today has no window and tomorrow has one, a `Try tomorrow →` button shows what tomorrow holds.

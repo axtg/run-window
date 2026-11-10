@@ -798,7 +798,7 @@
     const hint = none && state.dayIndex === 0 ? tomorrowHint(minutes, timeZone) : null;
     el.tomorrowHint.hidden = !hint;
     el.tomorrowText.textContent = hint || '';
-    const outlook = Plan.outlookNote(state.dayIndex);
+    const outlook = Plan.outlookNote(state.dayIndex, { short: true });
     el.outlookNote.hidden = !outlook;
     el.outlookNote.textContent = outlook || '';
     const stale = Plan.staleNote(state.body);
