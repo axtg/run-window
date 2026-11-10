@@ -191,6 +191,12 @@ test approach. Read its `CLAUDE.md` first. Reuse rather than reinvent:
   `scripts/build-og-image.js`, which needs Playwright and is run by hand), `favicon.ico` and `apple-touch-icon.png`
   (from `scripts/build-icons.js`), `robots.txt` (keeps `/api/` and `/health` out), `sitemap.xml` and `llms.txt`
   (what the service and API do, for LLMs). No JSON-LD: it would be an inline script.
+- Security: `/.well-known/security.txt` (RFC 9116; contact security@xadi.eu, no bug bounty) has its own route in
+  `app.js`, as `express.static` skips dot folders. Its `Expires` must stay under a year ahead:
+  `tests/securityTxt.test.js` fails within 30 days of it, which is the reminder to renew. Headers
+  (`middleware/securityHeaders.js`): CSP, HSTS for a year with subdomains (no `preload`: hard to undo, the
+  maintainer's call), `nosniff`, a Permissions-Policy that allows geolocation for the page only, COOP `same-origin`.
+  nginx sends every `http://` request to `https://besttimetorun.com` and has `server_tokens off` in every block.
 - A new public path goes in both `LOGGABLE_PATHS` (`middleware/logging.js`) and the nginx `$run_window_path` map;
   `tests/deployConfig.test.js` checks they match.
 - Release order: the manifest's `share_target` entry needs the nginx change live on the host, because without it a

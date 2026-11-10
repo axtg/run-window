@@ -1,0 +1,6 @@
+# Security contact for besttimetorun.com (the run-window API, its web page and the TRMNL plugin).
+# Report anything you find; there is no bug bounty or finder's fee. Thank you for telling us.
+Contact: mailto:security@xadi.eu
+Expires: 2027-11-01T00:00:00.000Z
+Preferred-Languages: en, nl
+Canonical: https://besttimetorun.com/.well-known/security.txt
