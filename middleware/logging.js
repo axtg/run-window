@@ -36,6 +36,7 @@ const LOGGABLE_PATHS = new Set([
   '/',
   '/api/window',
   '/api/capacity',
+  '/api/places',
   '/mcp',
   '/health',
   '/health/cache',

@@ -90,12 +90,14 @@ describe('POST /mcp', () => {
       expect(result.instructions).toContain('Open-Meteo');
     });
 
-    test('lists the two read-only tools, each needing a place', async () => {
+    test('lists the two read-only tools, each taking coordinates or a place name', async () => {
       const { result } = parseReply(await rpc('tools/list').expect(200));
       expect(result.tools.map(tool => tool.name).sort()).toEqual(['find_best_run_time', 'get_run_conditions']);
       for (const tool of result.tools) {
         expect(tool.annotations).toMatchObject({ readOnlyHint: true });
-        expect(tool.inputSchema.required).toEqual(expect.arrayContaining(['latitude', 'longitude']));
+        expect(Object.keys(tool.inputSchema.properties)).toEqual(
+          expect.arrayContaining(['latitude', 'longitude', 'place'])
+        );
       }
     });
 
@@ -338,6 +340,60 @@ describe('POST /mcp', () => {
       const result = await callTool('find_best_run_time', AMSTERDAM, broken);
       expect(result.isError).toBe(true);
       expect(result.content[0].text).toBe(JSON.stringify({ error: 'Internal server error' }));
+    });
+  });
+
+  describe('a place by name', () => {
+    const UTRECHT = {
+      name: 'Utrecht',
+      region: 'Utrecht',
+      country: 'Netherlands',
+      countryCode: 'NL',
+      lat: 52.09,
+      lon: 5.12
+    };
+    const OTHER = {
+      name: 'Utrecht',
+      region: 'KwaZulu-Natal',
+      country: 'South Africa',
+      countryCode: 'ZA',
+      lat: -27.66,
+      lon: 30.32
+    };
+    const placesWith = found => ({ search: jest.fn().mockResolvedValue(found) });
+    const appWith = places => createApp({ weather, places, now: () => NOW, rateLimit: 1000 });
+
+    test('is looked up, named in the answer with the other matches, and its coordinates used', async () => {
+      const places = placesWith([UTRECHT, OTHER]);
+      const result = await callTool('find_best_run_time', { place: 'Utrecht' }, appWith(places));
+      const data = JSON.parse(result.content[0].text);
+      expect(places.search).toHaveBeenCalledWith('Utrecht');
+      expect(data.location).toMatchObject({
+        name: 'Utrecht, Netherlands',
+        otherMatches: ['Utrecht, KwaZulu-Natal, South Africa'],
+        latitude: 52.09,
+        longitude: 5.12
+      });
+      expect(weather.getForecast).toHaveBeenCalledWith(52.09, 5.12);
+    });
+
+    test('coordinates win over a place, which is then not looked up', async () => {
+      const places = placesWith([UTRECHT]);
+      const data = JSON.parse(
+        (await callTool('get_run_conditions', { ...AMSTERDAM, place: 'Utrecht' }, appWith(places))).content[0].text
+      );
+      expect(places.search).not.toHaveBeenCalled();
+      expect(data.location.name).toBeUndefined();
+    });
+
+    test('nothing found, or nothing given, is a tool error that says what to do', async () => {
+      const none = await callTool('find_best_run_time', { place: 'Nowhereville' }, appWith(placesWith([])));
+      expect(JSON.parse(none.content[0].text).error).toBe(
+        'No place found for "Nowhereville": try a larger town nearby, or give coordinates.'
+      );
+      const empty = await callTool('find_best_run_time', {}, appWith(placesWith([])));
+      expect(JSON.parse(empty.content[0].text).error).toBe('Give latitude and longitude, or a place.');
+      expect(weather.getForecast).not.toHaveBeenCalled();
     });
   });
 

@@ -12,15 +12,18 @@ const { fetchForecast } = require('./lib/openMeteo');
 const { createWindowRouter } = require('./routes/window');
 const { createCapacityRouter } = require('./routes/capacity');
 const { createMcpRouter } = require('./routes/mcp');
+const { createPlacesRouter } = require('./routes/places');
+const { createPlaceSearch } = require('./lib/geocoding');
 
 const OPENAPI_FILE = path.join(__dirname, 'docs', 'openapi.yaml');
 const SECURITY_TXT = path.join(__dirname, 'public', '.well-known', 'security.txt');
 const LOOPBACK = new Set(['127.0.0.1', '::1', '::ffff:127.0.0.1']);
 
 // `rateLimit` is the allowed requests per second per client; it defaults to RATE_LIMIT_RPS.
-function createApp({ weather, now = Date.now, rateLimit } = {}) {
+function createApp({ weather, places, now = Date.now, rateLimit } = {}) {
   const forecasts =
     weather || createWeatherCache({ fetchForecast, now, onFailure: reason => logError(new Error(reason)) });
+  const placeSearch = places || createPlaceSearch({ now, onFailure: reason => logError(new Error(reason)) });
   const limit = rateLimit === undefined ? parseRateLimit(process.env.RATE_LIMIT_RPS) : rateLimit;
 
   const app = express();
@@ -74,10 +77,11 @@ function createApp({ weather, now = Date.now, rateLimit } = {}) {
     '/api',
     rateLimiter,
     createWindowRouter({ weather: forecasts, now }),
-    createCapacityRouter({ weather: forecasts })
+    createCapacityRouter({ weather: forecasts }),
+    createPlacesRouter({ places: placeSearch })
   );
   // MCP for AI assistants (routes/mcp.js): stateless, no sign-in, the same answers as /api/window.
-  app.all('/mcp', rateLimiter, createMcpRouter({ weather: forecasts, now }));
+  app.all('/mcp', rateLimiter, createMcpRouter({ weather: forecasts, places: placeSearch, now }));
 
   app.use((req, res) => {
     res.status(404).json({ status: 'error', message: 'Endpoint not found.' });

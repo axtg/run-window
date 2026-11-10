@@ -5,6 +5,7 @@ const { formatInTimeZone } = require('date-fns-tz');
 const { z } = require('zod');
 
 const { VIEW_MIME_TYPE, VIEW_URI, viewHtml } = require('../lib/mcpView');
+const { placeLabel } = require('../lib/geocoding');
 const { buildWindowBody } = require('../lib/windowResponse');
 const { VIEW_META_KEY } = require('../mcp-view/day');
 const Plan = require('../public/plan');
@@ -33,13 +34,26 @@ const INSTRUCTIONS = [
   'Finds the best time to run outdoors today, tomorrow or the day after from the weather forecast: the driest,',
   'calmest, most comfortable stretch within the hours someone can run, and which way to start so the wind is behind',
   "them on the way back. It needs where the run starts: if you don't know the user's town, ask for it, then pass its",
-  'coordinates (they are rounded to about 1 km). Times are local to that place. Weather data by Open-Meteo.com',
-  '(CC BY 4.0): mention it when you show results.'
+  'coordinates (rounded to about 1 km) or its name as place, which the server looks up; check the place it names.',
+  'Times are local to that place. Weather data by Open-Meteo.com (CC BY 4.0): mention it when you show results.'
 ].join(' ');
 
 const place = {
-  latitude: z.number().min(-90).max(90).describe('Latitude of where the run starts. Rounded to 2 decimals (~1 km).'),
-  longitude: z.number().min(-180).max(180).describe('Longitude of where the run starts. Rounded to 2 decimals.')
+  latitude: z
+    .number()
+    .min(-90)
+    .max(90)
+    .optional()
+    .describe('Latitude of where the run starts, with longitude. Rounded to 2 decimals (~1 km).'),
+  longitude: z.number().min(-180).max(180).optional().describe('Longitude of where the run starts, with latitude.'),
+  place: z
+    .string()
+    .max(80)
+    .optional()
+    .describe(
+      "Instead of coordinates: a town or city, such as 'Utrecht' or 'Bergen, Norway'. The answer names the place " +
+        'it found (location.name) and other matches, so check it is the right one.'
+    )
 };
 
 const preferences = {
@@ -125,12 +139,13 @@ function describeWindow(window, timezone) {
   };
 }
 
-function dayContext(body, picked) {
+function dayContext(body, picked, where = {}) {
   const { day } = picked;
   const { timezone, lat, lon } = body.location;
   const note = Plan.outlookNote(picked.index);
+  const found = where.name ? { name: where.name, ...(where.otherMatches && { otherMatches: where.otherMatches }) } : {};
   return {
-    location: { latitude: lat, longitude: lon, timezone },
+    location: { ...found, latitude: lat, longitude: lon, timezone },
     date: day.date,
     sunrise: day.sunrise ? clock(day.sunrise, timezone) : null,
     sunset: day.sunset ? clock(day.sunset, timezone) : null,
@@ -139,6 +154,29 @@ function dayContext(body, picked) {
     ...(body.warnings && { warnings: body.warnings }),
     attribution: body.attribution
   };
+}
+
+const badRequest = message => Object.assign(new Error(message), { statusCode: 400 });
+
+// Coordinates as given, or the first match for a place name (with the other matches, to check against).
+async function resolvePlace(args, places) {
+  if (Number.isFinite(args.latitude) && Number.isFinite(args.longitude)) {
+    return { latitude: args.latitude, longitude: args.longitude };
+  }
+  if (typeof args.place === 'string' && args.place.trim() !== '') {
+    const found = await places.search(args.place);
+    if (found.length === 0) {
+      throw badRequest(`No place found for "${args.place.trim()}": try a larger town nearby, or give coordinates.`);
+    }
+    const [first, ...rest] = found;
+    return {
+      latitude: first.lat,
+      longitude: first.lon,
+      name: placeLabel(first),
+      ...(rest.length > 0 && { otherMatches: rest.slice(0, 3).map(placeLabel) })
+    };
+  }
+  throw badRequest('Give latitude and longitude, or a place.');
 }
 
 // The day asked for, with its place in the API's days (0 today, 1 tomorrow, 2 the day after).
@@ -204,7 +242,9 @@ function whyNothingFits(slots, minutes, params, dayLabel) {
   };
 }
 
-async function findBestRunTime(args, { weather, now }) {
+async function findBestRunTime(input, { weather, places, now }) {
+  const where = await resolvePlace(input, places);
+  const args = { ...input, ...where };
   const body = await buildWindowBody({ query: windowQuery(args, { slots: true }), weather, now });
   const picked = pickDay(body, args.day);
   const { day } = picked;
@@ -217,7 +257,7 @@ async function findBestRunTime(args, { weather, now }) {
       available: true,
       day: args.day,
       minutes,
-      ...dayContext(body, picked),
+      ...dayContext(body, picked, where),
       window: describeWindow(window, timezone)
     };
     // The obvious follow-up to a run in the dark: the best one in daylight. The same forecast, from the cache.
@@ -236,19 +276,21 @@ async function findBestRunTime(args, { weather, now }) {
     ...whyNothingFits(day.slots || [], minutes, body.params, nameDay(picked)),
     // The API's least bad hour, rain no longer ruling slots out, when no dry hour exists at all
     ...(day.fallback && { leastBadHour: describeWindow(day.fallback, timezone) }),
-    ...dayContext(body, picked)
+    ...dayContext(body, picked, where)
   };
   return { data, view };
 }
 
-async function getRunConditions(args, { weather, now }) {
+async function getRunConditions(input, { weather, places, now }) {
+  const where = await resolvePlace(input, places);
+  const args = { ...input, ...where };
   const body = await buildWindowBody({ query: windowQuery(args, { slots: true }), weather, now });
   const picked = pickDay(body, args.day);
   const { day } = picked;
   const { timezone } = body.location;
   return {
     day: args.day,
-    ...dayContext(body, picked),
+    ...dayContext(body, picked, where),
     statuses: 'ok: runnable; rain: over maxRainChance; dark: outside daylight; past: already started; missing: no data',
     slots: day.slots.map(slot => ({
       time: clock(slot.start, timezone),
@@ -357,9 +399,9 @@ function refuseBatches(req, res, next) {
 // A new server per request and no sessions. Current clients get plain JSON; the SDK answers 2025-era clients with a
 // short event stream that closes after its one message. Listen streams would stay open indefinitely, and the tools
 // never change, so maxSubscriptions refuses them all. JSON is parsed here only: the rest of the app has no body parser.
-function createMcpRouter({ weather, now }) {
+function createMcpRouter({ weather, places, now }) {
   const handler = toNodeHandler(
-    createMcpHandler(createServerFactory({ weather, now }), { responseMode: 'json', maxSubscriptions: 0 })
+    createMcpHandler(createServerFactory({ weather, places, now }), { responseMode: 'json', maxSubscriptions: 0 })
   );
   const run = (req, res, next) => handler(req, res, req.body).catch(next);
   return [express.json({ limit: MAX_REQUEST_BYTES }), refuseBatches, run];
