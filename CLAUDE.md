@@ -134,14 +134,13 @@ test approach. Read its `CLAUDE.md` first. Reuse rather than reinvent:
     `minmax(0,1fr)`, which collapsed); the answer's columns are `minmax(0,1fr)_auto`, so the time's side gives way.
   - The wind line is in words (`Wind from the east · start east, into it`), with a compass whose arrow shows where the
     wind blows to, as on a weather map, so you start running against the arrow. In little wind (under 10 km/h) the
-    line and compass are hidden: the Wind pill already says `light` or `calm`. The calendar description keeps
-    `Little wind`.
+    line says `Little wind: any direction will do`, without the compass (a missing line read as a bug, 2026-11-11);
+    the calendar description has the same words.
   - The day switch is Today · Wed · Thu (`#day-today`, `#day-tomorrow`, `#day-after`; weekdays from the location's
     dates, `Plan.dayButton`). The API covers three days; further out a forecast shifts too much to plan an hour on.
     The page shows no note about that (removed 2026-11-11: obvious, and it made the days look different); the MCP's
     `forecastNote` (`Plan.outlookNote`) still tells an assistant to check again on the day.
-  - The why line is left out for the least bad hour (it is about the dry stretch). The wind line hides under 10 km/h
-    (see below), so a calm best time has no `start into it` line: that is on purpose.
+  - The why line is left out for the least bad hour (it is about the dry stretch).
   - When nothing fits, the line says why (`Plan.noWindowCause`, shared with the MCP): hours gone by, too little time
     left or in daylight, and only then no dry window.
   - When today has no window and tomorrow has one, a `Try tomorrow →` button shows what tomorrow holds.
@@ -160,10 +159,13 @@ test approach. Read its `CLAUDE.md` first. Reuse rather than reinvent:
   warm, else mild) or, without one, the device's hour (morning before 12, else evening). CSS can't animate one
   gradient into another, so two layers behind the page (`#sky-a`, `#sky-b`, `-z-10` in a `relative` body) carry the
   `data-[sky=…]:bg-[linear-gradient(…)]` variants and cross-fade in 700 ms (`data-shown`; none with reduced motion);
-  `tests/web/plan.test.js` checks every name has a variant. Over it, `#weather-fx` draws faint rain or snow
+  `tests/web/plan.test.js` checks every name has a variant. Over it, `#weather-fx` shows rain or snow
   (`Plan.weatherFx`: some slot of the shown day 50 %+ likely to have 0.1 mm or more; snow when most of those are at or
-  below 1 °C air temperature, the slots' `temp`). Three layers of radial gradients with uneven tile sizes, moved by
-  the `rain` / `snow` keyframes in `tailwind.config.js`; nothing loads, and it is hidden with reduced motion. The
+  below 1 °C air temperature, the slots' `temp`). app.js adds 60 `<i>` once; their CSS is plain CSS in
+  `tailwind.input.css` (slanted streaks or swaying flakes, spread by `nth-child(13n/7n/5n)` rules for place, delay and
+  speed, as the CSP allows no inline style). Nothing loads; hidden with reduced motion. `?fx=rain` or `?fx=snow` shows
+  it to try.
+  The
   card stays white. The header sits on milky glass (`bg-white/55 backdrop-blur-md`, `z-20` so its menus stay above
   the card).
 - Under the header, `#quota-bar` (an SVG; `Plan.quotaBar`) shows today's new places left from `/api/capacity`: a

@@ -153,9 +153,9 @@ test('the Method dialog states the scoring constants the API uses', () => {
   expect(text).toContain('0.2 mm');
   expect(text).toContain('up to 3 hours');
   expect([durationKey(180).fits, durationKey(181).fits]).toEqual([true, false]);
-  expect(text).toContain('under 10 km/h there is no wind line');
-  expect(windLine(null, { windAvg: 9.9 })).toBe('Little wind');
-  expect(windLine(null, { windAvg: 10, windFromCardinal: 'E' })).not.toBe('Little wind');
+  expect(text).toContain('Under 10 km/h it says so: little wind, any direction will do');
+  expect(windLine(null, { windAvg: 9.9 })).toBe('Little wind: any direction will do');
+  expect(windLine(null, { windAvg: 10, windFromCardinal: 'E' })).not.toMatch(/^Little wind/);
   // At 30 km/h wind alone outweighs a 100 % chance of rain, as the dialog claims.
   expect(30 - wind.comfortableSpeed).toBeGreaterThan(100 / SCORING.rain.probDivisor);
 });

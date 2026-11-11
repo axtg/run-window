@@ -1,3 +1,197 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* #weather-fx: rain or snow behind the page (Plan.weatherFx sets data-fx). app.js adds the particles (<i>) once; the
+   nth-child rules below spread them in place (13), delay (7) and speed (5) with no inline style, which the CSP forbids:
+   455 combinations before a pattern repeats. Hidden with reduced motion. */
+#weather-fx {
+  position: fixed;
+  inset: 0;
+  z-index: -10;
+  display: none;
+  overflow: hidden;
+  pointer-events: none;
+}
+#weather-fx[data-fx] {
+  display: block;
+}
+#weather-fx > i {
+  position: absolute;
+  top: -12vh;
+  display: block;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+  will-change: transform;
+}
+#weather-fx > i:nth-child(13n + 1) {
+  left: 3%;
+}
+#weather-fx > i:nth-child(13n + 2) {
+  left: 11%;
+}
+#weather-fx > i:nth-child(13n + 3) {
+  left: 18%;
+}
+#weather-fx > i:nth-child(13n + 4) {
+  left: 26%;
+}
+#weather-fx > i:nth-child(13n + 5) {
+  left: 33%;
+}
+#weather-fx > i:nth-child(13n + 6) {
+  left: 41%;
+}
+#weather-fx > i:nth-child(13n + 7) {
+  left: 48%;
+}
+#weather-fx > i:nth-child(13n + 8) {
+  left: 56%;
+}
+#weather-fx > i:nth-child(13n + 9) {
+  left: 63%;
+}
+#weather-fx > i:nth-child(13n + 10) {
+  left: 71%;
+}
+#weather-fx > i:nth-child(13n + 11) {
+  left: 78%;
+}
+#weather-fx > i:nth-child(13n + 12) {
+  left: 86%;
+}
+#weather-fx > i:nth-child(13n + 13) {
+  left: 93%;
+}
+
+/* Rain: thin streaks, a little slanted, falling fast */
+#weather-fx[data-fx='rain'] > i {
+  width: 1px;
+  height: 8vh;
+  background: linear-gradient(to bottom, rgba(71, 85, 105, 0), rgba(71, 85, 105, 0.4));
+  animation-name: fx-rain;
+}
+#weather-fx[data-fx='rain'] > i:nth-child(3n + 1) {
+  height: 5vh;
+  opacity: 0.6;
+}
+#weather-fx[data-fx='rain'] > i:nth-child(7n + 1) {
+  animation-delay: -0.13s;
+}
+#weather-fx[data-fx='rain'] > i:nth-child(7n + 2) {
+  animation-delay: -0.26s;
+}
+#weather-fx[data-fx='rain'] > i:nth-child(7n + 3) {
+  animation-delay: -0.39s;
+}
+#weather-fx[data-fx='rain'] > i:nth-child(7n + 4) {
+  animation-delay: -0.52s;
+}
+#weather-fx[data-fx='rain'] > i:nth-child(7n + 5) {
+  animation-delay: -0.65s;
+}
+#weather-fx[data-fx='rain'] > i:nth-child(7n + 6) {
+  animation-delay: -0.78s;
+}
+#weather-fx[data-fx='rain'] > i:nth-child(7n + 7) {
+  animation-delay: -0.91s;
+}
+#weather-fx[data-fx='rain'] > i:nth-child(5n + 1) {
+  animation-duration: 0.62s;
+}
+#weather-fx[data-fx='rain'] > i:nth-child(5n + 2) {
+  animation-duration: 0.74s;
+}
+#weather-fx[data-fx='rain'] > i:nth-child(5n + 3) {
+  animation-duration: 0.86s;
+}
+#weather-fx[data-fx='rain'] > i:nth-child(5n + 4) {
+  animation-duration: 0.68s;
+}
+#weather-fx[data-fx='rain'] > i:nth-child(5n + 5) {
+  animation-duration: 0.8s;
+}
+@keyframes fx-rain {
+  from {
+    transform: translate(0, 0) rotate(8deg);
+  }
+  to {
+    transform: translate(-16vh, 125vh) rotate(8deg);
+  }
+}
+
+/* Snow: soft flakes swaying down */
+#weather-fx[data-fx='snow'] > i {
+  width: 6px;
+  height: 6px;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.95);
+  box-shadow: 0 0 3px rgba(100, 116, 139, 0.5);
+  animation-name: fx-snow;
+}
+#weather-fx[data-fx='snow'] > i:nth-child(3n + 1) {
+  width: 4px;
+  height: 4px;
+  opacity: 0.8;
+}
+#weather-fx[data-fx='snow'] > i:nth-child(3n + 2) {
+  width: 8px;
+  height: 8px;
+  opacity: 0.9;
+}
+#weather-fx[data-fx='snow'] > i:nth-child(7n + 1) {
+  animation-delay: -1.7s;
+}
+#weather-fx[data-fx='snow'] > i:nth-child(7n + 2) {
+  animation-delay: -3.4s;
+}
+#weather-fx[data-fx='snow'] > i:nth-child(7n + 3) {
+  animation-delay: -5.1s;
+}
+#weather-fx[data-fx='snow'] > i:nth-child(7n + 4) {
+  animation-delay: -6.8s;
+}
+#weather-fx[data-fx='snow'] > i:nth-child(7n + 5) {
+  animation-delay: -8.5s;
+}
+#weather-fx[data-fx='snow'] > i:nth-child(7n + 6) {
+  animation-delay: -10.2s;
+}
+#weather-fx[data-fx='snow'] > i:nth-child(7n + 7) {
+  animation-delay: -11.9s;
+}
+#weather-fx[data-fx='snow'] > i:nth-child(5n + 1) {
+  animation-duration: 9s;
+}
+#weather-fx[data-fx='snow'] > i:nth-child(5n + 2) {
+  animation-duration: 12s;
+}
+#weather-fx[data-fx='snow'] > i:nth-child(5n + 3) {
+  animation-duration: 10.5s;
+}
+#weather-fx[data-fx='snow'] > i:nth-child(5n + 4) {
+  animation-duration: 14s;
+}
+#weather-fx[data-fx='snow'] > i:nth-child(5n + 5) {
+  animation-duration: 11s;
+}
+@keyframes fx-snow {
+  25% {
+    transform: translate(3vw, 34vh);
+  }
+  50% {
+    transform: translate(-1vw, 66vh);
+  }
+  75% {
+    transform: translate(2vw, 97vh);
+  }
+  to {
+    transform: translate(0, 128vh);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #weather-fx {
+    display: none !important;
+  }
+}
