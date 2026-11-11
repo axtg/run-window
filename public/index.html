@@ -828,19 +828,22 @@
           </ul>
           <p>Wind usually decides: at 30 km/h it outweighs even a certain shower.</p>
           <p>
-            <strong>Mind most</strong> picks the one that bothers you most: its points count three times, and Wind
-            counts from 8 km/h instead of 12, so a calm, colder hour can beat a breezy one. It doesn't set a limit,
-            because the forecast decides what a day can offer; on a stormy day Wind still gets you the calmest time
-            there is. Balanced counts all three the same. The Rain slider is the one hard limit.
+            <strong>Mind most</strong> picks the one that bothers you most, and it decides first: only the times within
+            a step of the day's best on it stay in the running (5 % chance of rain, 2 km/h of wind, or 1 °C from 11 °C
+            feels-like), even if they are windier, wetter or colder. Among those, its points count three times, and Wind
+            counts from 8 km/h instead of 12. It doesn't set a limit, because the forecast decides what a day can offer;
+            on a stormy day Wind still gets you the calmest time there is. Balanced counts all three the same. The Rain
+            slider is the one hard limit.
           </p>
         </div>
         <div class="space-y-2">
           <h3 class="font-semibold">4. The pick</h3>
           <p>
-            The lowest score wins. On a tie, Mind most decides: the calmest, driest or closest to 11 °C feels-like (the
-            middle of 6–16 °C), so Wind still finds the calmest hour when every hour is under 8 km/h. Then the earliest.
-            A window never spans two hour ranges. With a route, the run's length is its distance at your pace, rounded
-            up to 15 minutes; up to 3 hours. Without one, your pace turns the minutes into the distance to plan for.
+            The lowest score wins. On a tie, Mind most decides again: the calmest, driest or closest to 11 °C feels-like
+            (the middle of 6–16 °C), so Wind still finds the calmest hour when every hour is under 8 km/h. Then the
+            earliest. A window never spans two hour ranges. With a route, the run's length is its distance at your pace,
+            rounded up to 15 minutes; up to 3 hours. Without one, your pace turns the minutes into the distance to plan
+            for.
           </p>
           <p>
             When no hour-long window is dry enough, the page shows the least bad hour instead and says so: rain no
@@ -906,8 +909,8 @@
             <code>lat</code> and <code>lon</code> are required. <code>avail</code>, <code>dark</code>,
             <code>rain</code>, <code>prefer</code>, <code>lang</code> and <code>slots</code> are optional;
             <code>prefer</code> (<code>balanced</code>, <code>wind</code>, <code>rain</code> or <code>temp</code>) makes
-            that one count three times; <code>slots=1</code> adds the day's 15-minute slots, which this page draws. The
-            full contract is in <a class="underline" href="/openapi.yaml">openapi.yaml</a>.
+            that one decide first, then count three times; <code>slots=1</code> adds the day's 15-minute slots, which
+            this page draws. The full contract is in <a class="underline" href="/openapi.yaml">openapi.yaml</a>.
           </p>
         </div>
         <div class="space-y-2">

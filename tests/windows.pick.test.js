@@ -153,32 +153,48 @@ test('qualifies false is passed through for fallbacks', () => {
   expect(w.qualifies).toBe(false);
 });
 
-test('a tie in score goes to the lower tie-break mean, then the earliest', () => {
-  // All four slots score 0 (wind under 12 km/h); the tie-break is the raw wind speed.
+test('a tie in score goes to the lower measure, then the earliest', () => {
+  // All four slots score 0 (wind under 12 km/h); the measure is the raw wind speed.
   const slots = [scored(0, 9), scored(1, 9), scored(2, 4), scored(3, 4)];
-  const tieFn = values => values.windSpeed;
+  const measure = values => values.windSpeed;
   expect(pickWindow(slots, 2).start).toBe(new Date(BASE).toISOString());
-  const w = pickWindow(slots, 2, { tieFn });
+  const w = pickWindow(slots, 2, { measure, margin: 10 });
   expect(w.start).toBe(new Date(BASE + 2 * SLOT_MS).toISOString());
   expect(w.score).toBe(0);
 
   const even = [scored(0, 4), scored(1, 4), scored(2, 4)];
-  expect(pickWindow(even, 1, { tieFn }).start).toBe(new Date(BASE).toISOString());
+  expect(pickWindow(even, 1, { measure }).start).toBe(new Date(BASE).toISOString());
 });
 
-test('the tie-break never beats a lower score', () => {
-  // Slot 0 is calmer but scores 1 (feels-like 5 degrees); slot 1 scores 0 with 11 km/h and wins.
-  const slots = [slot(0, v({ windSpeed: 0, apparentTemp: 5 })), scored(1, 11)];
-  const w = pickWindow(slots, 1, { tieFn: values => values.windSpeed });
+test('Mind most decides first: outside the margin, a lower score loses', () => {
+  // The 2026-11-11 morning: 09:00 is calm but the wettest (20 %); the afternoon is dry but windy (25 km/h, 13 points).
+  const slots = [
+    slot(0, v({ precipProb: 20, apparentTemp: 5 })),
+    slot(1, v({ precipProb: 10, windSpeed: 18 })),
+    slot(2, v({ precipProb: 0, windSpeed: 25 })),
+    slot(3, v({ precipProb: 2, windSpeed: 25 }))
+  ];
+  const rain = values => values.precipProb;
+  expect(pickWindow(slots, 1).start).toBe(new Date(BASE).toISOString()); // by score alone: the wet, calm morning
+  const driest = pickWindow(slots, 1, { measure: rain, margin: 5 });
+  expect(driest.start).toBe(new Date(BASE + 2 * SLOT_MS).toISOString()); // 0 % and 2 % stay; the earlier wins
+  expect(driest.precipProbMax).toBe(0);
+});
+
+test('within the margin the score still picks', () => {
+  // Slot 0 is the driest (0 %) but windy; slot 1 is 4 % and calm, within the 5-point margin, so it wins on score.
+  const slots = [slot(0, v({ precipProb: 0, windSpeed: 30 })), slot(1, v({ precipProb: 4 }))];
+  const w = pickWindow(slots, 1, { measure: values => values.precipProb, margin: 5 });
   expect(w.start).toBe(new Date(BASE + SLOT_MS).toISOString());
 });
 
-test('TIE_BREAKS: wind speed, chance of rain, distance from the middle of the temperature band', () => {
-  const { TIE_BREAKS, SCORING } = require('../lib/windows');
-  expect(Object.keys(TIE_BREAKS).sort()).toEqual(['rain', 'temp', 'wind']);
-  expect(TIE_BREAKS.wind(v({ windSpeed: 7 }))).toBe(7);
-  expect(TIE_BREAKS.rain(v({ precipProb: 25 }))).toBe(25);
+test('PREFER_MEASURES: wind speed, chance of rain, distance from the middle of the temperature band', () => {
+  const { PREFER_MEASURES, SCORING } = require('../lib/windows');
+  expect(Object.keys(PREFER_MEASURES).sort()).toEqual(['rain', 'temp', 'wind']);
+  expect(Object.keys(SCORING.preferMargin).sort()).toEqual(['rain', 'temp', 'wind']);
+  expect(PREFER_MEASURES.wind(v({ windSpeed: 7 }))).toBe(7);
+  expect(PREFER_MEASURES.rain(v({ precipProb: 25 }))).toBe(25);
   const middle = (SCORING.temperature.min + SCORING.temperature.max) / 2;
-  expect(TIE_BREAKS.temp(v({ apparentTemp: middle }))).toBe(0);
-  expect(TIE_BREAKS.temp(v({ apparentTemp: middle - 3 }))).toBe(3);
+  expect(PREFER_MEASURES.temp(v({ apparentTemp: middle }))).toBe(0);
+  expect(PREFER_MEASURES.temp(v({ apparentTemp: middle - 3 }))).toBe(3);
 });

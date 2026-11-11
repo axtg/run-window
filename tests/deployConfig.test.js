@@ -55,7 +55,9 @@ describe('nginx config', () => {
   test('every location proxies to the app except the share target and the deploy webhook', () => {
     expect(shareTarget).toBeDefined();
     const unproxied = locations.filter(location => !/proxy_pass http:\/\/127\.0\.0\.1:3003;/.test(location.body));
-    expect(unproxied.map(location => location.head).sort()).toEqual([shareTarget.head, 'location = /_deploy/github {'].sort());
+    expect(unproxied.map(location => location.head).sort()).toEqual(
+      [shareTarget.head, 'location = /_deploy/github {'].sort()
+    );
   });
 
   test('the deploy webhook is one exact path, sent to the shared deploy daemon and nowhere else', () => {
