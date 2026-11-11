@@ -49,7 +49,7 @@
       fallback: result.kind === 'fallback',
       numbers: Plan.keyNumbers(result, null, minutes),
       arrow,
-      windText: arrow === null ? '' : Plan.windLine(null, result.window),
+      windText: none ? '' : Plan.windLine(null, result.window),
       // No why line for the least bad hour: it is the dry stretch's sentence, and that hour isn't dry.
       why:
         range && result.kind === 'window' ? Strip.whySentence(slots, range, { timeZone, sunsetIso: day.sunset }) : '',
@@ -156,7 +156,8 @@
     $('time').textContent = model.time;
     $('time').className = model.none ? 'time none' : 'time';
     renderNumbers(model.numbers);
-    $('wind').hidden = model.arrow === null;
+    $('wind').hidden = model.windText === '';
+    $('wind-compass').toggleAttribute('hidden', model.arrow === null);
     $('wind-text').textContent = model.windText;
     if (model.arrow !== null) $('wind-arrow').setAttribute('transform', `rotate(${model.arrow} 14 14)`);
     $('why').textContent = model.why;

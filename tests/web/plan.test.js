@@ -222,8 +222,10 @@ describe('windLine', () => {
 
   test('little wind under 10 km/h', () => {
     const calm = win({ windAvg: 9 });
-    expect(windLine({ shape: 'loop', startBearing: 0, overallBearing: 0 }, calm)).toBe('Little wind');
-    expect(windLine(null, calm)).toBe('Little wind');
+    expect(windLine({ shape: 'loop', startBearing: 0, overallBearing: 0 }, calm)).toBe(
+      'Little wind: any direction will do'
+    );
+    expect(windLine(null, calm)).toBe('Little wind: any direction will do');
     expect(windLine(null, win({ windAvg: 10 }))).toBe('Wind from the east · start east, into it');
   });
 

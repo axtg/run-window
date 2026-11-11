@@ -51,13 +51,9 @@
       class="pointer-events-none absolute inset-0 -z-10 bg-no-repeat opacity-0 transition-opacity duration-700 motion-reduce:transition-none [&[data-shown]]:opacity-100 data-[sky=mild]:bg-[linear-gradient(180deg,#cfe8ff_0%,#e3f6ec_51%,#f3f4f6_100%)] data-[sky=cold]:bg-[linear-gradient(180deg,#d3eafb_0%,#edf6fc_54%,#f8fafc_100%)] data-[sky=warm]:bg-[linear-gradient(180deg,#ffdfc2_0%,#fff2d4_54%,#f9fafb_100%)] data-[sky=wet]:bg-[linear-gradient(180deg,#c0cad7_0%,#dce2ea_54%,#eef1f4_100%)] data-[sky=windy]:bg-[linear-gradient(165deg,#d6dbe2_0%,#eef0f3_47%,#e1e5eb_74%,#f5f6f8_100%)] data-[sky=dark]:bg-[linear-gradient(180deg,#c6cbf5_0%,#e3dbf6_40%,#f3f4f6_94%)] data-[sky=morning]:bg-[linear-gradient(180deg,#ffd6cb_0%,#fdead6_47%,#f3f4f6_100%)] data-[sky=evening]:bg-[linear-gradient(180deg,#d0d5ef_0%,#e5e2f1_47%,#f3f4f6_100%)]"
       aria-hidden="true"
     ></div>
-    <!-- Faint rain or snow when the shown day is wet within the hours (Plan.weatherFx sets data-fx). Gradients only, so
-         nothing loads; none with reduced motion. -->
-    <div
-      id="weather-fx"
-      class="pointer-events-none fixed inset-0 -z-10 hidden motion-reduce:!hidden data-[fx=rain]:block data-[fx=snow]:block data-[fx=rain]:animate-rain data-[fx=snow]:animate-snow data-[fx=rain]:bg-[radial-gradient(ellipse_1px_9px_at_20%_30%,rgba(71,85,105,0.26),transparent),radial-gradient(ellipse_1px_7px_at_70%_80%,rgba(71,85,105,0.2),transparent),radial-gradient(ellipse_1px_11px_at_45%_10%,rgba(71,85,105,0.16),transparent)] data-[fx=rain]:[background-size:23px_97px,37px_131px,53px_173px] data-[fx=snow]:bg-[radial-gradient(circle_at_20%_30%,rgba(100,116,139,0.45)_0_1.5px,transparent_2px),radial-gradient(circle_at_70%_75%,rgba(100,116,139,0.32)_0_1px,transparent_1.5px),radial-gradient(circle_at_45%_55%,rgba(100,116,139,0.25)_0_2px,transparent_2.5px)] data-[fx=snow]:[background-size:71px_79px,97px_113px,131px_149px]"
-      aria-hidden="true"
-    ></div>
+    <!-- Rain or snow behind the page when the shown day is wet within the hours (Plan.weatherFx sets data-fx; ?fx=rain
+         or ?fx=snow shows it to try). app.js adds the drops; their CSS is in tailwind.input.css. -->
+    <div id="weather-fx" aria-hidden="true"></div>
     <svg class="absolute h-0 w-0" aria-hidden="true" focusable="false">
       <defs>
         <pattern id="night-hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
@@ -851,8 +847,8 @@
           <h3 class="font-semibold">5. The wind line</h3>
           <p>
             It gives the window's average wind direction. Start into it, so it is behind you on the way home. With a
-            loop it says whether to run it as drawn or reversed, from A to B whether it is a head- or tailwind, and
-            under 10 km/h there is no wind line.
+            loop it says whether to run it as drawn or reversed, from A to B whether it is a head- or tailwind. Under 10
+            km/h it says so: little wind, any direction will do.
           </p>
         </div>
         <p class="text-secondary">

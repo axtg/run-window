@@ -67,10 +67,10 @@ describe('viewModel', () => {
     expect(model.range).toEqual({ first: 0, last: 3 });
   });
 
-  test('in little wind there is no direction to start into', () => {
+  test('in little wind it says any direction will do, without a compass arrow', () => {
     const model = viewModel(payload({ windows: { 60: { ...window, windAvg: 6 } }, slots: slots() }));
     expect(model.arrow).toBeNull();
-    expect(model.windText).toBe('');
+    expect(model.windText).toBe('Little wind: any direction will do');
   });
 
   test('anything else is not drawn', () => {

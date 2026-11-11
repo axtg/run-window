@@ -795,9 +795,11 @@
     state.calendar = Plan.calendarEvent(result, state.summary, { minutes, timeZone, plan, checkUrl });
     renderCalendar();
     const arrow = result.window ? Plan.windArrowDeg(result.window) : null;
-    // In little wind there is no direction to start into, and the Wind pill already says so: no line, no compass.
-    el.windLine.hidden = arrow === null;
-    el.windText.textContent = arrow === null ? '' : Plan.windLine(state.summary, result.window);
+    // In little wind there is no direction to start into: the line says so, without a compass (2026-11-11: a missing
+    // line read as a bug).
+    el.windLine.hidden = !result.window;
+    el.windText.textContent = result.window ? Plan.windLine(state.summary, result.window) : '';
+    el.windCompass.toggleAttribute('hidden', arrow === null); // an SVG: no hidden property
     if (arrow !== null) el.windArrow.setAttribute('transform', `rotate(${arrow} 14 14)`);
     const hint = none && state.dayIndex === 0 ? tomorrowHint(minutes, timeZone) : null;
     el.tomorrowHint.hidden = !hint;
@@ -810,11 +812,21 @@
 
   // The page's tint (index.html has a `data-sky` variant per theme). Without an answer, the device's hour picks it.
   // body's data-sky names it; of the two layers, the one in front holds it and the other fades out behind.
+  // The drops or flakes for #weather-fx, added once; tailwind.input.css places and moves each by its position.
+  const FX_PARTICLES = 60;
+  const FX_PREVIEW = ['rain', 'snow'].find(kind => new URLSearchParams(location.search).get('fx') === kind) || null;
+  function addParticles() {
+    if (el.weatherFx.children.length > 0) return;
+    for (let i = 0; i < FX_PARTICLES; i++) el.weatherFx.appendChild(document.createElement('i'));
+  }
+
   function setSky(result, day) {
-    // Rain or snow behind the page when the shown day is wet within the hours
-    const fx = day ? Plan.weatherFx(day.slots) : null;
-    if (fx) el.weatherFx.setAttribute('data-fx', fx);
-    else el.weatherFx.removeAttribute('data-fx');
+    // Rain or snow behind the page when the shown day is wet within the hours, or as ?fx= asks
+    const fx = FX_PREVIEW || (day ? Plan.weatherFx(day.slots) : null);
+    if (fx) {
+      addParticles();
+      el.weatherFx.setAttribute('data-fx', fx);
+    } else el.weatherFx.removeAttribute('data-fx');
     const theme = Plan.skyTheme(result, day, new Date().getHours());
     if (document.body.getAttribute('data-sky') === theme) return;
     document.body.setAttribute('data-sky', theme);

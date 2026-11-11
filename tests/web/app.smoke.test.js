@@ -392,6 +392,16 @@ describe('app.js privacy smoke test', () => {
     expect(record.fetches).toHaveLength(1);
   });
 
+  it('?fx=snow shows the snow to try, with its particles, before any answer', async () => {
+    const { elements } = loadPage({ search: '?fx=snow' });
+    await flush();
+    expect(elements.get('weather-fx').attributes['data-fx']).toBe('snow');
+    expect(elements.get('weather-fx').children).toHaveLength(60);
+    const none = loadPage({ search: '?fx=hail' });
+    await flush();
+    expect(none.elements.get('weather-fx').attributes['data-fx']).toBeUndefined();
+  });
+
   describe('a town by name', () => {
     const UTRECHT = {
       name: 'Utrecht',
@@ -743,13 +753,14 @@ describe('app.js privacy smoke test', () => {
     expect('data-shown' in elements.get('sky-a').attributes).toBe(false);
   });
 
-  it('shows no wind line in little wind', async () => {
+  it('says so in little wind, without a compass', async () => {
     const { elements } = loadPage({ navigator: { geolocation } });
     elements.get('use-location').listeners.click();
     await answered(elements);
     expect(rejections).toEqual([]);
-    expect(elements.get('wind-line').hidden).toBe(true);
-    expect(elements.get('wind-text').textContent).toBe('');
+    expect(elements.get('wind-line').hidden).toBe(false);
+    expect(elements.get('wind-text').textContent).toBe('Little wind: any direction will do');
+    expect(elements.get('wind-compass').attributes.hidden).toBeDefined();
   });
 
   it('offers Try tomorrow when today has no window, and switches day without asking again', async () => {

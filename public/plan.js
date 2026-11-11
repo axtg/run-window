@@ -442,7 +442,7 @@
   }
 
   function windLine(summary, window) {
-    if (window.windAvg < LITTLE_WIND_KMH) return 'Little wind';
+    if (window.windAvg < LITTLE_WIND_KMH) return 'Little wind: any direction will do';
     const wind = CARDINAL_NAMES[window.windFromCardinal] || window.windFromCardinal;
     if (!summary || summary.shape === 'out-and-back') return `Wind from the ${wind} · start ${wind}, into it`;
     if (summary.shape === 'loop') {
