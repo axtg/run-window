@@ -170,6 +170,21 @@
     return 'warm';
   }
 
+  // A faint rain or snow behind the page when the shown day is wet within the hours: some slot likely (50 %+) to have
+  // measurable precipitation. Snow when most of those slots are at or below 1 °C air temperature. Null otherwise.
+  const FX_MIN_PROB = 50;
+  const FX_MIN_MM = 0.1;
+  const SNOW_MAX_C = 1;
+  function weatherFx(slots) {
+    const wet = (slots || []).filter(
+      slot =>
+        slot.precipProb !== null && slot.precipProb >= FX_MIN_PROB && slot.precip !== null && slot.precip >= FX_MIN_MM
+    );
+    if (wet.length === 0) return null;
+    const cold = wet.filter(slot => typeof slot.temp === 'number' && slot.temp <= SNOW_MAX_C).length;
+    return cold * 2 > wet.length ? 'snow' : 'rain';
+  }
+
   // The rainbow under the header from /api/capacity: shorter and paler as today's new places are used, amber under
   // 10 %. Null when the answer is missing or malformed, so the page simply shows no bar.
   function quotaBar(capacity) {
@@ -368,14 +383,10 @@
     if (index === 1) return 'tomorrow';
     return `on ${weekday(date, 'long')}`;
   }
-  // The day after tomorrow is as far as the page looks: past that a forecast shifts too much to plan an hour on.
-  // The page and the MCP view show the one-line form under the answer; the MCP's text says what to do about it.
+  // The day after tomorrow is as far as the service looks: past that a forecast shifts too much to plan an hour on.
+  // The MCP's answer says so for that day; the page and the view don't, as a person knows it.
   const OUTLOOK_NOTE = 'The forecast can still shift: check again on the day.';
-  const OUTLOOK_SHORT = '💡 The forecast can still shift.';
-  const outlookNote = (index, { short = false } = {}) => {
-    if (index < 2) return null;
-    return short ? OUTLOOK_SHORT : OUTLOOK_NOTE;
-  };
+  const outlookNote = index => (index >= 2 ? OUTLOOK_NOTE : null);
 
   // The longest run of back-to-back slots whose status is one of `statuses`, in minutes.
   function longestStretch(slots, statuses) {
@@ -521,6 +532,7 @@
     errorMessage,
     staleNote,
     SKY_THEMES,
+    weatherFx,
     firstPrompt,
     skyTheme,
     quotaBar

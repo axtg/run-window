@@ -137,9 +137,11 @@ test approach. Read its `CLAUDE.md` first. Reuse rather than reinvent:
     line and compass are hidden: the Wind pill already says `light` or `calm`. The calendar description keeps
     `Little wind`.
   - The day switch is Today · Wed · Thu (`#day-today`, `#day-tomorrow`, `#day-after`; weekdays from the location's
-    dates, `Plan.dayButton`). The API covers three days; further out a forecast shifts too much to plan an hour on,
-    so the day after carries `#outlook-note` (`Plan.outlookNote`, one line: `💡 The forecast can still shift.`; the
-    MCP's `forecastNote` adds `check again on the day`).
+    dates, `Plan.dayButton`). The API covers three days; further out a forecast shifts too much to plan an hour on.
+    The page shows no note about that (removed 2026-11-11: obvious, and it made the days look different); the MCP's
+    `forecastNote` (`Plan.outlookNote`) still tells an assistant to check again on the day.
+  - The why line is left out for the least bad hour (it is about the dry stretch). The wind line hides under 10 km/h
+    (see below), so a calm best time has no `start into it` line: that is on purpose.
   - When nothing fits, the line says why (`Plan.noWindowCause`, shared with the MCP): hours gone by, too little time
     left or in daylight, and only then no dry window.
   - When today has no window and tomorrow has one, a `Try tomorrow →` button shows what tomorrow holds.
@@ -158,7 +160,10 @@ test approach. Read its `CLAUDE.md` first. Reuse rather than reinvent:
   warm, else mild) or, without one, the device's hour (morning before 12, else evening). CSS can't animate one
   gradient into another, so two layers behind the page (`#sky-a`, `#sky-b`, `-z-10` in a `relative` body) carry the
   `data-[sky=…]:bg-[linear-gradient(…)]` variants and cross-fade in 700 ms (`data-shown`; none with reduced motion);
-  `tests/web/plan.test.js` checks every name has a variant. The
+  `tests/web/plan.test.js` checks every name has a variant. Over it, `#weather-fx` draws faint rain or snow
+  (`Plan.weatherFx`: some slot of the shown day 50 %+ likely to have 0.1 mm or more; snow when most of those are at or
+  below 1 °C air temperature, the slots' `temp`). Three layers of radial gradients with uneven tile sizes, moved by
+  the `rain` / `snow` keyframes in `tailwind.config.js`; nothing loads, and it is hidden with reduced motion. The
   card stays white. The header sits on milky glass (`bg-white/55 backdrop-blur-md`, `z-20` so its menus stay above
   the card).
 - Under the header, `#quota-bar` (an SVG; `Plan.quotaBar`) shows today's new places left from `/api/capacity`: a
@@ -233,10 +238,12 @@ leastBadHour }` when nothing fits, the reason from `Plan.noWindowCause`: hours g
   The day's slots and window go to it in the result's `_meta` (`com.besttimetorun/day`), not in the model's text. It
   speaks the MCP Apps postMessage protocol itself (no SDK in the frame), loads and fetches nothing (`csp: {}`), and
   opens besttimetorun.com through `ui/open-link`. Hosts without MCP Apps get the same JSON as before.
-  The API dialog has the connector link (and links `llms.txt`). The first prompt (`Plan.firstPrompt`, from the settings,
-  with `[your town]` in place of the location) has a card of its own under the main one (`mt-5`, same width), with a
-  New badge, More info at the top right (opens the API dialog at its MCP section, counted as `Dialog: api`) and a
-  Copy button inside the prompt's box, on the right. Both copy buttons confirm on themselves, each with its own polite note, like Copy API link.
+  The API dialog's MCP section has the connector link, then the first prompt to copy (`Plan.firstPrompt`, from the
+  settings, with `[your town]` in place of the location; after the link, as the assistant needs connecting first),
+  then `llms.txt`. Under the main card (`mt-5`, same width) is one card in two halves, stacked on a phone: left
+  "On your TRMNL" (`#open-trmnl`, a link to https://trmnl.com/plugins, new tab, until the plugin is approved there),
+  right "Ask your AI assistant" with a New badge (`#open-mcp-info`, opens the API dialog at its MCP section, counted
+  as `Dialog: api`). Both copy buttons confirm on themselves, each with its own polite note, like Copy API link.
 - A new public path goes in both `LOGGABLE_PATHS` (`middleware/logging.js`) and the nginx `$run_window_path` map;
   `tests/deployConfig.test.js` checks they match.
 - Release order: the manifest's `share_target` entry needs the nginx change live on the host, because without it a

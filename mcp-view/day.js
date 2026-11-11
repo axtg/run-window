@@ -50,7 +50,6 @@
       numbers: Plan.keyNumbers(result, null, minutes),
       arrow,
       windText: arrow === null ? '' : Plan.windLine(null, result.window),
-      outlook: Plan.outlookNote(index, { short: true }),
       // No why line for the least bad hour: it is the dry stretch's sentence, and that hour isn't dry.
       why:
         range && result.kind === 'window' ? Strip.whySentence(slots, range, { timeZone, sunsetIso: day.sunset }) : '',
@@ -160,8 +159,6 @@
     $('wind').hidden = model.arrow === null;
     $('wind-text').textContent = model.windText;
     if (model.arrow !== null) $('wind-arrow').setAttribute('transform', `rotate(${model.arrow} 14 14)`);
-    $('outlook').hidden = !model.outlook;
-    $('outlook').textContent = model.outlook || '';
     $('why').textContent = model.why;
     draw();
   }

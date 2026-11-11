@@ -34,6 +34,7 @@ describe('valuesForSlot', () => {
 
   test('rain and gusts read the next row, instant values the current row', () => {
     expect(valuesForSlot(f, at('12:15'))).toEqual({
+      temp: 10,
       apparentTemp: 9,
       windSpeed: 20,
       windFrom: 270,

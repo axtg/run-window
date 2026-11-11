@@ -71,11 +71,11 @@
     'duration-down duration-value duration-up hours-rows add-hours dark-times dark-ok prefer-balanced ' +
     'prefer-wind prefer-rain prefer-temp prefer-hint rain-input rain-fill rain-value prompt answer answer-label ' +
     'answer-time add-calendar calendar-menu calendar-google calendar-outlook key-numbers wind-line wind-compass ' +
-    'wind-arrow wind-text tomorrow-hint try-tomorrow tomorrow-text stale-note outlook-note status ' +
+    'wind-arrow wind-text tomorrow-hint try-tomorrow tomorrow-text stale-note status ' +
     'result timeline chart-legend tap-line why-sentence copy-link open-method open-api open-privacy ' +
     'method-dialog api-dialog privacy-dialog close-method close-api close-privacy open-about about-menu ' +
     'open-network network-menu copy-label copy-icon copy-check copy-note quota-bar quota-fill quota-saturate ' +
-    'sky-a sky-b mcp-url copy-mcp mcp-link-note mcp-prompt copy-prompt mcp-note open-mcp-info mcp-section'
+    'sky-a sky-b weather-fx mcp-url copy-mcp mcp-link-note mcp-prompt copy-prompt mcp-note open-mcp-info mcp-section'
   ).split(' ');
   const camel = id => id.replace(/-(\w)/g, (_, letter) => letter.toUpperCase());
   const el = Object.fromEntries(IDS.map(id => [camel(id), document.getElementById(id)]));
@@ -802,9 +802,6 @@
     const hint = none && state.dayIndex === 0 ? tomorrowHint(minutes, timeZone) : null;
     el.tomorrowHint.hidden = !hint;
     el.tomorrowText.textContent = hint || '';
-    const outlook = Plan.outlookNote(state.dayIndex, { short: true });
-    el.outlookNote.hidden = !outlook;
-    el.outlookNote.textContent = outlook || '';
     const stale = Plan.staleNote(state.body);
     el.staleNote.hidden = !stale;
     el.staleNote.textContent = stale || '';
@@ -814,6 +811,10 @@
   // The page's tint (index.html has a `data-sky` variant per theme). Without an answer, the device's hour picks it.
   // body's data-sky names it; of the two layers, the one in front holds it and the other fades out behind.
   function setSky(result, day) {
+    // Rain or snow behind the page when the shown day is wet within the hours
+    const fx = day ? Plan.weatherFx(day.slots) : null;
+    if (fx) el.weatherFx.setAttribute('data-fx', fx);
+    else el.weatherFx.removeAttribute('data-fx');
     const theme = Plan.skyTheme(result, day, new Date().getHours());
     if (document.body.getAttribute('data-sky') === theme) return;
     document.body.setAttribute('data-sky', theme);
@@ -880,7 +881,9 @@
       return;
     }
     drawTimeline(slots, range, result.kind === 'fallback', timeZone);
-    el.whySentence.textContent = Strip.whySentence(slots, range, { timeZone, sunsetIso: day.sunset });
+    // No why line for the least bad hour: the sentence is about the dry stretch, and that hour isn't dry.
+    const why = result.kind === 'window' ? Strip.whySentence(slots, range, { timeZone, sunsetIso: day.sunset }) : '';
+    el.whySentence.textContent = why;
     renderTapLine(slots, timeZone, label);
   }
 

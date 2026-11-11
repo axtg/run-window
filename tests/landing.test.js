@@ -394,18 +394,25 @@ test('the API dialog has the MCP connector link and points to llms.txt', () => {
   expect(api.raw).toContain('id="copy-mcp"');
   expect(api.raw).toContain('href="/llms.txt"');
   expect(api.text).toContain('no sign-in');
-  expect(api.raw).not.toContain('id="mcp-prompt"'); // the prompt has its own card
+  // After the link, the first prompt to copy: connecting comes first, so the prompt sits with it
+  const link = api.raw.indexOf('id="mcp-url"');
+  expect(api.raw.indexOf('id="mcp-prompt"')).toBeGreaterThan(link);
+  for (const id of ['copy-prompt', 'mcp-note']) expect(api.raw).toContain(`id="${id}"`);
 });
 
-test('a card of its own under the main one holds the first prompt, a New badge and More info', () => {
+test('a card under the main one: the TRMNL plugin on the left, the AI assistant (New) on the right', () => {
   const main = html.match(/<main\b[\s\S]*<\/main>/)[0];
   const cards = [...main.matchAll(/<section\b([^>]*)>([\s\S]*?)<\/section>/g)];
   expect(cards).toHaveLength(2);
   const [, attributes, body] = cards[1];
   expect(attributes).toMatch(/\bmt-5\b/); // 20 px under the main card
-  expect(attributes).toMatch(/\brounded-2xl\b/);
+  expect(attributes).toMatch(/\bsm:grid-cols-2\b/);
+  const trmnl = body.match(/<a\b[^>]*id="open-trmnl"[^>]*>/)[0];
+  expect(trmnl).toContain('href="https://trmnl.com/plugins"');
+  expect(trmnl).toContain('rel="noopener noreferrer"');
+  expect(body.indexOf('id="open-trmnl"')).toBeLessThan(body.indexOf('id="open-mcp-info"'));
   expect(body).toMatch(/>\s*New\s*</);
-  for (const id of ['mcp-prompt', 'copy-prompt', 'open-mcp-info', 'mcp-note']) expect(body).toContain(`id="${id}"`);
+  expect(body).not.toContain('id="mcp-prompt"'); // the prompt is in the API dialog, after the connector link
 });
 
 test('the description mentions AI assistants', () => {
