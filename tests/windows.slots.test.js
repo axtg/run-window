@@ -92,6 +92,7 @@ test('missing slots have null values and score', () => {
     start: new Date(local('12:15')).toISOString(),
     status: 'missing',
     score: null,
+    temp: null,
     apparentTemp: null,
     windSpeed: null,
     gust: null,
@@ -104,6 +105,7 @@ test('missing slots have null values and score', () => {
 
 test('serializeSlot rounds the weather fields', () => {
   const values = i => ({
+    temperature_2m: 12.34,
     apparent_temperature: 11.26,
     wind_speed_10m: i === 12 ? 17.6 : 0,
     wind_gusts_10m: 33.4,
@@ -119,6 +121,7 @@ test('serializeSlot rounds the weather fields', () => {
     'start',
     'status',
     'score',
+    'temp',
     'apparentTemp',
     'windSpeed',
     'gust',
@@ -129,6 +132,7 @@ test('serializeSlot rounds the weather fields', () => {
   ]);
   expect(serialized).toMatchObject({
     status: 'ok',
+    temp: 12.3,
     apparentTemp: 11.3,
     windSpeed: 18,
     gust: 33,

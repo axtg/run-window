@@ -764,9 +764,26 @@ describe('firstPrompt', () => {
   });
 });
 
-test('outlookNote: only the day after, one line on the page, what to do in the MCP text', () => {
+test('outlookNote: only the day after, for the MCP text (the page shows none)', () => {
   const { outlookNote } = RunPlan;
   expect(outlookNote(1)).toBeNull();
-  expect(outlookNote(2, { short: true })).toBe('💡 The forecast can still shift.');
   expect(outlookNote(2)).toBe('The forecast can still shift: check again on the day.');
+});
+
+describe('weatherFx', () => {
+  const { weatherFx } = RunPlan;
+  const slot = (precipProb, precip, temp) => ({ precipProb, precip, temp });
+
+  test('rain when some slot is likely to be wet, snow when most wet slots are at or below 1 °C', () => {
+    expect(weatherFx([slot(10, 0, 8), slot(60, 0.4, 8)])).toBe('rain');
+    expect(weatherFx([slot(80, 1.2, -2), slot(70, 0.5, 1), slot(60, 0.3, 3)])).toBe('snow');
+    expect(weatherFx([slot(80, 1.2, -2), slot(70, 0.5, 3)])).toBe('rain'); // a tie is rain
+  });
+
+  test('nothing when the rain is unlikely, too light, or unknown', () => {
+    expect(weatherFx([slot(40, 2, 8), slot(90, 0, 8)])).toBeNull();
+    expect(weatherFx([slot(null, null, null)])).toBeNull();
+    expect(weatherFx([])).toBeNull();
+    expect(weatherFx(undefined)).toBeNull();
+  });
 });

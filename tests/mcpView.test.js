@@ -55,11 +55,9 @@ describe('viewModel', () => {
     expect(model.slots).toHaveLength(8);
   });
 
-  test('the day after tomorrow goes by its weekday, with the note that the forecast can shift', () => {
+  test('the day after tomorrow goes by its weekday', () => {
     const later = viewModel(payload({ windows: { 60: window }, slots: slots() }, { dayIndex: 2, date: '2026-11-04' }));
     expect(later.label).toBe('Wednesday · Best time · 60 min');
-    expect(later.outlook).toMatch(/can still shift/);
-    expect(viewModel(payload({ windows: { 60: window }, slots: slots() })).outlook).toBeNull();
   });
 
   test('the least bad hour is outlined, without the dry stretch sentence', () => {

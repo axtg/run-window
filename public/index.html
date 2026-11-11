@@ -51,6 +51,13 @@
       class="pointer-events-none absolute inset-0 -z-10 bg-no-repeat opacity-0 transition-opacity duration-700 motion-reduce:transition-none [&[data-shown]]:opacity-100 data-[sky=mild]:bg-[linear-gradient(180deg,#cfe8ff_0%,#e3f6ec_51%,#f3f4f6_100%)] data-[sky=cold]:bg-[linear-gradient(180deg,#d3eafb_0%,#edf6fc_54%,#f8fafc_100%)] data-[sky=warm]:bg-[linear-gradient(180deg,#ffdfc2_0%,#fff2d4_54%,#f9fafb_100%)] data-[sky=wet]:bg-[linear-gradient(180deg,#c0cad7_0%,#dce2ea_54%,#eef1f4_100%)] data-[sky=windy]:bg-[linear-gradient(165deg,#d6dbe2_0%,#eef0f3_47%,#e1e5eb_74%,#f5f6f8_100%)] data-[sky=dark]:bg-[linear-gradient(180deg,#c6cbf5_0%,#e3dbf6_40%,#f3f4f6_94%)] data-[sky=morning]:bg-[linear-gradient(180deg,#ffd6cb_0%,#fdead6_47%,#f3f4f6_100%)] data-[sky=evening]:bg-[linear-gradient(180deg,#d0d5ef_0%,#e5e2f1_47%,#f3f4f6_100%)]"
       aria-hidden="true"
     ></div>
+    <!-- Faint rain or snow when the shown day is wet within the hours (Plan.weatherFx sets data-fx). Gradients only, so
+         nothing loads; none with reduced motion. -->
+    <div
+      id="weather-fx"
+      class="pointer-events-none fixed inset-0 -z-10 hidden motion-reduce:!hidden data-[fx=rain]:block data-[fx=snow]:block data-[fx=rain]:animate-rain data-[fx=snow]:animate-snow data-[fx=rain]:bg-[radial-gradient(ellipse_1px_9px_at_20%_30%,rgba(71,85,105,0.26),transparent),radial-gradient(ellipse_1px_7px_at_70%_80%,rgba(71,85,105,0.2),transparent),radial-gradient(ellipse_1px_11px_at_45%_10%,rgba(71,85,105,0.16),transparent)] data-[fx=rain]:[background-size:23px_97px,37px_131px,53px_173px] data-[fx=snow]:bg-[radial-gradient(circle_at_20%_30%,rgba(100,116,139,0.45)_0_1.5px,transparent_2px),radial-gradient(circle_at_70%_75%,rgba(100,116,139,0.32)_0_1px,transparent_1.5px),radial-gradient(circle_at_45%_55%,rgba(100,116,139,0.25)_0_2px,transparent_2.5px)] data-[fx=snow]:[background-size:71px_79px,97px_113px,131px_149px]"
+      aria-hidden="true"
+    ></div>
     <svg class="absolute h-0 w-0" aria-hidden="true" focusable="false">
       <defs>
         <pattern id="night-hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
@@ -660,7 +667,6 @@
               <span id="tomorrow-text" class="text-xs text-secondary"></span>
             </div>
             <p id="stale-note" class="mt-1 text-xs text-secondary sm:col-start-1 sm:row-start-3" hidden></p>
-            <p id="outlook-note" class="mt-1 text-xs text-secondary sm:col-start-1 sm:row-start-3" hidden></p>
           </div>
           <p
             id="status"
@@ -730,39 +736,46 @@
         </footer>
       </section>
 
-      <!-- A first prompt for an AI assistant with the MCP connector (Plan.firstPrompt): the settings, never the place. -->
+      <!-- More ways to use it: the TRMNL plugin (TRMNL's plugin list, until it is approved there) and AI assistants (the
+           API dialog, at its MCP section, where the connector link and the first prompt are). -->
       <section
-        class="mt-5 rounded-2xl bg-white px-4 py-4 text-sm shadow-[0_1px_2px_rgba(0,0,0,0.05),0_8px_24px_rgba(17,24,39,0.06)] ring-1 ring-black/5"
-        aria-labelledby="ai-title"
+        class="mt-5 grid overflow-hidden rounded-2xl bg-white text-sm shadow-[0_1px_2px_rgba(0,0,0,0.05),0_8px_24px_rgba(17,24,39,0.06)] ring-1 ring-black/5 sm:grid-cols-2"
+        aria-label="More ways to use it"
       >
-        <div class="flex items-center gap-2">
-          <h2 id="ai-title" class="font-semibold">Ask your AI assistant</h2>
-          <span
-            class="rounded-full bg-emerald-100 px-2 py-px text-[11px] font-semibold uppercase tracking-wide text-emerald-800"
-            >New</span
-          >
-          <button
-            id="open-mcp-info"
-            type="button"
-            class="ml-auto text-xs text-secondary underline decoration-gray-300 underline-offset-2 hover:text-gray-900"
-          >
-            More info
-          </button>
-        </div>
-        <p class="mt-1 text-xs text-secondary">
-          Connect your assistant to this service, then start with this prompt from your settings:
-        </p>
-        <div class="mt-2 flex items-start gap-3 rounded-lg bg-gray-100 p-3">
-          <p id="mcp-prompt" class="min-w-0 flex-1 text-xs"></p>
-          <button
-            id="copy-prompt"
-            type="button"
-            class="shrink-0 rounded-full bg-primary px-3 py-1 text-xs font-medium text-white hover:bg-gray-700"
-          >
-            Copy
-          </button>
-          <span id="mcp-note" class="sr-only" aria-live="polite"></span>
-        </div>
+        <a
+          id="open-trmnl"
+          href="https://trmnl.com/plugins"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="group flex items-start gap-3 px-4 py-4 hover:bg-gray-50"
+        >
+          <span class="min-w-0 flex-1">
+            <span class="block font-semibold">On your TRMNL</span>
+            <span class="mt-1 block text-xs text-secondary"
+              >An e-paper screen with today's best time, your week of training and your form.</span
+            >
+          </span>
+          <span class="flex-none text-secondary group-hover:text-gray-900" aria-hidden="true">↗</span>
+        </a>
+        <button
+          id="open-mcp-info"
+          type="button"
+          class="group flex items-start gap-3 border-t border-gray-100 px-4 py-4 text-left hover:bg-gray-50 sm:border-l sm:border-t-0"
+        >
+          <span class="min-w-0 flex-1">
+            <span class="flex items-center gap-2">
+              <span class="font-semibold">Ask your AI assistant</span>
+              <span
+                class="rounded-full bg-emerald-100 px-2 py-px text-[11px] font-semibold uppercase tracking-wide text-emerald-800"
+                >New</span
+              >
+            </span>
+            <span class="mt-1 block text-xs text-secondary"
+              >Connect Claude or another assistant, then ask it when to run.</span
+            >
+          </span>
+          <span class="flex-none text-secondary group-hover:text-gray-900" aria-hidden="true">→</span>
+        </button>
       </section>
     </main>
 
@@ -900,10 +913,19 @@
             </button>
           </div>
           <p id="mcp-link-note" class="sr-only" aria-live="polite"></p>
-          <p>
-            A first prompt to start with, from your settings, is on the page under the main card. For language models
-            the service is summed up in <a class="underline" href="/llms.txt">llms.txt</a>.
-          </p>
+          <p>Then start with this prompt, from your settings on the page:</p>
+          <div class="flex items-start gap-3 rounded-lg bg-gray-100 p-3">
+            <p id="mcp-prompt" class="min-w-0 flex-1 text-xs"></p>
+            <button
+              id="copy-prompt"
+              type="button"
+              class="shrink-0 rounded-full bg-primary px-3 py-1 text-xs font-medium text-white hover:bg-gray-700"
+            >
+              Copy
+            </button>
+            <span id="mcp-note" class="sr-only" aria-live="polite"></span>
+          </div>
+          <p>For language models the service is summed up in <a class="underline" href="/llms.txt">llms.txt</a>.</p>
         </div>
         <div class="space-y-2">
           <h3 class="font-semibold">Capacity</h3>

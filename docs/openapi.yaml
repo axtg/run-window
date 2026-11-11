@@ -506,6 +506,7 @@ components:
         - start
         - status
         - score
+        - temp
         - apparentTemp
         - windSpeed
         - gust
@@ -528,6 +529,10 @@ components:
           type: number
           nullable: true
           description: Lower is better. Null when the forecast is missing.
+        temp:
+          type: number
+          nullable: true
+          description: Air temperature, °C.
         apparentTemp:
           type: number
           nullable: true
