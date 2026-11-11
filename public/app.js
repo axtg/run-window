@@ -75,7 +75,7 @@
     'result timeline chart-legend tap-line why-sentence copy-link open-method open-api open-privacy ' +
     'method-dialog api-dialog privacy-dialog close-method close-api close-privacy open-about about-menu ' +
     'open-network network-menu copy-label copy-icon copy-check copy-note quota-bar quota-fill quota-saturate ' +
-    'sky-a sky-b weather-fx mcp-url copy-mcp mcp-link-note mcp-prompt copy-prompt mcp-note open-mcp-info mcp-section'
+    'sky-a sky-b scene mcp-url copy-mcp mcp-link-note mcp-prompt copy-prompt mcp-note open-mcp-info mcp-section'
   ).split(' ');
   const camel = id => id.replace(/-(\w)/g, (_, letter) => letter.toUpperCase());
   const el = Object.fromEntries(IDS.map(id => [camel(id), document.getElementById(id)]));
@@ -812,21 +812,81 @@
 
   // The page's tint (index.html has a `data-sky` variant per theme). Without an answer, the device's hour picks it.
   // body's data-sky names it; of the two layers, the one in front holds it and the other fades out behind.
-  // The drops or flakes for #weather-fx, added once; tailwind.input.css places and moves each by its position.
-  const FX_PARTICLES = 60;
-  const FX_PREVIEW = ['rain', 'snow'].find(kind => new URLSearchParams(location.search).get('fx') === kind) || null;
-  function addParticles() {
-    if (el.weatherFx.children.length > 0) return;
-    for (let i = 0; i < FX_PARTICLES; i++) el.weatherFx.appendChild(document.createElement('i'));
+  // ---- The weather scene: one canvas effect (public/vendor/weather-effects) behind the page, for the shown answer
+  // (Plan.weatherScene). Each effect's script loads the first time it is needed, from this site. A change of effect
+  // starts the new one on the same canvas; a change of option within one goes through its setter, and only when it
+  // differs, as setters restart the particles. ?fx= shows a scene to try: rain, thunder, snow, sleet, hail, fog,
+  // wind, dawn, day, dusk, night or cloudy.
+  const EFFECT_CLASSES = {
+    rain: 'RainEffect',
+    snow: 'SnowEffect',
+    sky: 'SkyEffect',
+    fog: 'FogEffect',
+    hail: 'HailEffect',
+    wind: 'WindEffect',
+    sleet: 'SleetEffect'
+  };
+  const PREVIEWS = {
+    rain: { effect: 'rain', options: { angle: 10, intensity: 'mid', thunder: false } },
+    thunder: { effect: 'rain', options: { angle: 10, intensity: 'high', thunder: true } },
+    snow: { effect: 'snow', options: { wind: 2, intensity: 'mid', settle: true } },
+    sleet: { effect: 'sleet', options: { wind: 3, intensity: 'mid', slush: true } },
+    hail: { effect: 'hail', options: { wind: 2, intensity: 'mid', thunder: true } },
+    fog: { effect: 'fog', options: { wind: 2, intensity: 'mid', sun: true } },
+    wind: { effect: 'wind', options: { wind: 7, intensity: 'high', leaves: true } },
+    cloudy: { effect: 'sky', options: { phase: 'day', mode: 'cloudy', intensity: 'high', wind: 3, birds: true } }
+  };
+  for (const phase of ['dawn', 'day', 'dusk', 'night']) {
+    PREVIEWS[phase] = { effect: 'sky', options: { phase, mode: 'partly', intensity: 'mid', wind: 2, birds: true } };
+  }
+  const FX_PREVIEW = PREVIEWS[new URLSearchParams(location.search).get('fx')] || null;
+  const scene = { name: null, effect: null, options: {}, wanted: null, loads: {} };
+
+  function loadEffect(name) {
+    if (!scene.loads[name]) {
+      scene.loads[name] = new Promise((resolve, reject) => {
+        const script = document.createElement('script');
+        script.src = `/vendor/weather-effects/${name}.js`;
+        script.onload = resolve;
+        script.onerror = () => {
+          delete scene.loads[name]; // a later scene may try again
+          reject(new Error('effect did not load'));
+        };
+        document.head.appendChild(script);
+      });
+    }
+    return scene.loads[name];
+  }
+
+  const reducedMotion = () =>
+    typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  async function showScene(wanted) {
+    if (reducedMotion() || !document.head || typeof el.scene.getContext !== 'function') return;
+    scene.wanted = wanted;
+    try {
+      await loadEffect(wanted.effect);
+    } catch {
+      return; // the tint behind stays: the page needs no scene
+    }
+    if (scene.wanted !== wanted) return; // a newer scene was asked for meanwhile
+    const Effect = window[EFFECT_CLASSES[wanted.effect]];
+    if (typeof Effect !== 'function') return;
+    if (scene.name === wanted.effect && scene.effect) {
+      for (const [key, value] of Object.entries(wanted.options)) {
+        const setter = `set${key.charAt(0).toUpperCase()}${key.slice(1)}`;
+        if (scene.options[key] !== value && typeof scene.effect[setter] === 'function') scene.effect[setter](value);
+      }
+    } else {
+      if (scene.effect) scene.effect.destroy();
+      scene.effect = new Effect(el.scene, wanted.options);
+      scene.name = wanted.effect;
+    }
+    scene.options = { ...wanted.options };
+    el.scene.toggleAttribute('data-shown', true);
   }
 
   function setSky(result, day) {
-    // Rain or snow behind the page when the shown day is wet within the hours, or as ?fx= asks
-    const fx = FX_PREVIEW || (day ? Plan.weatherFx(day.slots) : null);
-    if (fx) {
-      addParticles();
-      el.weatherFx.setAttribute('data-fx', fx);
-    } else el.weatherFx.removeAttribute('data-fx');
     const theme = Plan.skyTheme(result, day, new Date().getHours());
     if (document.body.getAttribute('data-sky') === theme) return;
     document.body.setAttribute('data-sky', theme);
@@ -870,6 +930,7 @@
     el.prompt.hidden = Boolean(state.location);
     if (!day) {
       setSky(null, null);
+      showScene(FX_PREVIEW || Plan.weatherScene({ hour: new Date().getHours() }));
       el.answer.hidden = true;
       el.result.hidden = true;
       return;
@@ -881,6 +942,7 @@
     setSky(result, day);
     const slots = day.slots || [];
     const range = outlineRange(slots, result, minutes);
+    showScene(FX_PREVIEW || Plan.weatherScene({ day, range, hour: new Date().getHours() }));
     const label = `Timeline, ${dayLabel}: ${text}`;
     el.result.hidden = false;
     el.timeline.setAttribute('aria-label', label);

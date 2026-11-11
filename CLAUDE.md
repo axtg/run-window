@@ -159,14 +159,19 @@ test approach. Read its `CLAUDE.md` first. Reuse rather than reinvent:
   warm, else mild) or, without one, the device's hour (morning before 12, else evening). CSS can't animate one
   gradient into another, so two layers behind the page (`#sky-a`, `#sky-b`, `-z-10` in a `relative` body) carry the
   `data-[sky=…]:bg-[linear-gradient(…)]` variants and cross-fade in 700 ms (`data-shown`; none with reduced motion);
-  `tests/web/plan.test.js` checks every name has a variant. Over it, `#weather-fx` shows rain or snow
-  (`Plan.weatherFx`: some slot of the shown day 50 %+ likely to have 0.1 mm or more; snow when most of those are at or
-  below 1 °C air temperature, the slots' `temp`). app.js adds 60 `<i>` once; their CSS is plain CSS in
-  `tailwind.input.css` (slanted streaks or swaying flakes, spread by `nth-child(13n/7n/5n)` rules for place, delay and
-  speed, as the CSP allows no inline style). Nothing loads; hidden with reduced motion. `?fx=rain` or `?fx=snow` shows
-  it to try.
-  The
-  card stays white. The header sits on milky glass (`bg-white/55 backdrop-blur-md`, `z-20` so its menus stay above
+  `tests/web/plan.test.js` checks every name has a variant. Over it, `#scene` (a fixed canvas) shows
+  the weather as a scene (since 2026-11-11, a playful touch for a portfolio site): one of the seven canvas effects
+  vendored unmodified in `public/vendor/weather-effects/` (github.com/oneamitj/weather-effects at `d19b774`, MIT;
+  see its README there; no network, storage or styles in them), each loaded by app.js the first time it is needed.
+  `Plan.weatherScene` picks it from the run's own slots (the day's without a best time): hail, thunder, snow, sleet,
+  rain (WMO `code` first, else chance, amount and air `temp`), then fog, then a gale (30 km/h, or gusts of 55),
+  else the sky at that hour (dawn/dusk within 45 min of sunrise/sunset, day, night) with clear/partly/cloudy by
+  `cloud`. Slots carry `code` and `cloud` from Open-Meteo's `weather_code` and `cloud_cover`, in the same request;
+  both are optional, so a forecast without them still works. An option change goes through the effect's setter only
+  when it differs (setters restart particles); a change of effect starts the new one on the same canvas. Thunder
+  flashes only on thunderstorm codes. Not with reduced motion: the tint shows then. `?fx=` shows a scene to try (rain,
+  thunder, snow, sleet, hail, fog, wind, dawn, day, dusk, night, cloudy). The Method dialog credits the library. The
+  card stays white. The header sits on milky glass (`bg-white/75 backdrop-blur-md`, readable on a dark storm too, `z-20` so its menus stay above
   the card).
 - Under the header, `#quota-bar` (an SVG; `Plan.quotaBar`) shows today's new places left from `/api/capacity`: a
   rainbow fixed to the full width, so it shortens from the right; paler (opacity and an SVG saturate filter) as it

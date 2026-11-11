@@ -513,6 +513,8 @@ components:
         - windFrom
         - precipProb
         - precip
+        - code
+        - cloud
         - inDaylight
       properties:
         start:
@@ -557,6 +559,16 @@ components:
           type: number
           nullable: true
           description: Precipitation, mm.
+        code:
+          type: integer
+          nullable: true
+          description: |
+            WMO weather code for the hour: 0 clear, 45 fog, 61 rain, 71 snow, 95 thunderstorm, 96/99 with hail, and
+            the others between.
+        cloud:
+          type: number
+          nullable: true
+          description: Cloud cover, %.
         inDaylight:
           type: boolean
     Window:

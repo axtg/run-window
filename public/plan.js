@@ -170,19 +170,102 @@
     return 'warm';
   }
 
-  // A faint rain or snow behind the page when the shown day is wet within the hours: some slot likely (50 %+) to have
-  // measurable precipitation. Snow when most of those slots are at or below 1 °C air temperature. Null otherwise.
-  const FX_MIN_PROB = 50;
-  const FX_MIN_MM = 0.1;
-  const SNOW_MAX_C = 1;
-  function weatherFx(slots) {
-    const wet = (slots || []).filter(
-      slot =>
-        slot.precipProb !== null && slot.precipProb >= FX_MIN_PROB && slot.precip !== null && slot.precip >= FX_MIN_MM
-    );
-    if (wet.length === 0) return null;
-    const cold = wet.filter(slot => typeof slot.temp === 'number' && slot.temp <= SNOW_MAX_C).length;
-    return cold * 2 > wet.length ? 'snow' : 'rain';
+  // ---- The page's backdrop: one of the weather effects (public/vendor/weather-effects) drawn behind the cards, for
+  // the shown answer: the run's own slots when there is a best time, else the day's. Falling weather first (hail,
+  // thunder, snow, sleet, rain), then fog, then a gale, else the sky at that hour (dawn, day, dusk or night, by the
+  // sun) with its cloud cover. Nothing about it reaches a request.
+  const WMO = {
+    hail: [96, 99],
+    thunder: [95],
+    snow: [71, 73, 75, 77, 85, 86],
+    sleet: [56, 57, 66, 67],
+    rain: [51, 53, 55, 61, 63, 65, 80, 81, 82],
+    fog: [45, 48]
+  };
+  const SCENE_WET_PROB = 50;
+  const SCENE_WET_MM = 0.1;
+  const SNOW_MAX_C = 0.5;
+  const SLEET_MAX_C = 2.5;
+  const GALE_KMH = 30;
+  const GALE_GUST_KMH = 55;
+  const TWILIGHT_MS = 45 * 60000;
+  const DAY_PHASES = [
+    [5, 'night'],
+    [8, 'dawn'],
+    [17, 'day'],
+    [19, 'dusk'],
+    [24, 'night']
+  ];
+
+  const average = values => (values.length ? values.reduce((sum, v) => sum + v, 0) / values.length : null);
+  const clampWind = value => Math.max(-10, Math.min(10, Math.round(value)));
+
+  // The effects' wind runs -10..10, positive blowing right (east). Wind from the west blows east.
+  function sceneWind(slots) {
+    const known = slots.filter(slot => slot.windSpeed !== null && slot.windFrom !== null);
+    if (known.length === 0) return 0;
+    const x = average(known.map(slot => Math.sin(((slot.windFrom + 180) * Math.PI) / 180) * slot.windSpeed));
+    return clampWind(x / 4);
+  }
+
+  function amount(mm) {
+    if (mm < 0.5) return 'low';
+    return mm < 2.5 ? 'mid' : 'high';
+  }
+
+  function phaseAt(ms, day) {
+    if (!day || !day.sunrise || !day.sunset) return null;
+    const rise = Date.parse(day.sunrise);
+    const set = Date.parse(day.sunset);
+    if (Math.abs(ms - rise) <= TWILIGHT_MS) return 'dawn';
+    if (Math.abs(ms - set) <= TWILIGHT_MS) return 'dusk';
+    return ms > rise && ms < set ? 'day' : 'night';
+  }
+
+  const phaseByHour = hour => DAY_PHASES.find(([until]) => hour < until)[1];
+
+  function skyScene(phase, slots, wind) {
+    const cloud = average(slots.map(slot => slot.cloud).filter(value => typeof value === 'number'));
+    let mode = 'partly';
+    if (cloud !== null) mode = cloud < 20 ? 'clear' : cloud < 65 ? 'partly' : 'cloudy';
+    const intensity = cloud !== null && cloud >= 85 ? 'high' : 'mid';
+    return { effect: 'sky', options: { phase, mode, intensity, wind, birds: true } };
+  }
+
+  // `range` is the outlined slots ({ first, last }) or null; `hour` is the device's, for a page without an answer.
+  function weatherScene({ day = null, range = null, hour = 12 } = {}) {
+    const all = day && Array.isArray(day.slots) ? day.slots.filter(slot => slot.windSpeed !== null) : [];
+    if (all.length === 0) return skyScene(phaseByHour(hour), [], 2);
+    const slots = range ? day.slots.slice(range.first, range.last + 1).filter(s => s.windSpeed !== null) : all;
+    const codes = slots.map(slot => slot.code).filter(code => typeof code === 'number');
+    const has = list => codes.some(code => list.includes(code));
+    const wet = slots.filter(slot => slot.precipProb >= SCENE_WET_PROB && slot.precip >= SCENE_WET_MM);
+    const temp = average(slots.map(slot => slot.temp).filter(value => typeof value === 'number'));
+    const mm = Math.max(0, ...slots.map(slot => slot.precip || 0));
+    const wind = sceneWind(slots);
+    const level = amount(mm);
+
+    if (has(WMO.hail)) return { effect: 'hail', options: { wind, intensity: level, thunder: true } };
+    if (has(WMO.thunder)) return { effect: 'rain', options: { angle: wind * 3, intensity: 'high', thunder: true } };
+    const falling = wet.length > 0 || has(WMO.rain) || has(WMO.snow) || has(WMO.sleet);
+    if (falling) {
+      if (has(WMO.snow) || (temp !== null && temp <= SNOW_MAX_C)) {
+        return { effect: 'snow', options: { wind, intensity: level, settle: true } };
+      }
+      if (has(WMO.sleet) || (temp !== null && temp <= SLEET_MAX_C)) {
+        return { effect: 'sleet', options: { wind, intensity: level, slush: true } };
+      }
+      return { effect: 'rain', options: { angle: wind * 3, intensity: level, thunder: false } };
+    }
+    if (has(WMO.fog)) return { effect: 'fog', options: { wind: wind || 2, intensity: 'mid', sun: true } };
+    const speed = average(slots.map(slot => slot.windSpeed));
+    const gust = Math.max(0, ...slots.map(slot => slot.gust || 0));
+    if (speed >= GALE_KMH || gust >= GALE_GUST_KMH) {
+      const intensity = speed >= 45 ? 'high' : speed >= 35 ? 'mid' : 'low';
+      return { effect: 'wind', options: { wind: wind || 6, intensity, leaves: true } };
+    }
+    const middle = Date.parse(slots[Math.floor(slots.length / 2)].start);
+    return skyScene(phaseAt(middle, day) || phaseByHour(hour), slots, wind);
   }
 
   // The rainbow under the header from /api/capacity: shorter and paler as today's new places are used, amber under
@@ -532,7 +615,7 @@
     errorMessage,
     staleNote,
     SKY_THEMES,
-    weatherFx,
+    weatherScene,
     firstPrompt,
     skyTheme,
     quotaBar

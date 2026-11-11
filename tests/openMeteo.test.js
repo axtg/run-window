@@ -22,7 +22,7 @@ test('sends forecast_days=4, timeformat=unixtime, timezone=auto and the rounded 
     longitude: '4.89',
     hourly: [
       'temperature_2m,apparent_temperature,precipitation_probability,precipitation',
-      'wind_speed_10m,wind_gusts_10m,wind_direction_10m'
+      'wind_speed_10m,wind_gusts_10m,wind_direction_10m,weather_code,cloud_cover'
     ].join(','),
     daily: 'sunrise,sunset',
     timezone: 'auto',

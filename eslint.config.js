@@ -2,7 +2,7 @@ const js = require('@eslint/js');
 const globals = require('globals');
 
 module.exports = [
-  { ignores: ['coverage/', 'node_modules/', 'integrations/trmnl-running-board/transform.js'] },
+  { ignores: ['coverage/', 'node_modules/', 'integrations/trmnl-running-board/transform.js', 'public/vendor/'] },
   js.configs.recommended,
   {
     files: ['**/*.js'],

@@ -99,6 +99,8 @@ test('missing slots have null values and score', () => {
     windFrom: null,
     precipProb: null,
     precip: null,
+    code: null,
+    cloud: null,
     inDaylight: true
   });
 });
@@ -128,6 +130,8 @@ test('serializeSlot rounds the weather fields', () => {
     'windFrom',
     'precipProb',
     'precip',
+    'code',
+    'cloud',
     'inDaylight'
   ]);
   expect(serialized).toMatchObject({

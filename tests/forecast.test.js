@@ -40,7 +40,9 @@ describe('valuesForSlot', () => {
       windFrom: 270,
       gust: 50,
       precipProb: 80,
-      precip: 1
+      precip: 1,
+      code: null, // not in this forecast: optional
+      cloud: null
     });
   });
 
@@ -136,5 +138,21 @@ describe('parseForecast', () => {
     const json = makeForecastJson({ startMs: at('00:00'), hours: 3 });
     delete json.daily;
     expect(() => parseForecast(json)).toThrow();
+  });
+});
+
+describe('the optional backdrop fields', () => {
+  test('weather_code and cloud_cover come from the current row when the forecast has them', () => {
+    const json = rainJson();
+    json.hourly.weather_code = json.hourly.time.map(t => (t * 1000 === at('12:00') ? 61 : 3));
+    json.hourly.cloud_cover = json.hourly.time.map(() => 88);
+    const values = valuesForSlot(parseForecast(json), at('12:15'));
+    expect(values).toMatchObject({ code: 61, cloud: 88 });
+  });
+
+  test('a mismatched optional array is left out, never failing the forecast', () => {
+    const json = rainJson();
+    json.hourly.weather_code = [1, 2];
+    expect(valuesForSlot(parseForecast(json), at('12:15')).code).toBeNull();
   });
 });

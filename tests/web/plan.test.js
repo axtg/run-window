@@ -772,20 +772,66 @@ test('outlookNote: only the day after, for the MCP text (the page shows none)', 
   expect(outlookNote(2)).toBe('The forecast can still shift: check again on the day.');
 });
 
-describe('weatherFx', () => {
-  const { weatherFx } = RunPlan;
-  const slot = (precipProb, precip, temp) => ({ precipProb, precip, temp });
+describe('weatherScene', () => {
+  const { weatherScene } = RunPlan;
+  const at = hour => new Date(Date.UTC(2026, 10, 12, 0, (hour - 1) * 60)).toISOString(); // Amsterdam is UTC+1
+  const slot = (hour, values = {}) => ({
+    start: at(hour),
+    status: 'ok',
+    temp: 8,
+    windSpeed: 10,
+    windFrom: 270,
+    gust: 15,
+    precipProb: 0,
+    precip: 0,
+    code: 1,
+    cloud: 30,
+    ...values
+  });
+  const day = (slots, sun = {}) => ({ sunrise: at(7.75), sunset: at(17), slots, ...sun });
+  const whole = slots => ({ first: 0, last: slots.length - 1 });
+  const sceneOf = (slots, range = whole(slots)) => weatherScene({ day: day(slots), range });
 
-  test('rain when some slot is likely to be wet, snow when most wet slots are at or below 1 °C', () => {
-    expect(weatherFx([slot(10, 0, 8), slot(60, 0.4, 8)])).toBe('rain');
-    expect(weatherFx([slot(80, 1.2, -2), slot(70, 0.5, 1), slot(60, 0.3, 3)])).toBe('snow');
-    expect(weatherFx([slot(80, 1.2, -2), slot(70, 0.5, 3)])).toBe('rain'); // a tie is rain
+  test('without an answer: the sky by the device hour', () => {
+    expect(weatherScene({ hour: 6 }).options.phase).toBe('dawn');
+    expect(weatherScene({ hour: 13 })).toMatchObject({ effect: 'sky', options: { phase: 'day', mode: 'partly' } });
+    expect(weatherScene({ hour: 23 }).options.phase).toBe('night');
   });
 
-  test('nothing when the rain is unlikely, too light, or unknown', () => {
-    expect(weatherFx([slot(40, 2, 8), slot(90, 0, 8)])).toBeNull();
-    expect(weatherFx([slot(null, null, null)])).toBeNull();
-    expect(weatherFx([])).toBeNull();
-    expect(weatherFx(undefined)).toBeNull();
+  test('the sky at the run, by the sun: day, dawn, dusk, night, with its cloud cover', () => {
+    expect(sceneOf([slot(13, { cloud: 5 })]).options).toMatchObject({ phase: 'day', mode: 'clear' });
+    expect(sceneOf([slot(8, { cloud: 50 })]).options).toMatchObject({ phase: 'dawn', mode: 'partly' });
+    expect(sceneOf([slot(17, { cloud: 90 })]).options).toMatchObject({
+      phase: 'dusk',
+      mode: 'cloudy',
+      intensity: 'high'
+    });
+    expect(sceneOf([slot(21)]).options.phase).toBe('night');
+  });
+
+  test('falling weather first, by code or by chance and amount, then by temperature', () => {
+    expect(sceneOf([slot(13, { code: 99 })])).toMatchObject({ effect: 'hail', options: { thunder: true } });
+    expect(sceneOf([slot(13, { code: 95 })])).toMatchObject({ effect: 'rain', options: { thunder: true } });
+    expect(sceneOf([slot(13, { code: 73 })]).effect).toBe('snow');
+    expect(sceneOf([slot(13, { code: 66 })]).effect).toBe('sleet');
+    const wet = { precipProb: 80, precip: 3 };
+    expect(sceneOf([slot(13, wet)])).toMatchObject({ effect: 'rain', options: { intensity: 'high', thunder: false } });
+    expect(sceneOf([slot(13, { ...wet, temp: 0 })]).effect).toBe('snow');
+    expect(sceneOf([slot(13, { ...wet, temp: 2 })]).effect).toBe('sleet');
+  });
+
+  test('then fog, then a gale, which blows the way the wind goes', () => {
+    expect(sceneOf([slot(13, { code: 45 })]).effect).toBe('fog');
+    const gale = sceneOf([slot(13, { windSpeed: 40, windFrom: 270 })]);
+    expect(gale).toMatchObject({ effect: 'wind', options: { intensity: 'mid' } });
+    expect(gale.options.wind).toBeGreaterThan(0); // from the west: blowing right
+    expect(sceneOf([slot(13, { windSpeed: 40, windFrom: 90 })]).options.wind).toBeLessThan(0);
+    expect(sceneOf([slot(13, { gust: 60 })]).effect).toBe('wind');
+  });
+
+  test("only the run's own slots count when there is a best time", () => {
+    const slots = [slot(12, { code: 61, precipProb: 90, precip: 2 }), slot(13)];
+    expect(sceneOf(slots, { first: 1, last: 1 }).effect).toBe('sky');
+    expect(sceneOf(slots, null).effect).toBe('rain'); // no best time: the day
   });
 });
