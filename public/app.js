@@ -732,12 +732,14 @@
     el.keyNumbers.replaceChildren();
     numbers.forEach(({ label, value, note }) => {
       // The word sits next to the label (a pill in the label's row), so the numbers take one line less.
-      // A phone shows the four in a plain row. From sm: up each is a cell of a 2 × 2 block: the dl's grey shows through
-      // the 1 px gaps as lines, and its rounded corners round only the block's outer corners.
+      // A phone shows the four in a plain row. From sm: up each is a cell of a 2 × 2 block: the left cells draw the
+      // middle line, the top ones the line between the rows, and the dl's ring and rounded corners the outside. The
+      // cells stay clear, so the card's slight see-through shows evenly.
       const item = html(
         'div',
         'grid grid-cols-[auto_auto] items-center justify-start gap-x-1 ' +
-          'sm:grid-cols-[auto_1fr] sm:bg-white sm:px-2.5 sm:py-1.5'
+          'sm:grid-cols-[auto_1fr] sm:border-gray-200 sm:px-2.5 sm:py-1.5 ' +
+          'sm:[&:nth-child(odd)]:border-r sm:[&:nth-child(-n+2)]:border-b'
       );
       item.appendChild(html('dt', 'text-[11px] text-secondary', label));
       const dd = html('dd', 'col-span-2 text-base font-semibold whitespace-nowrap');
