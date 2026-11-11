@@ -52,10 +52,18 @@ describe('nginx config', () => {
     }
   });
 
-  test('every location proxies to the app except the share target', () => {
+  test('every location proxies to the app except the share target and the deploy webhook', () => {
     expect(shareTarget).toBeDefined();
     const unproxied = locations.filter(location => !/proxy_pass http:\/\/127\.0\.0\.1:3003;/.test(location.body));
-    expect(unproxied.map(location => location.head)).toEqual([shareTarget.head]);
+    expect(unproxied.map(location => location.head).sort()).toEqual([shareTarget.head, 'location = /_deploy/github {'].sort());
+  });
+
+  test('the deploy webhook is one exact path, sent to the shared deploy daemon and nowhere else', () => {
+    const deploy = locations.find(location => location.head === 'location = /_deploy/github {');
+    expect(deploy).toBeDefined();
+    expect(deploy.body).toMatch(/proxy_pass http:\/\/127\.0\.0\.1:9000\/hooks\/run-xadi-eu;/);
+    expect(deploy.body).toMatch(/client_max_body_size 1m;/);
+    expect(conf.match(/127\.0\.0\.1:9000/g)).toHaveLength(1);
   });
 
   test('a shared file that reaches nginx never reaches Node: it answers /share-target itself', () => {
