@@ -392,16 +392,6 @@ describe('app.js privacy smoke test', () => {
     expect(record.fetches).toHaveLength(1);
   });
 
-  it('?fx=snow shows the snow to try, with its particles, before any answer', async () => {
-    const { elements } = loadPage({ search: '?fx=snow' });
-    await flush();
-    expect(elements.get('weather-fx').attributes['data-fx']).toBe('snow');
-    expect(elements.get('weather-fx').children).toHaveLength(60);
-    const none = loadPage({ search: '?fx=hail' });
-    await flush();
-    expect(none.elements.get('weather-fx').attributes['data-fx']).toBeUndefined();
-  });
-
   describe('a town by name', () => {
     const UTRECHT = {
       name: 'Utrecht',

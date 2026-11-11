@@ -5,3 +5,4 @@ package-lock.json
 public/tailwind.css
 .superpowers
 integrations/trmnl-running-board/transform.js
+public/vendor
