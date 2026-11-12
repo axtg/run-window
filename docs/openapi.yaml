@@ -109,12 +109,13 @@ paths:
           in: query
           required: false
           description: >-
-            The discomfort to mind most when no time is good on every count: that term of the score counts three times.
-            With `wind`, wind also counts from 8 km/h instead of 12. `balanced` weighs wind, rain and temperature as
-            usual. It never excludes a time (the `rain` limit does).
-            Slot scores follow it. Between windows with the same score it also breaks the tie: lowest mean wind
-            speed (`wind`), chance of rain (`rain`) or distance of the feels-like temperature from the middle of the
-            comfort band (`temp`); then, as with `balanced`, the earliest.
+            The discomfort to mind most, and it decides first: of the day's windows, only those within a step of the
+            best on that measure stay in the running (mean chance of rain within 5 % points for `rain`, mean wind
+            speed within 2 km/h for `wind`, mean feels-like within 1 °C of the best distance from 11 °C for `temp`),
+            even if they are windier, wetter or colder. Among those the score picks, with that term counting three
+            times (and with `wind`, wind counting from 8 km/h instead of 12); on a tie the lower measure, then the
+            earliest. `balanced` filters nothing and weighs wind, rain and temperature as usual. The `rain` limit is
+            the only hard limit. Slot scores follow it.
           schema:
             type: string
             enum:

@@ -83,7 +83,10 @@ const preferences = {
   mindMost: z
     .enum(PREFERENCES)
     .default('balanced')
-    .describe('What bothers the user most: wind, rain or temp count three times in the score. balanced weighs all.')
+    .describe(
+      'What bothers the user most. It decides first: wind gives the calmest times, rain the driest, temp the most ' +
+        'comfortable, even if worse on the rest. balanced weighs all three.'
+    )
 };
 
 const bestTimeInput = z.object({

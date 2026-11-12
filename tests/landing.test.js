@@ -141,6 +141,8 @@ test('the Method dialog states the scoring constants the API uses', () => {
   expect(text).toContain(`half a point per km/h of gusts above ${wind.comfortableGust}`);
   expect(SCORING.preferWeight).toBe(3);
   expect(text).toContain('count three times');
+  const { rain: rainStep, wind: windStep, temp: tempStep } = SCORING.preferMargin;
+  expect(text).toContain(`${rainStep} % chance of rain, ${windStep} km/h of wind, or ${tempStep} °C from`);
   expect(text).toContain(`Wind counts from ${wind.preferComfortableSpeed} km/h instead of ${wind.comfortableSpeed}`);
   expect(SCORING.temperature.weight).toBe(1);
   expect(text).toContain(`outside ${SCORING.temperature.min}–${SCORING.temperature.max} °C`);

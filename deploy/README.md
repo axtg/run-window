@@ -14,6 +14,7 @@ shared `webhook` daemon (pm2 `deploy-webhook`, hooks in `/home/ploi/deploy/hooks
 daemon checks the signature, event, branch and repo, then runs `/home/ploi/deploy/run.sh run-xadi-eu`.
 
 `deploy.sh`:
+
 1. Fast-forwards the checkout.
 2. Skips if that revision is already live. `--force` deploys anyway.
 3. Builds the image, starts it, and waits until both `/health` and Docker's health check say healthy.
