@@ -95,6 +95,9 @@ describe('POST /mcp', () => {
       expect(result.tools.map(tool => tool.name).sort()).toEqual(['find_best_run_time', 'get_run_conditions']);
       for (const tool of result.tools) {
         expect(tool.annotations).toMatchObject({ readOnlyHint: true });
+        // Directories list a tool by its human-readable title; hosts read either place.
+        expect(tool.annotations.title).toEqual(expect.any(String));
+        expect(tool.title).toBe(tool.annotations.title);
         expect(Object.keys(tool.inputSchema.properties)).toEqual(
           expect.arrayContaining(['latitude', 'longitude', 'place'])
         );

@@ -15,6 +15,9 @@ const { version } = require('../package.json');
 
 const MAX_REQUEST_BYTES = 64 * 1024;
 const READ_ONLY = { readOnlyHint: true, openWorldHint: false };
+// Human-readable names for directory listings: as the tool's title and annotations.title, as hosts read either.
+const FIND_TITLE = 'Find the best time to run';
+const CONDITIONS_TITLE = 'Get the running conditions';
 const SLOT_MINUTES = 15;
 const LITTLE_WIND_KMH = 10; // as on the page: below this there is no direction worth starting into
 const DRY_MAX_PROBABILITY = 20; // as lib/labels.js: "dry" needs a low chance as well as a window within the limit
@@ -337,13 +340,14 @@ function createServerFactory(context) {
     server.registerTool(
       'find_best_run_time',
       {
+        title: FIND_TITLE,
         description:
           'Find the best time to run today, tomorrow or the day after: the stretch of the given length with the ' +
           'best weather within the hours the user can run, never in the past. Returns its local start and end, the ' +
           'conditions (rain, feels-like temperature, wind) and which way to start. With darkOk, a best time in the ' +
           'dark comes with the best daylight one (bestInDaylight, null when none fits). When nothing fits, says why.',
         inputSchema: bestTimeInput,
-        annotations: READ_ONLY,
+        annotations: { ...READ_ONLY, title: FIND_TITLE },
         // Hosts that show MCP Apps draw the answer and the day's timeline with it; both keys, as hosts read either.
         _meta: { ui: { resourceUri: VIEW_URI }, 'ui/resourceUri': VIEW_URI }
       },
@@ -353,11 +357,12 @@ function createServerFactory(context) {
     server.registerTool(
       'get_run_conditions',
       {
+        title: CONDITIONS_TITLE,
         description:
           "The day's forecast in 15-minute slots within the user's hours: feels-like temperature, wind, gusts, " +
           'chance and amount of rain, and a score (lower is better). For questions like "how does the evening look?".',
         inputSchema: conditionsInput,
-        annotations: READ_ONLY
+        annotations: { ...READ_ONLY, title: CONDITIONS_TITLE }
       },
       safely(getRunConditions, context)
     );
