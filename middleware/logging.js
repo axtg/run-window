@@ -34,6 +34,7 @@ const getClientId = ip => {
 // `;lat=...`, `/52.37/4.89`), so it is logged as the fixed string 'other'.
 const LOGGABLE_PATHS = new Set([
   '/',
+  '/privacy',
   '/api/window',
   '/api/capacity',
   '/api/places',

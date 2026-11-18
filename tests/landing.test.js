@@ -72,6 +72,15 @@ test('every script path is logged by name and served as JavaScript', async () =>
   }
 });
 
+test('/privacy serves the page itself, with its own logged path', async () => {
+  const app = createApp({ weather: { getForecast: jest.fn(), stats: () => ({}) } });
+  expect(LOGGABLE_PATHS.has('/privacy')).toBe(true);
+  for (const variant of ['/privacy', '/privacy/', '/Privacy']) {
+    const response = await request(app).get(variant).expect(200).expect('Content-Type', /html/);
+    expect(response.text).toBe(html);
+  }
+});
+
 test('the page loads nothing external but Plausible, and has no inline style', () => {
   const external = [...html.matchAll(/\s(?:src|srcset|data)=["']?((?:https?:)?\/\/[^"'\s>]*)/gi)].map(
     match => match[1]

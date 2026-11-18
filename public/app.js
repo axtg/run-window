@@ -1093,6 +1093,18 @@
     });
   }
 
+  // ---- /privacy is the page with its Privacy dialog open; closed, the address bar goes back to /. Not counted as a
+  // Dialog event: the page view already names the path.
+
+  function openFromPath() {
+    const pathname = String(location.pathname || '/')
+      .toLowerCase()
+      .replace(/(.)\/$/, '$1');
+    if (pathname !== '/privacy') return;
+    el.privacyDialog.addEventListener('close', () => history.replaceState(null, '', '/' + location.search));
+    el.privacyDialog.showModal();
+  }
+
   // ---- Dropdown menus (About on a phone, the network menu, Add to calendar): the button toggles one; a press outside,
   // Escape (focus back on the button) or tabbing out of it closes it. `onOpen` runs on each opening.
 
@@ -1196,6 +1208,7 @@
   registerWorker();
   receiveShare();
   receiveLink();
+  openFromPath();
 
   globalThis.RunApp = { openRouteText };
 })();

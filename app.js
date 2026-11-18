@@ -16,6 +16,7 @@ const { createPlacesRouter } = require('./routes/places');
 const { createPlaceSearch } = require('./lib/geocoding');
 
 const OPENAPI_FILE = path.join(__dirname, 'docs', 'openapi.yaml');
+const INDEX_HTML = path.join(__dirname, 'public', 'index.html');
 const SECURITY_TXT = path.join(__dirname, 'public', '.well-known', 'security.txt');
 const LOOPBACK = new Set(['127.0.0.1', '::1', '::ffff:127.0.0.1']);
 
@@ -60,6 +61,14 @@ function createApp({ weather, places, now = Date.now, rateLimit } = {}) {
     res.sendFile(SECURITY_TXT, error => {
       if (!error || res.headersSent) return undefined;
       return next(new Error('Could not send security.txt')); // never forward fs errors: they carry paths
+    });
+  });
+
+  // The page itself, which opens its Privacy dialog on load (public/app.js), so the policy has a link of its own.
+  app.get('/privacy', (req, res, next) => {
+    res.sendFile(INDEX_HTML, error => {
+      if (!error || res.headersSent) return undefined;
+      return next(new Error('Could not send index.html')); // never forward fs errors: they carry paths
     });
   });
 

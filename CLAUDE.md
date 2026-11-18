@@ -197,7 +197,9 @@ test approach. Read its `CLAUDE.md` first. Reuse rather than reinvent:
 - Method, API and Privacy open in `<dialog>`s from the header. On a phone (below `sm:`) they fold into `About ▾`
   (`#open-about`, `#about-menu`), a dropdown that closes like the network menu, so the header stays on one line. From
   `sm:` up the same buttons show as header links; `#about-menu` then keeps its `hidden` attribute, overridden by
-  `sm:[&[hidden]]:flex`. Opening About is not counted. Method explains the scoring in words;
+  `sm:[&[hidden]]:flex`. Opening About is not counted. `/privacy` serves the same `index.html`, which opens the
+  Privacy dialog on load (not counted: the page view names the path) and sets the address bar back to `/` once it
+  closes. Method explains the scoring in words;
   `tests/landing.test.js` checks its numbers against `SCORING` in `lib/windows.js`, so change both together. Copy API link confirms on the button itself (`Copied` or
   `Couldn't copy` for 2 s, announced by a hidden polite note), not in `#status`.
 - Default hours are `10-16`; there is no one-off duration.
