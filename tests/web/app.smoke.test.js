@@ -154,7 +154,7 @@ class QuietDOMParser extends DOMParser {
   }
 }
 
-function loadPage({ navigator = {}, stored = null, app = api, matchMedia, search = '' } = {}) {
+function loadPage({ navigator = {}, stored = null, app = api, matchMedia, search = '', pathname = '/' } = {}) {
   const elements = new Map();
   const created = [];
   const record = { fetches: [], capacity: [], storage: [], history: [] };
@@ -166,7 +166,7 @@ function loadPage({ navigator = {}, stored = null, app = api, matchMedia, search
     Blob,
     TextEncoder,
     DOMParser: QuietDOMParser,
-    location: { origin: ORIGIN, search },
+    location: { origin: ORIGIN, pathname, search },
     navigator,
     document: {
       body: fakeElement('body'),
@@ -455,6 +455,25 @@ describe('app.js privacy smoke test', () => {
       await submit(elements);
       expect(elements.get('place-note').textContent).toBe('Type at least 2 letters.');
       expect(record.fetches).toEqual([]);
+    });
+  });
+
+  describe('/privacy', () => {
+    it('opens the Privacy dialog on load, uncounted, and leaves the address bar at / once closed', () => {
+      const { elements, record, sandbox } = loadPage({ pathname: '/privacy/' });
+      const dialog = elements.get('privacy-dialog');
+      expect(dialog.open).toBe(true);
+      expect(elements.get('method-dialog').open).not.toBe(true);
+      expect(record.history).toEqual([]);
+      dialog.close();
+      dialog.listeners.close();
+      expect(record.history).toEqual(['/']);
+      expect((sandbox.plausible.q || []).filter(([name]) => name === 'Dialog')).toEqual([]);
+    });
+
+    it('leaves the dialogs closed on /', () => {
+      const { elements } = loadPage();
+      expect(elements.get('privacy-dialog').open).not.toBe(true);
     });
   });
 
